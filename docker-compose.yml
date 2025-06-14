@@ -1,5 +1,4 @@
 services:
-  # The Core Engine service (FastAPI backend)
   core:
     build:
       context: ./core
@@ -7,16 +6,13 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./core/app:/app/app
-      - ./core/tests:/app/tests
-    # Set the PYTHONPATH to the root of our code inside the container
+      - ./core:/app
     environment:
       - PYTHONPATH=/app
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     networks:
       - intentverse-net
 
-  # The MCP Interface service (fastmcp server)
   mcp:
     build:
       context: ./mcp
@@ -24,7 +20,7 @@ services:
     ports:
       - "8001:8001"
     volumes:
-      - ./mcp/app:/app/app
+      - ./mcp:/app
     environment:
       - PYTHONPATH=/app
     command: python app/main.py
@@ -33,7 +29,6 @@ services:
     networks:
       - intentverse-net
 
-  # The Web UI service (React/Vue/Svelte frontend)
   web:
     build:
       context: ./web

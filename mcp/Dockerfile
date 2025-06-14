@@ -12,7 +12,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the rest of the application's code from your host to your container at /app
-COPY ./app .
+COPY ./app ./app
 
 # Expose port 8001 to allow the AI model to connect
 EXPOSE 8001

@@ -13,7 +13,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the rest of the application's code from your host to your container at /app
-COPY ./app .
+COPY ./app ./app
 
 # Expose port 8000 to allow communication to/from the container
 EXPOSE 8000
