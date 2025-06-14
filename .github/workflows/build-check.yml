@@ -26,14 +26,30 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # Step 3: Build all service images and load them into the local Docker daemon.
-      - name: Build All Services
+      # Step 3: Build the "core" service image.
+      - name: Build Core Service
         uses: docker/build-push-action@v5
         with:
-          context: . # Build from the root context to find all Dockerfiles
+          context: ./core # Explicitly set the context for the core service
           push: false
           load: true
 
-      # Step 4: Run backend tests using pytest inside the 'core' container.
+      # Step 4: Build the "mcp" service image.
+      - name: Build MCP Service
+        uses: docker/build-push-action@v5
+        with:
+          context: ./mcp # Explicitly set the context for the mcp service
+          push: false
+          load: true
+
+      # Step 5: Build the "web" service image.
+      - name: Build Web Service
+        uses: docker/build-push-action@v5
+        with:
+          context: ./web # Explicitly set the context for the web service
+          push: false
+          load: true
+
+      # Step 6: Run backend tests using pytest inside the 'core' container.
       - name: Run Backend Tests
         run: docker-compose run --rm core pytest
