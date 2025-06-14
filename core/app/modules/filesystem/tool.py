@@ -10,12 +10,11 @@ class FileSystemTool:
     def __init__(self, state_manager: Any):
         self.state_manager = state_manager
         if 'filesystem' not in self.state_manager.get_full_state():
-            # The root node of our file system
             root = {'type': 'directory', 'name': '/', 'children': []}
             self.state_manager.set('filesystem', root)
 
     def _find_node_and_parent(self, path: str) -> Tuple[Optional[Dict], Optional[Dict]]:
-        """A helper to find a node and its parent given a path."""
+        """A helper to find an existing node and its parent given a path."""
         root = self.state_manager.get('filesystem')
         if path == '/':
             return root, None
@@ -24,9 +23,9 @@ class FileSystemTool:
         current_node = root
         parent_node = None
 
-        for i, part in enumerate(parts):
+        for part in parts:
             if current_node.get('type') != 'directory':
-                return None, None # Path is invalid
+                return None, None
 
             found_child = None
             for child in current_node.get('children', []):
@@ -37,12 +36,34 @@ class FileSystemTool:
                     break
 
             if not found_child:
-                # If it's the last part of the path, the node doesn't exist yet, but the parent does.
-                if i == len(parts) - 1:
-                    return None, current_node
-                return None, None
+                return None, parent_node if part == parts[-1] else None
 
         return current_node, parent_node
+
+    def _create_parent_dirs(self, path: str) -> Dict:
+        """Helper to create all necessary parent directories for a given path."""
+        root = self.state_manager.get('filesystem')
+        parts = [part for part in path.split('/') if part]
+
+        current_node = root
+        # Iterate through all parts except the last one (which is the filename)
+        for part in parts[:-1]:
+            if current_node.get('type') != 'directory':
+                raise HTTPException(status_code=400, detail=f"A part of the path '{part}' is a file, not a directory.")
+
+            found_child = None
+            for child in current_node.get('children', []):
+                if child.get('name') == part:
+                    current_node = child
+                    found_child = True
+                    break
+
+            if not found_child:
+                new_dir = {'type': 'directory', 'name': part, 'children': []}
+                current_node.get('children', []).append(new_dir)
+                current_node = new_dir
+
+        return current_node
 
     def list_files(self, path: str = '/') -> List[Dict[str, Any]]:
         """Lists files and directories at a given path."""
@@ -67,31 +88,29 @@ class FileSystemTool:
         if not path or path == '/':
             raise HTTPException(status_code=400, detail="Invalid file path.")
 
-        node, parent = self._find_node_and_parent(path)
-
-        if not parent:
-             raise HTTPException(status_code=404, detail=f"Parent directory not found for path: {path}")
-
+        parent_node = self._create_parent_dirs(path)
         file_name = path.split('/')[-1]
 
-        # If file exists, update it
-        if node and node.get('type') == 'file':
-            node['content'] = content
-        # If node exists but is a directory, it's an error
-        elif node and node.get('type') == 'directory':
-            raise HTTPException(status_code=400, detail=f"Cannot write to a directory: {path}")
-        # If file does not exist, create it
+        # Check if file already exists in the parent directory
+        existing_file = None
+        for child in parent_node.get('children', []):
+            if child.get('name') == file_name:
+                existing_file = child
+                break
+
+        if existing_file:
+            if existing_file.get('type') == 'directory':
+                raise HTTPException(status_code=400, detail=f"Cannot write to a directory: {path}")
+            existing_file['content'] = content
         else:
             new_file = {
                 "type": "file",
                 "name": file_name,
                 "content": content
             }
-            parent.get('children', []).append(new_file)
+            parent_node.get('children', []).append(new_file)
 
-        # IMPORTANT: Save the entire updated filesystem state back to the manager
         self.state_manager.set('filesystem', self.state_manager.get('filesystem'))
-
         return f"Successfully wrote to file: {path}"
 
     def delete_file(self, path: str) -> str:
