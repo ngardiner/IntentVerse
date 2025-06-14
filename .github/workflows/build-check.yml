@@ -1,0 +1,51 @@
+# The name of our GitHub Actions workflow. This will appear in the "Actions" tab.
+name: Build and Test Docker Images
+
+# This section defines when the workflow will run.
+on:
+  # Triggers the workflow on push events but only for the "main" branch.
+  push:
+    branches: [ "main" ]
+  # Allows you to run this workflow manually from the Actions tab.
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel.
+jobs:
+  # This workflow contains a single job called "build".
+  build:
+    # The type of runner that the job will run on. "ubuntu-latest" is a standard choice.
+    runs-on: ubuntu-latest
+
+    # Steps represent a sequence of tasks that will be executed as part of the job.
+    steps:
+      # Step 1: Check out the repository's code so the workflow can access it.
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Step 2: Set up Docker Buildx, which is a modern and efficient builder.
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Step 3: Build the "core" service image.
+      - name: Build Core Service
+        uses: docker/build-push-action@v5
+        with:
+          context: ./core # Path to the Dockerfile context.
+          push: false    # We only want to build, not push to a registry.
+          load: true     # Load the image into the local Docker daemon.
+
+      # Step 4: Build the "mcp" service image.
+      - name: Build MCP Service
+        uses: docker/build-push-action@v5
+        with:
+          context: ./mcp
+          push: false
+          load: true
+
+      # Step 5: Build the "web" service image.
+      - name: Build Web Service
+        uses: docker/build-push-action@v5
+        with:
+          context: ./web
+          push: false
+          load: true
