@@ -30,7 +30,7 @@ jobs:
       - name: Build Core Service
         uses: docker/build-push-action@v5
         with:
-          context: ./core # Explicitly set the context for the core service
+          context: ./core
           push: false
           load: true
 
@@ -38,7 +38,7 @@ jobs:
       - name: Build MCP Service
         uses: docker/build-push-action@v5
         with:
-          context: ./mcp # Explicitly set the context for the mcp service
+          context: ./mcp
           push: false
           load: true
 
@@ -46,10 +46,10 @@ jobs:
       - name: Build Web Service
         uses: docker/build-push-action@v5
         with:
-          context: ./web # Explicitly set the context for the web service
+          context: ./web
           push: false
           load: true
 
       # Step 6: Run backend tests using pytest inside the 'core' container.
       - name: Run Backend Tests
-        run: docker-compose run --rm core pytest
+        run: docker compose run --rm core pytest
