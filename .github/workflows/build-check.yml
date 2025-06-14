@@ -12,27 +12,22 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Note: We don't need the setup-buildx-action for this simpler approach.
-      # Docker Compose will handle the build process.
-
       - name: Build all service images
         run: docker compose build
 
       - name: Run Unit Tests
-        run: docker compose run --rm core pytest tests/test_filesystem_tool.py
+        # Use 'python -m pytest' to ensure correct pathing
+        run: docker compose run --rm core python -m pytest tests/test_filesystem_tool.py
 
       - name: Run End-to-End Tests
         run: |
-          # Start all services in the background
           docker compose up -d
-
-          # Give services a moment to start up
-          sleep 15 
-
-          # Run the E2E test script
-          docker compose run --rm core pytest tests/test_api_e2e.py
+          echo "Waiting for services to start..."
+          sleep 15
+          echo "Services started, running E2E tests..."
+          # Use 'python -m pytest' here as well
+          docker compose run --rm core python -m pytest tests/test_api_e2e.py
       
-      # This step will always run, even if tests fail, to ensure cleanup
       - name: Stop services
         if: always()
         run: docker compose down
