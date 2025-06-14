@@ -27,6 +27,13 @@ IntentVerse is built on a decoupled, microservices-lite architecture. This desig
     * Translates incoming MCP tool calls into HTTP requests to the Core Engine's API.
     * **Note on Security:** Authentication for this public-facing endpoint is deferred until an industry standard emerges for the MCP protocol. In its initial version, this endpoint will be unprotected.
 
+#### Dual-Mode Operation
+
+The MCP Interface is designed to run in two distinct modes to support different client use cases:
+
+1.  **Persistent Server (Streamable HTTP):** The default mode when run via `docker-compose`. It operates as a long-running network server, accepting multiple client connections. Ideal for remote or web-based agents.
+2.  **Ephemeral Instance (stdio):** The interface can also be invoked as a one-off process by a local client (e.g., `docker run -i ...`). In this mode, it communicates over `stdin/stdout` for a single session. This is made possible by our decoupled architecture, as the ephemeral instance can still connect to the persistent `core` service over the shared network.
+
 ### 3. The Web UI (The "Admin's Window")
 
 * **Purpose:** Provides the human user with a rich, visual interface to observe and manage the simulation.
