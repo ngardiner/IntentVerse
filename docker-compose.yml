@@ -1,20 +1,17 @@
-# Specifies the Docker Compose file format version.
-version: '3.8'
-
-# Defines the services (containers) that make up our application.
 services:
-
   # The Core Engine service (FastAPI backend)
   core:
     build:
       context: ./core
     container_name: intentverse-core
     ports:
-      # Exposes port 8000 on the host to the container's port 8000 for direct API access/debugging.
       - "8000:8000"
     volumes:
-      # Mounts the local 'core' directory into the container for live code reloading.
-      - ./core:/app
+      - ./core/app:/app/app
+      - ./core/tests:/app/tests
+    # Set the PYTHONPATH to the root of our code inside the container
+    environment:
+      - PYTHONPATH=/app
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     networks:
       - intentverse-net
@@ -25,12 +22,12 @@ services:
       context: ./mcp
     container_name: intentverse-mcp
     ports:
-      # Exposes port 8001 for the AI model to connect to.
       - "8001:8001"
     volumes:
-      # Mounts the local 'mcp' directory into the container for live code reloading.
-      - ./mcp:/app
-    command: python app/main.py # We will refine this command as we build the server.
+      - ./mcp/app:/app/app
+    environment:
+      - PYTHONPATH=/app
+    command: python app/main.py
     depends_on:
       - core
     networks:
@@ -42,21 +39,17 @@ services:
       context: ./web
     container_name: intentverse-web
     ports:
-      # Exposes port 3000 for accessing the web interface in a browser.
       - "3000:3000"
     volumes:
-      # Mounts the local 'web' directory into the container for live code reloading.
       - ./web:/app
     environment:
-      # Ensures file changes are detected correctly within Docker for live reload.
       - WATCHPACK_POLLING=true
-    command: npm start # This assumes a standard Create React App setup.
+    command: npm start
     depends_on:
       - core
     networks:
       - intentverse-net
 
-# Defines the network that allows containers to communicate with each other by service name.
 networks:
   intentverse-net:
     driver: bridge
