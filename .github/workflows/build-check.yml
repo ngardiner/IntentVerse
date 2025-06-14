@@ -1,55 +1,57 @@
-# The name of our GitHub Actions workflow. This will appear in the "Actions" tab.
 name: Build and Test Docker Images
 
-# This section defines when the workflow will run.
 on:
-  # Triggers the workflow on push events but only for the "main" branch.
   push:
     branches: [ "main" ]
-  # Allows you to run this workflow manually from the Actions tab.
   workflow_dispatch:
 
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel.
 jobs:
-  # This workflow contains a single job called "build-and-test".
-  build-and-test:
-    # The type of runner that the job will run on. "ubuntu-latest" is a standard choice.
+  # Job 1: Run fast unit tests first
+  unit-tests:
     runs-on: ubuntu-latest
-
-    # Steps represent a sequence of tasks that will be executed as part of the job.
     steps:
-      # Step 1: Check out the repository's code so the workflow can access it.
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Step 2: Set up Docker Buildx, which is a modern and efficient builder.
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # Step 3: Build the "core" service image.
-      - name: Build Core Service
+      - name: Build Core Service Image
         uses: docker/build-push-action@v5
         with:
           context: ./core
           push: false
           load: true
 
-      # Step 4: Build the "mcp" service image.
-      - name: Build MCP Service
-        uses: docker/build-push-action@v5
-        with:
-          context: ./mcp
-          push: false
-          load: true
+      - name: Run Unit Tests
+        run: docker run --rm intentverse-core:latest pytest tests/test_filesystem_tool.py
+        # Note: We use `docker run` here for speed, no networking needed.
 
-      # Step 5: Build the "web" service image.
-      - name: Build Web Service
-        uses: docker/build-push-action@v5
-        with:
-          context: ./web
-          push: false
-          load: true
+  # Job 2: Run slower end-to-end tests only if unit tests pass
+  e2e-tests:
+    runs-on: ubuntu-latest
+    needs: unit-tests # This job depends on the success of the 'unit-tests' job
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      # Step 6: Run backend tests using pytest inside the 'core' container.
-      - name: Run Backend Tests
-        run: docker compose run --rm core pytest
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # We need to build all images for the compose stack to be valid
+      - name: Build All Services
+        run: docker compose build
+
+      - name: Start services
+        run: docker compose up -d
+
+      - name: Wait for services to be ready
+        run: sleep 10 # A simple wait; more robust checks can be added later
+
+      - name: Run End-to-End Tests
+        run: docker compose run --rm core pytest tests/test_api_e2e.py
+
+      # This step will always run, even if the tests fail, to ensure cleanup.
+      - name: Stop services
+        if: always()
+        run: docker compose down
