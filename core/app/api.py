@@ -1,5 +1,6 @@
-from fastapi import APIRouter, Path
-from typing import Dict, Any
+import inspect
+from fastapi import APIRouter, Path, HTTPException
+from typing import Dict, Any, List
 
 from .module_loader import ModuleLoader
 from .state_manager import state_manager
@@ -29,25 +30,63 @@ def create_api_routes(module_loader: ModuleLoader) -> APIRouter:
         """
         state = state_manager.get(module_name)
         if state is None:
-            return {"error": f"No state found for module: {module_name}"}
+            raise HTTPException(status_code=404, detail=f"No state found for module: {module_name}")
         return state
 
     # --- MCP Endpoints ---
 
+    @router.get("/tools/manifest")
+    def get_tools_manifest() -> List[Dict[str, Any]]:
+        """
+        NEW: Inspects all loaded tool classes and returns a detailed manifest.
+        The MCP Interface uses this to know which tools to register.
+        """
+        manifest = []
+        tools = module_loader.get_tools()
+        for module_name, tool_instance in tools.items():
+            # Find all public methods on the tool instance
+            for method_name, method in inspect.getmembers(tool_instance, inspect.ismethod):
+                if not method_name.startswith('_'):
+                    full_tool_name = f"{module_name}.{method_name}"
+                    docstring = inspect.getdoc(method) or "No description available."
+                    
+                    # You could add more detailed parameter inspection here if needed
+                    
+                    manifest.append({
+                        "name": full_tool_name,
+                        "description": docstring,
+                        "parameters": {} # Placeholder for parameter schema
+                    })
+        return manifest
+
     @router.post("/execute")
-    def execute_tool(payload: Dict[str, Any]) -> Dict[str, Any]:
+    async def execute_tool(payload: Dict[str, Any]) -> Dict[str, Any]:
         """
         The main endpoint for executing a tool command.
         The MCP interface will call this endpoint.
-        NOTE: This is a placeholder for the MVP.
+        NOTE: Logic needs to be implemented.
         """
-        # A real implementation would:
-        # 1. Parse the payload for module, tool name, and params.
-        # 2. Find the correct tool instance from module_loader.get_tools().
-        # 3. Call the appropriate method on the instance.
-        # 4. Return the result.
-        print(f"Executing tool with payload: {payload}")
-        return {"status": "success", "result": "Placeholder result from tool execution."}
+        tool_full_name = payload.get("tool_name")
+        parameters = payload.get("parameters", {})
 
+        if not tool_full_name:
+            raise HTTPException(status_code=400, detail="`tool_name` is required.")
+        
+        module_name, method_name = tool_full_name.split('.')
+        
+        tools = module_loader.get_tools()
+        tool_instance = tools.get(module_name)
+
+        if not tool_instance or not hasattr(tool_instance, method_name):
+            raise HTTPException(status_code=404, detail=f"Tool '{tool_full_name}' not found.")
+
+        method_to_call = getattr(tool_instance, method_name)
+        
+        # In a real implementation, you would inspect method_to_call
+        # and pass parameters correctly.
+        result = method_to_call(**parameters)
+
+        print(f"Executing tool '{tool_full_name}' with parameters: {parameters}")
+        return {"status": "success", "result": result}
 
     return router
