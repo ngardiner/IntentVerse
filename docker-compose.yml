@@ -10,8 +10,6 @@ services:
     environment:
       - PYTHONPATH=/app
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-    networks:
-      - intentverse-net
 
   mcp:
     build:
@@ -26,8 +24,6 @@ services:
     command: python app/main.py
     depends_on:
       - core
-    networks:
-      - intentverse-net
 
   web:
     build:
@@ -42,9 +38,7 @@ services:
     command: npm start
     depends_on:
       - core
-    networks:
-      - intentverse-net
 
 networks:
-  intentverse-net:
-    driver: bridge
+  default:
+    name: intentverse-net
