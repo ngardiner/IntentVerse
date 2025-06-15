@@ -9,6 +9,12 @@ services:
       - ./core:/app
     environment:
       - PYTHONPATH=/app
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
   mcp:
@@ -23,7 +29,8 @@ services:
       - PYTHONPATH=/app
     command: python app/main.py
     depends_on:
-      - core
+      core:
+        condition: service_healthy
 
   web:
     build:
