@@ -59,7 +59,6 @@ services:
     depends_on:
       core:
         condition: service_healthy
-    # Add this profiles key:
     profiles:
       - tests
 

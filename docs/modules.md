@@ -4,7 +4,7 @@ IntentVerse includes a number of modules which implement mock tool functionality
 
 ## Email
 
-The email module presents a mock functional email platform to the LLM, exposing tools to **read** and **send** emails.
+The email module presents a mock functional email platform to the LLM, exposing tools to **list**, **read** and **send** emails.
 
 ## Filesystem
 

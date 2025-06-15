@@ -2,7 +2,7 @@ import httpx
 from typing import Dict, Any, List
 
 # The base URL for the core service API, using the Docker service name.
-CORE_API_URL = "http://core:8000"
+CORE_API_URL = os.environ.get("CORE_API_URL", "http://core:8000")
 
 class CoreClient:
     """
