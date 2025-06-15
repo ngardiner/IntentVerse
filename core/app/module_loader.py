@@ -1,82 +1,69 @@
 import importlib
+import inspect
 from pathlib import Path
-from typing import Any, Dict, Type
+from typing import Dict, Any, Type
+import logging
 
 from .state_manager import StateManager
+from .tools.base import BaseTool
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+log = logging.getLogger(__name__)
 
 class ModuleLoader:
     """
-    Dynamically discovers and loads modules from the 'modules' directory.
-
-    For each module found, it imports its 'tool.py' and 'schema.py',
-    instantiates the tool class with the shared state_manager, and stores
-    both the tool instance and the UI schema for later use.
+    Dynamically loads tool modules from the 'modules' directory,
+    initializes them, and provides access to them.
     """
 
     def __init__(self, state_manager: StateManager):
-        """
-        Initializes the ModuleLoader.
-
-        Args:
-            state_manager: The shared instance of the StateManager.
-        """
         self.state_manager = state_manager
-        self.tools: Dict[str, Any] = {}
-        self.schemas: Dict[str, Any] = {}
+        self.modules: Dict[str, BaseTool] = {}
+        self.modules_path = Path(__file__).parent / "modules"
+        self.errors = [] # To store any errors encountered during loading
 
     def load_modules(self):
         """
-        Scans the 'modules' directory and loads each module.
+        Scans the 'modules' directory, imports the 'tool.py' from each sub-directory,
+        finds the class inheriting from BaseTool, and instantiates it.
         """
-        modules_path = Path(__file__).parent / "modules"
-        print(f"Scanning for modules in: {modules_path}")
+        log.info(f"Starting module scan in: {self.modules_path}")
+        if not self.modules_path.is_dir():
+            log.error(f"Modules directory not found at {self.modules_path}")
+            self.errors.append(f"Modules directory not found at {self.modules_path}")
+            return
 
-        for module_dir in modules_path.iterdir():
+        for module_dir in self.modules_path.iterdir():
             if module_dir.is_dir() and (module_dir / "__init__.py").exists():
                 module_name = module_dir.name
-                print(f"Found module: {module_name}")
+                log.info(f"Found potential module package: '{module_name}'")
                 try:
-                    self._load_single_module(module_name)
+                    # Dynamically import the 'tool' submodule from the package
+                    tool_module = importlib.import_module(
+                        f".modules.{module_name}.tool", package="app"
+                    )
+                    log.info(f"Successfully imported module: {tool_module.__name__}")
+
+                    # Find the class that inherits from BaseTool within the imported module
+                    for name, obj in inspect.getmembers(tool_module):
+                        if inspect.isclass(obj) and issubclass(obj, BaseTool) and obj is not BaseTool:
+                            log.info(f"Found tool class '{name}' in '{module_name}'")
+                            # Instantiate the tool with the state manager
+                            self.modules[module_name] = obj(self.state_manager)
+                            log.info(f"Successfully loaded and instantiated tool: '{module_name}'")
+                            break
+                except ImportError as e:
+                    log.error(f"Could not import tool from module '{module_name}': {e}")
+                    self.errors.append(f"ImportError in {module_name}: {e}")
                 except Exception as e:
-                    print(f"Error loading module '{module_name}': {e}")
+                    log.error(f"An unexpected error occurred loading module '{module_name}': {e}")
+                    self.errors.append(f"Exception in {module_name}: {e}")
 
-    def _load_single_module(self, module_name: str):
-        """
-        Loads the tool and schema for a single module.
-        """
-        # Dynamically import the tool and schema modules
-        tool_module = importlib.import_module(f".modules.{module_name}.tool", package="app")
-        schema_module = importlib.import_module(f".modules.{module_name}.schema", package="app")
+    def get_tool(self, tool_name: str) -> BaseTool | None:
+        """Returns the instance of a loaded tool by its name."""
+        return self.modules.get(tool_name)
 
-        # Find the tool class within the tool module (assuming one class per file)
-        tool_class = self._find_class_in_module(tool_module)
-        if not tool_class:
-            raise ImportError(f"No tool class found in module '{module_name}'")
-
-        # Instantiate the tool class, passing the state manager
-        tool_instance = tool_class(self.state_manager)
-        self.tools[module_name] = tool_instance
-        print(f"  - Loaded tool: {tool_class.__name__}")
-
-        # Load the UI schema
-        ui_schema = getattr(schema_module, "UI_SCHEMA", {})
-        self.schemas[module_name] = ui_schema
-        print(f"  - Loaded UI schema")
-
-
-    def _find_class_in_module(self, module: Any) -> Type[Any] | None:
-        """
-        A helper to find the first class defined in a given module.
-        """
-        for name, obj in module.__dict__.items():
-            if isinstance(obj, type) and obj.__module__ == module.__name__:
-                return obj
-        return None
-
-    def get_tools(self) -> Dict[str, Any]:
-        """Returns the dictionary of loaded tool instances."""
-        return self.tools
-
-    def get_schemas(self) -> Dict[str, Any]:
-        """Returns the dictionary of loaded UI schemas."""
-        return self.schemas
+    def get_all_tools(self) -> Dict[str, BaseTool]:
+        """Returns a dictionary of all loaded tool instances."""
+        return self.modules

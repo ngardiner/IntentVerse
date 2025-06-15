@@ -1,31 +1,48 @@
-from fastapi import FastAPI
-from .state_manager import state_manager
+from fastapi import FastAPI, APIRouter
+from typing import Dict, Any
+
+from .state_manager import StateManager
 from .module_loader import ModuleLoader
 from .api import create_api_routes
 
 # --- Application Initialization ---
+app = FastAPI(
+    title="IntentVerse Core Engine",
+    description="Manages state, tools, and logic for the IntentVerse simulation.",
+    version="0.1.0",
+)
 
-# Create the main FastAPI application instance
-app = FastAPI(title="IntentVerse Core Engine")
-
-# Create a single instance of the ModuleLoader and pass the shared state_manager
+state_manager = StateManager()
 loader = ModuleLoader(state_manager)
-
-# Discover and load all modules from the 'modules' directory
 loader.load_modules()
 
-# Create the API routes and pass the loader instance to it
+# Create the main API routes, passing the loader to them.
 api_router = create_api_routes(loader)
+app.include_router(api_router, prefix="/api/v1")
 
-# Include the API router in our main application
-app.include_router(api_router)
+# Create a new, separate router for debug endpoints
+debug_router = APIRouter()
+
+@debug_router.get("/debug/module-loader-state", tags=["Debug"])
+def get_module_loader_state():
+    """
+    Returns a snapshot of the ModuleLoader's state for debugging purposes.
+    This allows us to see from the outside what the server sees on the inside.
+    """
+    return {
+        "modules_path_calculated": str(loader.modules_path),
+        "modules_path_exists": loader.modules_path.exists(),
+        "loading_errors": loader.errors,
+        "loaded_modules": list(loader.modules.keys())
+    }
+
+app.include_router(debug_router, prefix="/api/v1")
 
 
 # --- Root Endpoint ---
-
-@app.get("/")
-def read_root():
+@app.get("/", tags=["Root"])
+async def read_root():
     """
     A simple root endpoint to confirm the server is running.
     """
-    return {"message": "IntentVerse Core Engine is running."}
+    return {"message": "Welcome to the IntentVerse Core Engine"}
