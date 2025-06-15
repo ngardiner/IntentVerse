@@ -35,6 +35,7 @@ services:
   web:
     build:
       context: ./web
+    working_dir: /app
     container_name: intentverse-web
     ports:
       - "3000:3000"
@@ -43,7 +44,6 @@ services:
       - /app/node_modules
     environment:
       - WATCHPACK_POLLING=true
-    command: npm start
     depends_on:
       - core
 
