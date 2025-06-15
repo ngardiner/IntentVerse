@@ -44,7 +44,7 @@ services:
       - /app/node_modules
     environment:
       - WATCHPACK_POLLING=true
-    command: /app/node_modules/.bin/react-scripts start
+    command: ["/app/node_modules/.bin/react-scripts", "start"]
     depends_on:
       - core
 
