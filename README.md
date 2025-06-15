@@ -10,7 +10,7 @@ As AI agents become more powerful, they need to interact with external tools lik
 * **Observability:** It's difficult to understand *what* an agent is trying to do. Logs of API calls are abstract and don't show the *consequences* of the agent's actions.
 * **Reproducibility:** Setting up consistent, stateful testing environments is complex and time-consuming.
 
-## Our Solution
+## Solution
 
 IntentVerse solves these problems by creating a high-fidelity mock environment. It's a "padded room" for your AI, with a one-way mirror for you to watch through.
 
@@ -29,7 +29,7 @@ IntentVerse solves these problems by creating a high-fidelity mock environment. 
 * **Secure User Authentication:** Standard JWT-based authentication for the web interface.
 * **Schema-Driven UI:** A fully dynamic interface that renders based on the modules you have installed.
 * **MCP Compliant:** Uses the standard Model Context Protocol (MCP) for communication with AI models.
-* **Core Modules:** Comes with pre-built **File System** and **Email** modules.
+* **Core Modules:** Comes with pre-built **File System**, **Email** and **Memory** modules.
 * **Pluggable Tools:** Designed from the ground up to be modular and extensible.
 * **External Logging:** Emits structured logs for easy integration with any observability platform.
 
