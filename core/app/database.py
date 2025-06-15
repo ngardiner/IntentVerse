@@ -18,3 +18,10 @@ def create_db_and_tables():
     # This command inspects the engine and creates the tables if they don't exist.
     SQLModel.metadata.create_all(engine)
     print("Database and tables initialized.")
+
+def get_session():
+    """
+    Dependency function that provides a database session to the API endpoints.
+    """
+    with Session(engine) as session:
+        yield session

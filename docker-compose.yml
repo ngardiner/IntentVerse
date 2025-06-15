@@ -44,8 +44,7 @@ services:
       - /app/node_modules
     environment:
       - WATCHPACK_POLLING=true
-    command: ["/app/node_modules/.bin/react-scripts", "start"]
-    entrypoint: ""
+      - CHOKIDAR_USEPOLLING=true
     depends_on:
       - core
 
