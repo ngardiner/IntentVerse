@@ -5,7 +5,7 @@ from typing import Dict, Any, Type
 import logging
 
 from .state_manager import StateManager
-from ..base_tool import BaseTool
+from .modules.base_tool import BaseTool
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
