@@ -1,22 +1,19 @@
-# Use an official Node.js image. Alpine versions are lightweight.
-FROM node:20-alpine
-
-# Set the working directory in the container to /app
+# Stage 1 - Use an official Node.js image. Alpine versions are lightweight.
+FROM node:20-alpine AS builder
 WORKDIR /app
-
-# Copy package.json and package-lock.json (if available)
-# This is done first to leverage Docker's layer caching for dependencies.
 COPY package*.json ./
-
-# Install project dependencies
+# Install all dependencies
 RUN npm install
 
-# Copy the rest of the application's code from your host to your container at /app
+# Stage 2: The final, clean image for running the application
+FROM node:20-alpine
+WORKDIR /app
+# This is the crucial step: Copy the pre-built node_modules from the 'builder' stage.
+# This solves the volume mounting problem.
+COPY --from=builder /app/node_modules ./node_modules
+# Copy the application source code.
 COPY . .
-
-# Your app binds to port 3000, so you'll want to expose it
+# Expose the port React runs on.
 EXPOSE 3000
-
-# The CMD to run the app is specified in the docker-compose.yml for development.
-# But we can add a default one here as well.
+# The command to start the web server.
 CMD ["npm", "start"]
