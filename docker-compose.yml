@@ -40,7 +40,7 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - ./web:/app
+      - ./web/src:/app/src
     environment:
       - WATCHPACK_POLLING=true
       - CHOKIDAR_USEPOLLING=true
