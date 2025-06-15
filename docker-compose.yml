@@ -45,6 +45,7 @@ services:
     environment:
       - WATCHPACK_POLLING=true
     command: ["/app/node_modules/.bin/react-scripts", "start"]
+    entrypoint: ""
     depends_on:
       - core
 
