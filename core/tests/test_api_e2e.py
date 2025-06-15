@@ -45,3 +45,72 @@ def test_write_and_read_end_to_end():
 
     assert found_file is not None, "The newly written file was not found in the state."
     assert found_file.get("type") == "file"
+
+@pytest.mark.asyncio
+async def test_execute_non_existent_tool_returns_404():
+    """
+    Verifies that the API returns a 404 Not Found error when a request
+    is made to execute a tool that does not exist.
+    """
+    # Arrange: Define a payload for a tool that should not be registered.
+    payload = {
+        "tool_name": "nonexistent.tool",
+        "parameters": {}
+    }
+    
+    # Act: Make the POST request using an async client.
+    async with httpx.AsyncClient() as client:
+        response = await client.post(f"{CORE_API_URL}/api/v1/execute", json=payload)
+
+    # Assert: Check for a 404 status code and a specific error message.
+    assert response.status_code == 404
+    
+    error_details = response.json()
+    assert "detail" in error_details
+    assert "Module 'nonexistent' not found" in error_details["detail"]
+
+
+@pytest.mark.asyncio
+async def test_memory_module_set_and_get_e2e():
+    """
+    Performs an end-to-end test of the Memory module, verifying both
+    the 'set_memory' and 'get_memory' tool calls via the API.
+    """
+    # Arrange: Define a key and value to be stored in memory.
+    test_key = "e2e_test_key_456"
+    test_value = "This is a value stored for an async E2E run."
+
+    async with httpx.AsyncClient() as client:
+        # --- Step 1: Set a value using the 'set_memory' tool ---
+        set_payload = {
+            "tool_name": "memory.set_memory",
+            "parameters": {
+                "key": test_key,
+                "value": test_value
+            }
+        }
+        
+        # Act: Call the 'set_memory' tool.
+        set_response = await client.post(f"{CORE_API_URL}/api/v1/execute", json=set_payload)
+        
+        # Assert: Ensure the call was successful.
+        assert set_response.status_code == 200
+        set_result = set_response.json()
+        assert set_result.get("status") == "success"
+
+        # --- Step 2: Get the value back using the 'get_memory' tool ---
+        get_payload = {
+            "tool_name": "memory.get_memory",
+            "parameters": {
+                "key": test_key
+            }
+        }
+
+        # Act: Call the 'get_memory' tool.
+        get_response = await client.post(f"{CORE_API_URL}/api/v1/execute", json=get_payload)
+
+        # Assert: Ensure the call was successful and returned the correct value.
+        assert get_response.status_code == 200
+        get_result = get_response.json()
+        assert "result" in get_result
+        assert get_result["result"] == test_value

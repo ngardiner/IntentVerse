@@ -40,6 +40,7 @@ services:
       - "3000:3000"
     volumes:
       - ./web:/app
+      - /app/node_modules
     environment:
       - WATCHPACK_POLLING=true
     command: npm start
@@ -52,7 +53,6 @@ services:
     container_name: intentverse-tests
     volumes:
       - ./core:/app
-      - /app/node_modules
     environment:
       - PYTHONPATH=/app
     command: ["python", "-m", "pytest"]
