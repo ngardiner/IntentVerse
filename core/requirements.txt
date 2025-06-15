@@ -4,3 +4,4 @@ pytest
 httpx
 sqlmodel
 passlib[bcrypt]
+python-jose[cryptography]

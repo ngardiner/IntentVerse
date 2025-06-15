@@ -1,15 +1,30 @@
 from fastapi import FastAPI, APIRouter
 from typing import Dict, Any
+from contextlib import asynccontextmanager
 
 from .state_manager import StateManager
 from .module_loader import ModuleLoader
 from .api import create_api_routes
+from .auth import router as auth_router
+from .database import create_db_and_tables
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # This code runs on server startup
+    print("--- IntentVerse Core Engine Starting Up ---")
+    create_db_and_tables()
+    # Discover and load all modules from the 'modules' directory
+    loader.load_modules()
+    yield
+    # This code runs on server shutdown
+    print("--- IntentVerse Core Engine Shutting Down ---")
 
 # --- Application Initialization ---
 app = FastAPI(
     title="IntentVerse Core Engine",
     description="Manages state, tools, and logic for the IntentVerse simulation.",
     version="0.1.0",
+    lifespan=lifespan,
 )
 
 state_manager = StateManager()
@@ -19,6 +34,7 @@ loader.load_modules()
 # Create the main API routes, passing the loader to them.
 api_router = create_api_routes(loader)
 app.include_router(api_router, prefix="/api/v1")
+app.include_router(auth_router)
 
 # Create a new, separate router for debug endpoints
 debug_router = APIRouter()
