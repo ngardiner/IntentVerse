@@ -15,21 +15,5 @@ jobs:
       - name: Build all service images
         run: docker compose build
 
-      - name: Run Unit Tests
-        run: docker compose run --rm core python -m pytest tests/test_filesystem_tool.py
-
-      - name: Run End-to-End Tests and Diagnostics
-        run: |
-          docker compose up -d
-          echo "Waiting for services to start..."
-          sleep 15
-          
-          echo "--- [STEP 1] Running Server Diagnostics ---"
-          docker compose run --rm core python -m pytest tests/test_server_diagnostics.py
-          
-          echo "--- [STEP 2] Running E2E Tests ---"
-          docker compose run --rm core python -m pytest tests/test_api_e2e.py
-      
-      - name: Stop services
-        if: always()
-        run: docker compose down
+      - name: Run all tests
+        run: docker compose run --rm core python -m pytest
