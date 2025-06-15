@@ -4,7 +4,7 @@ import pytest
 
 # The base URL for the core API, which the test client will target.
 # It uses the service name 'core' from docker-compose, which Docker's internal DNS resolves.
-CORE_API_URL = "http://core:8000"
+CORE_API_URL = os.environ.get("CORE_API_URL", "http://core:8000")
 
 @pytest.mark.e2e
 def test_server_module_loader_diagnostics():

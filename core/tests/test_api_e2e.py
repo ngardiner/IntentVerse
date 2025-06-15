@@ -3,7 +3,7 @@ import httpx
 import time
 
 # The URL of our core service, as seen from within the Docker network
-CORE_API_URL = "http://core:8000"
+CORE_API_URL = os.environ.get("CORE_API_URL", "http://core:8000")
 
 @pytest.mark.e2e
 def test_write_and_read_end_to_end():

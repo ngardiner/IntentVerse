@@ -16,4 +16,4 @@ jobs:
         run: docker compose build
 
       - name: Run all tests
-        run: docker compose run --rm core python -m pytest
+        run: docker compose --profile tests up --build --exit-code-from tests

@@ -1,6 +1,7 @@
+from ..base_tool import BaseTool
 from typing import Any, Dict, List, Optional
 
-class MemoryTool:
+class MemoryTool(BaseTool):
     """
     Implements the logic for a simple key-value memory store.
     This class interacts with the global state managed by the StateManager.

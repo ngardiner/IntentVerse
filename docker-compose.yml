@@ -46,6 +46,22 @@ services:
     depends_on:
       - core
 
+  tests:
+    build:
+      context: ./core
+    container_name: intentverse-tests
+    volumes:
+      - ./core:/app
+    environment:
+      - PYTHONPATH=/app
+    command: ["python", "-m", "pytest"]
+    depends_on:
+      core:
+        condition: service_healthy
+    # Add this profiles key:
+    profiles:
+      - tests
+      
 networks:
   default:
     name: intentverse-net

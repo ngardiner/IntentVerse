@@ -1,6 +1,7 @@
+from ..base_tool import BaseTool
 from typing import Any, Dict, List
 
-class EmailTool:
+class EmailTool(BaseTool):
     """
     Implements the logic for email tools.
     This class interacts with the global state managed by the StateManager.

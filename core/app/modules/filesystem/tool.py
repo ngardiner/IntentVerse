@@ -1,7 +1,8 @@
+from ..base_tool import BaseTool
 from typing import Any, Dict, List, Optional, Tuple
 from fastapi import HTTPException
 
-class FileSystemTool:
+class FileSystemTool(BaseTool):
     """
     Implements the logic for a fully functional, in-memory file system.
     This class interacts with the global state managed by the StateManager.
