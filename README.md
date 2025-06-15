@@ -1,5 +1,7 @@
 # IntentVerse
 
+![Build Status](https://github.com/ngardiner/IntentVerse/actions/workflows/build-check.yml/badge.svg)
+
 **IntentVerse is a dynamic, open-source AI MCP tool sandbox. It provides a safe and observable environment for developing, testing, and understanding AI agent/MCP tool interactions.**
 
 ## The Problem
