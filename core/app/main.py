@@ -29,11 +29,10 @@ app = FastAPI(
 
 state_manager = StateManager()
 loader = ModuleLoader(state_manager)
-loader.load_modules()
 
 # Create the main API routes, passing the loader to them.
 api_router = create_api_routes(loader)
-app.include_router(api_router, prefix="/api/v1")
+app.include_router(api_router)
 app.include_router(auth_router)
 
 # Create a new, separate router for debug endpoints

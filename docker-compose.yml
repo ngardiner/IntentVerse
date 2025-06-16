@@ -27,6 +27,12 @@ services:
       - ./mcp:/app
     environment:
       - PYTHONPATH=/app
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
     command: python app/main.py
     depends_on:
       core:

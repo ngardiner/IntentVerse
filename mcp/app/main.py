@@ -1,6 +1,6 @@
 import sys
 import asyncio
-from fastmcp import FastMCPServer
+from fastmcp import FastMCP
 
 # Import the components we just built
 from .registrar import ToolRegistrar
@@ -20,7 +20,7 @@ async def main():
     tool_registrar = ToolRegistrar(core_client)
 
     # Create the FastMCPServer instance
-    server = FastMCPServer(
+    server = FastMCP(
         title="IntentVerse Mock Tool Server",
         description="A server exposing mock tools for AI agent testing.",
     )
