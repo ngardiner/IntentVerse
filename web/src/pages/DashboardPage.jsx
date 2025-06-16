@@ -1,12 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { getUILayout } from '../api/client';
 
-// We will create these generic components next.
-// For now, we'll use placeholder divs.
-const GenericFileTree = ({ title }) => <div className="module-placeholder"><h2>{title}</h2><p>(File Tree Component)</p></div>;
-const GenericTable = ({ title }) => <div className="module-placeholder"><h2>{title}</h2><p>(Table Component)</p></div>;
-const GenericKeyValue = ({ title }) => <div className="module-placeholder"><h2>{title}</h2><p>(Key-Value Component)</p></div>;
-
+// Import the actual generic components
+import GenericFileTree from '../components/generic/GenericFileTree';
+import GenericTable from '../components/generic/GenericTable';
+import GenericKeyValue from '../components/generic/GenericKeyValue';
 
 const DashboardPage = () => {
   const [layout, setLayout] = useState([]);
@@ -22,7 +20,7 @@ const DashboardPage = () => {
         setLayout(response.data.modules || []);
         setError(null);
       } catch (err) {
-        setError("Failed to fetch UI layout from the server.");
+        setError("Failed to fetch UI layout from the server. Please ensure the core service is running.");
         console.error(err);
       } finally {
         setLoading(false);
@@ -35,31 +33,48 @@ const DashboardPage = () => {
   const renderComponent = (moduleSchema) => {
     // This function acts as a factory, returning the correct
     // generic component based on the schema from the backend.
+    const props = {
+      key: moduleSchema.module_id,
+      title: moduleSchema.display_name,
+      ...moduleSchema
+    };
+
     switch (moduleSchema.component_type) {
       case 'file_tree':
-        return <GenericFileTree key={moduleSchema.module_id} {...moduleSchema} />;
+        return <GenericFileTree {...props} />;
       case 'table':
-        return <GenericTable key={moduleSchema.module_id} {...moduleSchema} />;
+        return <GenericTable {...props} />;
       case 'key_value_viewer':
-        return <GenericKeyValue key={moduleSchema.module_id} {...moduleSchema} />;
+        return <GenericKeyValue {...props} />;
       default:
-        return <div key={moduleSchema.module_id}>Unknown component type: {moduleSchema.component_type}</div>;
+        return (
+          <div key={moduleSchema.module_id} className="module-container">
+            <h2>{moduleSchema.display_name}</h2>
+            <p className="error-message">Unknown component type: {moduleSchema.component_type}</p>
+          </div>
+        );
     }
   };
 
   if (loading) {
-    return <div>Loading Dashboard...</div>;
+    return <div className="dashboard-container"><h1>Loading Dashboard...</h1></div>;
   }
 
   if (error) {
-    return <div className="error-message">{error}</div>;
+    return <div className="dashboard-container"><p className="error-message">{error}</p></div>;
   }
 
   return (
     <div className="dashboard-container">
-      <h1>IntentVerse Dashboard</h1>
       <div className="modules-grid">
         {layout.length > 0 ? (
           layout.map(renderComponent)
         ) : (
-          <p>No modules loaded
+          <p>No modules were loaded by the Core Engine.</p>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default DashboardPage;

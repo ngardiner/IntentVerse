@@ -137,6 +137,8 @@
     border-radius: 8px;
     padding: 1.5rem;
     border: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
   }
   
   .module-container h2 {
@@ -148,6 +150,7 @@
   }
   
   .module-content {
+    flex-grow: 1;
     max-height: 400px;
     overflow-y: auto;
   }
@@ -162,13 +165,22 @@
   
   /* --- File Tree Component --- */
   
-  .file-tree-root, .file-tree-root ul {
+  .file-tree-root,
+  .file-tree-root ul {
     list-style-type: none;
     padding-left: 1.5rem;
     margin: 0;
   }
   
-  .file-tree-root li {
+  .file-tree-root > li {
+    padding-left: 0; /* No padding for the absolute root element */
+  }
+  
+  .file-tree-root ul {
+      border-left: 1px dashed var(--border-color);
+  }
+  
+  .treenode {
     padding: 0.25rem 0;
   }
   
