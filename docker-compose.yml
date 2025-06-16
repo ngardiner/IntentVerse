@@ -33,7 +33,7 @@ services:
       timeout: 5s
       retries: 5
       start_period: 20s
-    command: python app/main.py
+    command: python -m app.main
     depends_on:
       core:
         condition: service_healthy
@@ -53,6 +53,12 @@ services:
       - CHOKIDAR_USEPOLLING=true
     depends_on:
       - core
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   tests:
     build:
