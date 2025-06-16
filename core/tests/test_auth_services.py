@@ -1,39 +1,6 @@
 import pytest
 from fastapi.testclient import TestClient
-from sqlmodel import Session, SQLModel, create_engine
-
-from app.main import app
-from app.database import get_session
 from app.security import get_password_hash, verify_password, create_access_token, decode_access_token
-from app.models import User
-
-# --- Test Database Setup ---
-
-# Use an in-memory SQLite database for testing
-DATABASE_URL = "sqlite:///:memory:"
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
-
-def override_get_session():
-    """Dependency override to use the test database session."""
-    with Session(engine) as session:
-        yield session
-
-# Apply the dependency override to the app
-app.dependency_overrides[get_session] = override_get_session
-
-@pytest.fixture(name="session")
-def session_fixture():
-    """Creates a fresh database session for each test and handles setup/teardown."""
-    SQLModel.metadata.create_all(engine)
-    with Session(engine) as session:
-        yield session
-    SQLModel.metadata.drop_all(engine)
-
-@pytest.fixture(name="client")
-def client_fixture():
-    """Provides a TestClient instance for making API requests."""
-    return TestClient(app)
-
 
 # --- Unit Tests for Security Functions ---
 
@@ -69,7 +36,7 @@ def test_create_user(client: TestClient):
     assert data["username"] == "testuser"
     assert "id" in data
 
-def test_create_duplicate_user(client: TestClient, session: Session):
+def test_create_duplicate_user(client: TestClient):
     """Tests that creating a user with an existing username fails."""
     # Create the first user
     client.post("/users/", json={"username": "duplicate", "password": "password123"})

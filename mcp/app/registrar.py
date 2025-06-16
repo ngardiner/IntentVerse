@@ -68,6 +68,6 @@ class ToolRegistrar:
 
             # Use the library's dynamic registration method.
             # It will inspect our proxy function's signature and docstring.
-            server.add_tool(func=dynamic_proxy)
+            server.add_tool(dynamic_proxy, name=tool_name)
 
             logging.info(f"  - Registered proxy for tool: '{tool_name}' with signature {dynamic_proxy.__signature__}")
