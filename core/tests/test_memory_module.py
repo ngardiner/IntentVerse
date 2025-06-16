@@ -10,7 +10,7 @@ def memory_tool() -> MemoryTool:
 
 def test_initialization(memory_tool: MemoryTool):
     """Tests that the memory tool initializes the state correctly."""
-    memories_state = memory_tool.state_manager.get('user_memories')
+    memories_state = memory_tool.state_manager.get('memory')
     assert memories_state is not None
     assert isinstance(memories_state, dict)
     assert len(memories_state) == 0
@@ -20,7 +20,7 @@ def test_set_and_get_memory(memory_tool: MemoryTool):
     memory_tool.set_memory(key="test_key", value="test_value")
     
     # Verify the state directly
-    memories = memory_tool.state_manager.get('user_memories')
+    memories = memory_tool.state_manager.get('memory')
     assert memories.get("test_key") == "test_value"
     
     # Verify via the get_memory tool method

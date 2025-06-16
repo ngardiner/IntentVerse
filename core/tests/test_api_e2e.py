@@ -68,8 +68,7 @@ async def test_execute_non_existent_tool_returns_404():
     
     error_details = response.json()
     assert "detail" in error_details
-    assert "Module 'nonexistent' not found" in error_details["detail"]
-
+    assert "Tool 'nonexistent.tool' not found" in error_details["detail"]
 
 @pytest.mark.asyncio
 async def test_memory_module_set_and_get_e2e():
