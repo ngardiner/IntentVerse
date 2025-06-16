@@ -1,5 +1,5 @@
 import inspect
-from fastapi import APIRouter, Path, HTTPException
+from fastapi import APIRouter, Path, HTTPException, Depends
 from typing import Dict, Any, List
 
 from .module_loader import ModuleLoader
@@ -38,55 +38,87 @@ def create_api_routes(module_loader: ModuleLoader) -> APIRouter:
     @router.get("/tools/manifest")
     def get_tools_manifest() -> List[Dict[str, Any]]:
         """
-        NEW: Inspects all loaded tool classes and returns a detailed manifest.
+        Inspects all loaded tool classes and returns a detailed manifest.
         The MCP Interface uses this to know which tools to register.
         """
         manifest = []
         tools = module_loader.get_tools()
         for module_name, tool_instance in tools.items():
-            # Find all public methods on the tool instance
+            # Find all public methods on the tool instance (ignore methods starting with '_')
             for method_name, method in inspect.getmembers(tool_instance, inspect.ismethod):
                 if not method_name.startswith('_'):
                     full_tool_name = f"{module_name}.{method_name}"
-                    docstring = inspect.getdoc(method) or "No description available."
+                    description = inspect.getdoc(method) or "No description available."
                     
-                    # You could add more detailed parameter inspection here if needed
-                    
+                    # Get parameters using inspect.signature
+                    sig = inspect.signature(method)
+                    parameters_schema = {
+                        "type": "object",
+                        "properties": {},
+                        "required": [],
+                    }
+                    for param in sig.parameters.values():
+                        if param.name == 'self':
+                            continue
+                        
+                        # A simple mapping from Python types to JSON schema types
+                        type_map = {str: "string", int: "integer", bool: "boolean", list: "array", dict: "object"}
+                        param_info = {"type": type_map.get(param.annotation, "string")}
+
+                        parameters_schema["properties"][param.name] = param_info
+                        
+                        if param.default == inspect.Parameter.empty:
+                            parameters_schema["required"].append(param.name)
+
                     manifest.append({
                         "name": full_tool_name,
-                        "description": docstring,
-                        "parameters": {} # Placeholder for parameter schema
+                        "description": description,
+                        "parameters": parameters_schema,
                     })
         return manifest
 
     @router.post("/execute")
-    async def execute_tool(payload: Dict[str, Any]) -> Dict[str, Any]:
+    def execute_tool(payload: Dict[str, Any]) -> Dict[str, Any]:
         """
-        The main endpoint for executing a tool command.
+        The main endpoint for executing a tool command from the MCP interface.
         The MCP interface will call this endpoint.
-        NOTE: Logic needs to be implemented.
         """
         tool_full_name = payload.get("tool_name")
         parameters = payload.get("parameters", {})
 
-        if not tool_full_name:
-            raise HTTPException(status_code=400, detail="`tool_name` is required.")
+        if not tool_full_name or '.' not in tool_full_name:
+            raise HTTPException(status_code=400, detail="`tool_name` is required in the format 'module.method'.")
         
-        module_name, method_name = tool_full_name.split('.')
-        
-        tools = module_loader.get_tools()
-        tool_instance = tools.get(module_name)
+        try:
+            module_name, method_name = tool_full_name.split('.', 1)
+        except ValueError:
+             raise HTTPException(status_code=400, detail="`tool_name` is invalid. Expected format 'module.method'.")
+
+        tool_instance = module_loader.get_tool(module_name)
 
         if not tool_instance or not hasattr(tool_instance, method_name):
             raise HTTPException(status_code=404, detail=f"Tool '{tool_full_name}' not found.")
 
-        method_to_call = getattr(tool_instance, method_name)
-        
-        # In a real implementation, you would inspect method_to_call
-        # and pass parameters correctly.
-        result = method_to_call(**parameters)
+        try:
+            method_to_call = getattr(tool_instance, method_name)
+            
+            # Validate required parameters are present
+            sig = inspect.signature(method_to_call)
+            for param in sig.parameters.values():
+                if param.name != 'self' and param.default == inspect.Parameter.empty and param.name not in parameters:
+                     raise HTTPException(status_code=422, detail=f"Missing required parameter for '{tool_full_name}': {param.name}")
 
-        print(f"Executing tool '{tool_full_name}' with parameters: {parameters}")
-        return {"status": "success", "result": result}
+            # Call the tool method with the provided parameters
+            result = method_to_call(**parameters)
+            
+            print(f"Executed tool '{tool_full_name}' with parameters: {parameters}")
+            return {"status": "success", "result": result}
+        except HTTPException as e:
+            # Re-raise HTTP exceptions from the tool logic (e.g., file not found)
+            raise e
+        except Exception as e:
+            # Catch any other unexpected errors from the tool execution
+            print(f"ERROR executing tool '{tool_full_name}': {e}")
+            raise HTTPException(status_code=500, detail=f"An error occurred while executing tool '{tool_full_name}': {str(e)}")
 
     return router

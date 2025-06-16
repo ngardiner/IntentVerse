@@ -1,4 +1,4 @@
-from fastmcp import FastMCPServer
+from fastmcp import FastMCP
 from typing import Dict, Any
 
 from .core_client import CoreClient
@@ -6,7 +6,7 @@ from .core_client import CoreClient
 class ToolRegistrar:
     """
     Handles the dynamic registration of tools from the Core Engine
-    onto the FastMCPServer instance.
+    onto the FastMCP Server instance.
     """
 
     def __init__(self, core_client: CoreClient):
@@ -30,7 +30,7 @@ class ToolRegistrar:
             return await self.core_client.execute_tool(payload)
         return proxy_func
     
-    async def register_tools(self, server: FastMCPServer):
+    async def register_tools(self, server: FastMCP):
         """
         Fetches the tool manifest from the core and registers each tool
         with the MCP server instance.
