@@ -2,7 +2,7 @@ import logging
 import inspect
 from fastmcp import FastMCP
 from fastmcp.tools import FunctionTool
-from typing import Dict, Any, Callable, Awaitable, List
+from typing import Dict, Any, Callable, Awaitable, List, Optional
 
 from .core_client import CoreClient
 
@@ -24,6 +24,47 @@ class ToolRegistrar:
         tool_name = tool_def["name"]
         description = tool_def.get("description", "No description available.")
 
+        # A mapping from simple string names to actual Python type objects
+        # This is necessary because core/app/api.py extracts the __name__ of the annotation (e.g., 'List' instead of typing.List)
+        type_hint_map = {
+            'str': str,
+            'int': int,
+            'bool': bool,
+            'float': float,
+            'Any': Any,
+            'List': List,  # Map 'List' string to typing.List
+            'Dict': Dict,  # Map 'Dict' string to typing.Dict
+            'Optional': Optional # Map 'Optional' string to typing.Optional
+        }
+
+        sig_params = []
+        # Initialize __annotations__ dictionary for the proxy function.
+        # Pydantic (especially v2) relies heavily on this for schema generation.
+        annotations = {}
+        # Set the return type annotation for the proxy function
+        annotations['return'] = Dict[str, Any]
+
+        for p_info in tool_def.get("parameters", []):
+            param_name = p_info['name']
+            annotation_name = p_info.get('annotation', 'Any')
+            is_required = p_info.get('required', True)
+
+            # Resolve the type hint using our map.
+            # For complex generics like 'List[str]', api.py currently only sends 'List'.
+            # Pydantic can still generate a schema for `List` if `typing.List` is provided.
+            resolved_type = type_hint_map.get(annotation_name, Any)
+
+            sig_params.append(
+                inspect.Parameter(
+                    name=param_name,
+                    kind=inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                    annotation=resolved_type, # Use the resolved type object
+                    default=inspect.Parameter.empty if is_required else None
+                )
+            )
+            # Populate the __annotations__ dictionary with the resolved type for each parameter
+            annotations[param_name] = resolved_type
+
         async def proxy_func(**kwargs) -> Dict[str, Any]:
             """This is a proxy function. Its signature and docstring are replaced dynamically."""
             logging.info(f"Proxy for '{tool_name}': Forwarding call with params {kwargs} to Core Engine.")
@@ -32,23 +73,10 @@ class ToolRegistrar:
             return core_result.get("result", {})
 
         # Dynamically build the function signature that FastMCP will inspect.
-        type_map = {'str': str, 'int': int, 'bool': bool, 'list': list, 'dict': dict, 'Any': Any}
-        
-        sig_params = []
-        for p_info in tool_def.get("parameters", []):
-            param_type = type_map.get(p_info.get('annotation', 'Any'), Any)
-            sig_params.append(
-                inspect.Parameter(
-                    name=p_info['name'],
-                    kind=inspect.Parameter.POSITIONAL_OR_KEYWORD,
-                    annotation=param_type,
-                    default=inspect.Parameter.empty if p_info.get('required') else None
-                )
-            )
-            
         proxy_func.__signature__ = inspect.Signature(parameters=sig_params)
         proxy_func.__doc__ = description
         proxy_func.__name__ = tool_name.replace('.', '_')
+        proxy_func.__annotations__ = annotations
         
         return proxy_func
 
