@@ -39,42 +39,38 @@ def create_api_routes(module_loader: ModuleLoader) -> APIRouter:
     @router.get("/tools/manifest")
     def get_tools_manifest() -> List[Dict[str, Any]]:
         """
-        Inspects all loaded tool classes and returns a detailed manifest.
-        The MCP Interface uses this to know which tools to register.
+        Inspects all loaded tool classes and returns a simplified manifest.
+        The MCP Interface uses this to dynamically reconstruct function signatures.
         """
         manifest = []
         tools = module_loader.get_tools()
         for module_name, tool_instance in tools.items():
-            # Find all public methods on the tool instance (ignore methods starting with '_')
             for method_name, method in inspect.getmembers(tool_instance, inspect.ismethod):
                 if not method_name.startswith('_'):
                     full_tool_name = f"{module_name}.{method_name}"
                     description = inspect.getdoc(method) or "No description available."
                     
-                    # Get parameters using inspect.signature
                     sig = inspect.signature(method)
-                    parameters_schema = {
-                        "type": "object",
-                        "properties": {},
-                        "required": [],
-                    }
+                    parameters_info = []
                     for param in sig.parameters.values():
                         if param.name == 'self':
                             continue
                         
-                        # A simple mapping from Python types to JSON schema types
-                        type_map = {str: "string", int: "integer", bool: "boolean", list: "array", dict: "object"}
-                        param_info = {"type": type_map.get(param.annotation, "string")}
+                        # Get type name, default to 'Any' if not specified
+                        annotation_name = 'Any'
+                        if param.annotation != inspect.Parameter.empty and hasattr(param.annotation, '__name__'):
+                            annotation_name = param.annotation.__name__
 
-                        parameters_schema["properties"][param.name] = param_info
-                        
-                        if param.default == inspect.Parameter.empty:
-                            parameters_schema["required"].append(param.name)
+                        parameters_info.append({
+                            "name": param.name,
+                            "annotation": annotation_name,
+                            "required": param.default == inspect.Parameter.empty,
+                        })
 
                     manifest.append({
                         "name": full_tool_name,
                         "description": description,
-                        "parameters": parameters_schema,
+                        "parameters": parameters_info,
                     })
         return manifest
 

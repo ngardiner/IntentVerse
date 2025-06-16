@@ -23,10 +23,7 @@ async def main():
     tool_registrar = ToolRegistrar(core_client)
 
     # Create the FastMCPServer instance
-    server = FastMCP(
-        title="IntentVerse Mock Tool Server",
-        description="A server exposing mock tools for AI agent testing.",
-    )
+    server = FastMCP("IntentVerse Mock Tool Server")
 
     # Call the registrar to dynamically load tools from the core engine
     await tool_registrar.register_tools(server)
