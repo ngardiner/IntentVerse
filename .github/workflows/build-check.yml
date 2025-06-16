@@ -3,10 +3,12 @@ name: Build and Test
 on:
   push:
     branches: [ "main" ]
-  workflow_dispatch:
+  pull_request:
+    branches: [ "main" ]
 
 jobs:
   build-and-test:
+    name: Build and Test Services
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -17,3 +19,21 @@ jobs:
 
       - name: Run all tests
         run: docker compose --profile tests up --build --exit-code-from tests
+
+  # This is the new job we are adding
+  gitleaks-scan:
+    name: Gitleaks Secret Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          # We need to fetch the entire history for Gitleaks to scan everything
+          fetch-depth: 0
+
+      - name: Run Gitleaks scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          # The GITHUB_TOKEN is automatically provided by GitHub
+          # The action will fail the job if secrets are found.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
