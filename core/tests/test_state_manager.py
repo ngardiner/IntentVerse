@@ -1,5 +1,5 @@
 import pytest
-from ..app.state_manager import StateManager
+from app.state_manager import StateManager
 
 @pytest.fixture
 def state_manager() -> StateManager:

@@ -2,10 +2,10 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import Session, SQLModel, create_engine
 
-from ..app.main import app
-from ..app.database import get_session
-from ..app.security import get_password_hash, verify_password, create_access_token, decode_access_token
-from ..app.models import User
+from app.main import app
+from app.database import get_session
+from app.security import get_password_hash, verify_password, create_access_token, decode_access_token
+from app.models import User
 
 # --- Test Database Setup ---
 

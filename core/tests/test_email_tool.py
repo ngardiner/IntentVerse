@@ -1,6 +1,6 @@
 import pytest
-from ..app.state_manager import StateManager
-from ..app.modules.email.tool import EmailTool
+from app.state_manager import StateManager
+from app.modules.email.tool import EmailTool
 
 @pytest.fixture
 def email_tool() -> EmailTool:

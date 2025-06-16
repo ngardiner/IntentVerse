@@ -1,6 +1,6 @@
 import pytest
-from ..app.state_manager import StateManager
-from ..app.modules.memory.tool import MemoryTool
+from app.state_manager import StateManager
+from app.modules.memory.tool import MemoryTool
 
 @pytest.fixture
 def memory_tool() -> MemoryTool:
