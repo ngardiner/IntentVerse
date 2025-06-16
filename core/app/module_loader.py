@@ -17,10 +17,11 @@ class ModuleLoader:
     initializes them, and provides access to them.
     """
 
-    def __init__(self, state_manager: StateManager):
+    def __init__(self, state_manager: StateManager, root_path: Path = None):
         self.state_manager = state_manager
         self.modules: Dict[str, BaseTool] = {}
-        self.modules_path = Path(__file__).parent / "modules"
+        base_path = root_path if root_path else Path(__file__).parent
+        self.modules_path = base_path / "modules"
         self.errors = [] # To store any errors encountered during loading
 
     def load_modules(self):

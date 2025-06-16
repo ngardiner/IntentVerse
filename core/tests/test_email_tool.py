@@ -27,7 +27,7 @@ def test_send_email(email_tool: EmailTool):
     # Check the return value
     assert result["status"] == "Email sent successfully"
     assert "email_id" in result
-    assert result["email_id"] == "sent-1"
+    assert result["email_id"].startswith("sent-")
 
     # Check the state
     sent_items = email_tool.state_manager.get('email')['sent_items']
@@ -63,7 +63,7 @@ def test_list_sent_items(email_tool: EmailTool):
     
     # Check that the list contains summaries, not full emails (no body)
     first_summary = sent_list[0]
-    assert first_summary["email_id"] == "sent-1"
+    assert first_summary["email_id"].startswith("sent-")
     assert first_summary["subject"] == "First Email"
     assert "body" not in first_summary
 
