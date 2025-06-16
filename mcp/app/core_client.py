@@ -1,3 +1,4 @@
+import logging
 import httpx
 import os
 from typing import Dict, Any, List
@@ -27,14 +28,14 @@ class CoreClient:
             A list of tool definition dictionaries.
         """
         try:
-            print("CoreClient: Fetching tool manifest from Core Engine...")
+            logging.info("CoreClient: Fetching tool manifest from Core Engine...")
             # We'll need to create this endpoint in the core service.
             response = await self.client.get("/api/v1/tools/manifest")
             response.raise_for_status()  # Raises an exception for 4xx or 5xx status codes
-            print("CoreClient: Successfully fetched tool manifest.")
+            logging.info("CoreClient: Successfully fetched tool manifest.")
             return response.json()
         except httpx.RequestError as e:
-            print(f"An error occurred while requesting the tool manifest: {e}")
+            logging.error(f"An error occurred while requesting the tool manifest: {e}")
             return []
 
     async def execute_tool(self, payload: Dict[str, Any]) -> Dict[str, Any]:
@@ -48,12 +49,12 @@ class CoreClient:
             A dictionary containing the result of the tool execution.
         """
         try:
-            print(f"CoreClient: Executing tool with payload: {payload}")
+            logging.info(f"CoreClient: Executing tool with payload: {payload}")
             response = await self.client.post("/api/v1/execute", json=payload)
             response.raise_for_status()
             return response.json()
         except httpx.RequestError as e:
-            print(f"An error occurred while executing tool: {e}")
+            logging.error(f"An error occurred while executing tool: {e}")
             return {"status": "error", "result": str(e)}
 
     async def close(self):

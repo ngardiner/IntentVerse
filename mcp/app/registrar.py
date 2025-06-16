@@ -1,5 +1,6 @@
+import logging
 from fastmcp import FastMCP
-from typing import Dict, Any
+from typing import Dict, Any, Callable, Awaitable
 
 from .core_client import CoreClient
 
@@ -22,7 +23,7 @@ class ToolRegistrar:
         """A factory that creates and returns a unique async proxy function."""
         async def proxy_func(**kwargs) -> Dict[str, Any]:
             """Proxies a tool call to the Core Engine."""
-            print(f"Proxy for '{tool_name}': Forwarding call to Core Engine.")
+            logging.info(f"Proxy for '{tool_name}': Forwarding call to Core Engine.")
             payload = {
                 "tool_name": tool_name,
                 "parameters": kwargs
@@ -35,11 +36,11 @@ class ToolRegistrar:
         Fetches the tool manifest from the core and registers each tool
         with the MCP server instance.
         """
-        print("Registrar: Attempting to register tools...")
+        logging.info("Registrar: Attempting to register tools...")
         tool_manifest = await self.core_client.get_tool_manifest()
 
         if not tool_manifest:
-            print("Registrar: No tool manifest received from Core Engine. No tools will be registered.")
+            logging.warning("Registrar: No tool manifest received from Core Engine. No tools will be registered.")
             return
 
         for tool_def in tool_manifest:
@@ -54,4 +55,4 @@ class ToolRegistrar:
                 description=description,
             )
 
-            print(f"  - Registered proxy for tool: '{tool_name}'")
+            logging.info(f"  - Registered proxy for tool: '{tool_name}'")
