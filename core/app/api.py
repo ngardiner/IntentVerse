@@ -44,9 +44,7 @@ def create_api_routes(module_loader: ModuleLoader) -> APIRouter:
         """
         manifest = []
 
-        # Correctly get the tool instances using the available public methods
-        module_names = module_loader.get_schemas().keys()
-        tools = {name: module_loader.get_tool(name) for name in module_names if module_loader.get_tool(name)}
+        tools = module_loader.get_all_tools()
 
         for module_name, tool_instance in tools.items():
             for method_name, method in inspect.getmembers(tool_instance, inspect.ismethod):
