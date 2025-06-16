@@ -59,13 +59,11 @@ jobs:
           images: ${{ secrets.DOCKERHUB_USERNAME }}/intentverse-${{ matrix.service }}
           # Define the tagging rules based on the event type
           tags: |
-            # type=schedule,pattern={{date 'YYYYMMDD'}}
-            # type=ref,event=branch,pattern={{branch}}-{{sha}}
             # For pushes to the main branch, create a 'dev' tag
-            type=raw,value=dev,enable={{is_default_branch}}
+            type=raw,value=dev,enable=${{ github.ref == 'refs/heads/main' }}
             # For releases, create 'latest' and version tags (e.g., v1.2.3 -> 1.2.3)
             type=ref,event=tag
-            type=raw,value=latest,enable={{is_release}}
+            type=raw,value=latest,enable=${{ github.event_name == 'release' }}
 
       # 6. Build and push the Docker image
       - name: Build and push ${{ matrix.service }} image
