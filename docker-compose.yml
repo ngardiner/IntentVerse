@@ -41,6 +41,7 @@ services:
       - "3000:3000"
     volumes:
       - ./web/src:/app/src
+      - ./web/public:/app/public
     environment:
       - WATCHPACK_POLLING=true
       - CHOKIDAR_USEPOLLING=true
