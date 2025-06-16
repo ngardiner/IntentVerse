@@ -1,6 +1,7 @@
 import logging
 import inspect
 from fastmcp import FastMCP
+from fastmcp.tools import FunctionTool
 from typing import Dict, Any, Callable, Awaitable, List
 
 from .core_client import CoreClient
@@ -68,6 +69,6 @@ class ToolRegistrar:
 
             # Use the library's dynamic registration method.
             # It will inspect our proxy function's signature and docstring.
-            server.add_tool(dynamic_proxy)
+            server.add_tool(FunctionTool.from_function(dynamic_proxy, name=tool_name))
 
             logging.info(f"  - Registered proxy for tool: '{tool_name}' with signature {dynamic_proxy.__signature__}")
