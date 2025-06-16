@@ -1,4 +1,5 @@
 import httpx
+import os
 from typing import Dict, Any, List
 
 # The base URL for the core service API, using the Docker service name.

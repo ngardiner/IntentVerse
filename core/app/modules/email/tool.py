@@ -1,3 +1,4 @@
+import logging
 from ..base_tool import BaseTool
 from typing import Any, Dict, List
 
@@ -39,7 +40,7 @@ class EmailTool(BaseTool):
         sent_items.append(email_data)
         self.state_manager.set('email', {'sent_items': sent_items})
         
-        print(f"SENDING EMAIL to {to}: {subject}")
+        logging.info(f"SENDING EMAIL to {to}: {subject}")
         return {"status": "Email sent successfully", "email_id": email_id}
 
     def list_sent_items(self, limit: int = 25) -> List[Dict[str, Any]]:

@@ -1,3 +1,4 @@
+import logging
 from fastapi import FastAPI, APIRouter
 from typing import Dict, Any
 from contextlib import asynccontextmanager
@@ -7,17 +8,21 @@ from .module_loader import ModuleLoader
 from .api import create_api_routes
 from .auth import router as auth_router
 from .database import create_db_and_tables
+from .logging_config import setup_logging
+
+# Apply the JSON logging configuration at the earliest point
+setup_logging()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # This code runs on server startup
-    print("--- IntentVerse Core Engine Starting Up ---")
+    logging.info("--- IntentVerse Core Engine Starting Up ---")
     create_db_and_tables()
     # Discover and load all modules from the 'modules' directory
     loader.load_modules()
     yield
     # This code runs on server shutdown
-    print("--- IntentVerse Core Engine Shutting Down ---")
+    logging.info("--- IntentVerse Core Engine Shutting Down ---")
 
 # --- Application Initialization ---
 app = FastAPI(

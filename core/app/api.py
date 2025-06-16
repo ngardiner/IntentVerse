@@ -1,3 +1,4 @@
+import logging
 import inspect
 from fastapi import APIRouter, Path, HTTPException, Depends
 from typing import Dict, Any, List
@@ -111,14 +112,14 @@ def create_api_routes(module_loader: ModuleLoader) -> APIRouter:
             # Call the tool method with the provided parameters
             result = method_to_call(**parameters)
             
-            print(f"Executed tool '{tool_full_name}' with parameters: {parameters}")
+            logging.info(f"Executed tool '{tool_full_name}' with parameters: {parameters}")
             return {"status": "success", "result": result}
         except HTTPException as e:
             # Re-raise HTTP exceptions from the tool logic (e.g., file not found)
             raise e
         except Exception as e:
             # Catch any other unexpected errors from the tool execution
-            print(f"ERROR executing tool '{tool_full_name}': {e}")
+            logging.error(f"ERROR executing tool '{tool_full_name}': {e}", exc_info=True)
             raise HTTPException(status_code=500, detail=f"An error occurred while executing tool '{tool_full_name}': {str(e)}")
 
     return router
