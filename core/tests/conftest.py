@@ -1,52 +1,37 @@
-# core/tests/conftest.py
 import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import create_engine, Session, SQLModel
 from pathlib import Path
 
-# Adjust the import path to be absolute from the 'core' directory perspective
+# Adjust imports to match the new structure
 from app.main import app
 from app.database import get_session
 from app.state_manager import StateManager
 from app.module_loader import ModuleLoader
-from app.api import create_api_routes
-from app.auth import get_current_user
-from app.models import User
+from app.auth import get_current_user, User
 
-# --- Test Database Setup ---
-# Use an in-memory SQLite database for testing to keep tests fast and isolated
-TEST_DATABASE_URL = "sqlite:///:memory:"
+# Use an in-memory SQLite database for testing
+TEST_DATABASE_URL = "sqlite:///./test.db"  # Use a file-based SQLite for consistency in tests
 test_engine = create_engine(TEST_DATABASE_URL, connect_args={"check_same_thread": False})
 
-# --- Fixtures ---
-@pytest.fixture(name="session")
-def session_fixture():
-    """
-    Pytest fixture to create a new database session for each test.
-    It creates all tables before the test runs and drops them afterward.
-    """
-    SQLModel.metadata.create_all(test_engine)
+def get_session_override():
+    """Dependency override to use the test database session."""
     with Session(test_engine) as session:
         yield session
-    SQLModel.metadata.drop_all(test_engine)
 
+app.dependency_overrides[get_session] = get_session_override
 
 @pytest.fixture(name="client")
-def client_fixture(session: Session):
+def client_fixture():
     """
-    Pytest fixture to create a TestClient for the API.
-    This client will use the isolated in-memory test database.
+    Pytest fixture to create a TestClient.
+    This fixture now correctly handles the application lifespan,
+    ensuring the database and modules are initialized before tests run.
     """
-
-    def get_session_override():
-        return session
-    
-    # Replace the app's get_session dependency with our override
-    app.dependency_overrides[get_session] = get_session_override
-    
-    # Yield the client to the test function
-    client = TestClient(app)
-    yield client
-    
-    # Clean up the dependency override after the test is done
-    app.dependency_overrides.clear()
+    # This context manager will run the startup events before yielding
+    with TestClient(app) as client:
+        # Manually create tables for the in-memory/test database
+        SQLModel.metadata.create_all(test_engine)
+        yield client
+        # Clean up by dropping tables after tests are done
+        SQLModel.metadata.drop_all(test_engine)

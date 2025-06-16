@@ -60,7 +60,8 @@ def test_list_sent_items(email_tool: EmailTool):
     sent_list = email_tool.list_sent_items()
     
     assert len(sent_list) == 2
-    
+    sent_list.sort(key=lambda x: x['subject'])
+
     # Check that the list contains summaries, not full emails (no body)
     first_summary = sent_list[0]
     assert first_summary["email_id"].startswith("sent-")
