@@ -1,0 +1,77 @@
+# This workflow builds and publishes Docker images to Docker Hub
+# for each service (core, mcp, web) in the project.
+
+name: Docker Publish
+
+# -----------------
+# --- Triggers ----
+# -----------------
+on:
+  # Run on every push to the main branch
+  push:
+    branches:
+      - main
+  # Run when a release is created with a tag like v1.0, v0.2.1, etc.
+  release:
+    types: [published]
+
+# -----------------
+# ------ Job ------
+# -----------------
+jobs:
+  build-and-push:
+    name: Build and Push Docker Images
+    runs-on: ubuntu-latest
+
+    # Use a matrix strategy to run the same steps for each of our services
+    strategy:
+      matrix:
+        service: [core, mcp, web]
+
+    steps:
+      # 1. Check out the repository code
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. Set up QEMU for multi-platform builds (good practice)
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      # 3. Set up Docker Buildx
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # 4. Log in to Docker Hub using the secrets we created
+      - name. Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # 5. Extract metadata (tags and labels) for the Docker image
+      # This is the key step for our tagging strategy.
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          # Define the image name on Docker Hub.
+          # The matrix.service will be 'core', 'mcp', or 'web'
+          images: ${{ secrets.DOCKERHUB_USERNAME }}/intentverse-${{ matrix.service }}
+          # Define the tagging rules based on the event type
+          tags: |
+            # type=schedule,pattern={{date 'YYYYMMDD'}}
+            # type=ref,event=branch,pattern={{branch}}-{{sha}}
+            # For pushes to the main branch, create a 'dev' tag
+            type=raw,value=dev,enable={{is_default_branch}}
+            # For releases, create 'latest' and version tags (e.g., v1.2.3 -> 1.2.3)
+            type=ref,event=tag
+            type=raw,value=latest,enable={{is_release}}
+
+      # 6. Build and push the Docker image
+      - name: Build and push ${{ matrix.service }} image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./${{ matrix.service }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
