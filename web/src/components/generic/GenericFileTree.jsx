@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getModuleState } from '../../api/client';
 
-// A small, recursive component to render each node in the tree.
+// A small, recursive helper component to render each node in the tree.
 const TreeNode = ({ node }) => {
   if (!node) {
     return null;
@@ -11,12 +11,13 @@ const TreeNode = ({ node }) => {
   const icon = isDirectory ? '📁' : '📄';
 
   return (
-    <li>
+    <li className="treenode">
       <span>{icon} {node.name}</span>
+      {/* If the node is a directory and has children, recursively render them */}
       {isDirectory && node.children && node.children.length > 0 && (
         <ul>
-          {node.children.map(child => (
-            <TreeNode key={child.name} node={child} />
+          {node.children.map((child, index) => (
+            <TreeNode key={child.name + index} node={child} />
           ))}
         </ul>
       )}
@@ -31,8 +32,8 @@ const GenericFileTree = ({ title, data_source_api }) => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    // A simple way to extract the module name from the API path
-    const moduleName = data_source_api.split('/')[3];
+    // A simple way to extract the module name (e.g., 'filesystem') from the API path
+    const moduleName = data_source_api?.split('/')[3];
 
     const fetchState = async () => {
       if (!moduleName) {
@@ -41,30 +42,33 @@ const GenericFileTree = ({ title, data_source_api }) => {
         return;
       }
       try {
-        setLoading(true);
+        // Don't show loading spinner on background polls
+        if (!treeData) setLoading(true);
+
         const response = await getModuleState(moduleName);
         setTreeData(response.data);
         setError(null);
       } catch (err) {
-        setError(`Failed to fetch state for ${moduleName}.`);
+        setError(`Failed to fetch state for ${moduleName}. Is the core service running?`);
         console.error(err);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchState();
+    fetchState(); // Initial fetch
     
-    // Set up an interval to poll for updates every 5 seconds
-    const intervalId = setInterval(fetchState, 5000);
+    // Set up an interval to poll for updates every 3 seconds
+    const intervalId = setInterval(fetchState, 3000);
 
-    // Cleanup the interval when the component unmounts
+    // This is a cleanup function that React runs when the component is unmounted.
+    // It's crucial for preventing memory leaks.
     return () => clearInterval(intervalId);
 
-  }, [data_source_api]); // Re-run effect if the api path changes
+  }, [data_source_api, treeData]); // Re-run effect if the api path changes
 
   const renderContent = () => {
-    if (loading && !treeData) {
+    if (loading) {
       return <p>Loading file system...</p>;
     }
     if (error) {
@@ -74,7 +78,7 @@ const GenericFileTree = ({ title, data_source_api }) => {
       return <p>No file system data available.</p>;
     }
     return (
-      <ul>
+      <ul className="file-tree-root">
         <TreeNode node={treeData} />
       </ul>
     );
@@ -83,7 +87,7 @@ const GenericFileTree = ({ title, data_source_api }) => {
   return (
     <div className="module-container">
       <h2>{title}</h2>
-      <div className="module-content file-tree">
+      <div className="module-content">
         {renderContent()}
       </div>
     </div>
