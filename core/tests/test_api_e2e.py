@@ -1,5 +1,6 @@
 import pytest
 import httpx
+import os
 import time
 
 # The URL of our core service, as seen from within the Docker network
