@@ -43,7 +43,11 @@ def create_api_routes(module_loader: ModuleLoader) -> APIRouter:
         The MCP Interface uses this to dynamically reconstruct function signatures.
         """
         manifest = []
-        tools = module_loader.tools
+
+        # Correctly get the tool instances using the available public methods
+        module_names = module_loader.get_schemas().keys()
+        tools = {name: module_loader.get_tool(name) for name in module_names if module_loader.get_tool(name)}
+
         for module_name, tool_instance in tools.items():
             for method_name, method in inspect.getmembers(tool_instance, inspect.ismethod):
                 if not method_name.startswith('_'):
@@ -56,7 +60,6 @@ def create_api_routes(module_loader: ModuleLoader) -> APIRouter:
                         if param.name == 'self':
                             continue
                         
-                        # Get type name, default to 'Any' if not specified
                         annotation_name = 'Any'
                         if param.annotation != inspect.Parameter.empty and hasattr(param.annotation, '__name__'):
                             annotation_name = param.annotation.__name__
