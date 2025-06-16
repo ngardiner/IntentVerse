@@ -43,7 +43,7 @@ def create_api_routes(module_loader: ModuleLoader) -> APIRouter:
         The MCP Interface uses this to dynamically reconstruct function signatures.
         """
         manifest = []
-        tools = module_loader.get_tools()
+        tools = module_loader.tools
         for module_name, tool_instance in tools.items():
             for method_name, method in inspect.getmembers(tool_instance, inspect.ismethod):
                 if not method_name.startswith('_'):
