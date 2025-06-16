@@ -37,8 +37,7 @@ async def main():
         host = "0.0.0.0"
         port = 8001
         logging.info(f"Running in Streamable HTTP mode on {host}:{port}")
-        await server.run(host=host, port=port)
-
+        await server.run_async(transport="http", host=host, port=port)
 
 if __name__ == "__main__":
     try:

@@ -1,30 +1,64 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import LoginPage from './LoginPage';
-import AppWrapper from '../App'; // We need the wrapper to provide the auth context
+import { AuthProvider, useAuth } from '../App';
 
 // Mock the useAuth hook to provide a dummy login function
-jest.mock('../App', () => ({
-  ...jest.requireActual('../App'),
-  useAuth: () => ({
-    login: jest.fn(),
-  }),
-}));
+jest.mock('../App', () => {
+  const originalModule = jest.requireActual('../App');
+  return {
+    ...originalModule,
+    useAuth: jest.fn(),
+  };
+});
 
-test('renders login form correctly', () => {
-  // ARRANGE: Render the component within the Auth provider wrapper
-  render(<LoginPage />, { wrapper: AppWrapper });
+// A wrapper to provide the context for our tests
+const renderWithAuthProvider = (ui) => {
+  return render(<AuthProvider>{ui}</AuthProvider>);
+};
 
-  // ACT & ASSERT: Check if the main elements are on the screen
-  const headingElement = screen.getByRole('heading', { name: /intentverse login/i });
-  expect(headingElement).toBeInTheDocument();
+describe('LoginPage', () => {
+  const mockLogin = jest.fn();
 
-  const usernameInput = screen.getByLabelText(/username/i);
-  expect(usernameInput).toBeInTheDocument();
+  beforeEach(() => {
+    // Before each test, reset the mock and set the mocked return value for useAuth
+    jest.clearAllMocks();
+    useAuth.mockReturnValue({
+      login: mockLogin,
+    });
+  });
 
-  const passwordInput = screen.getByLabelText(/password/i);
-  expect(passwordInput).toBeInTheDocument();
+  test('renders login form correctly', () => {
+    renderWithAuthProvider(<LoginPage />);
 
-  const loginButton = screen.getByRole('button', { name: /login/i });
-  expect(loginButton).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /intentverse login/i })).toBeInTheDocument();
+    expect(screen.getByLabelText(/username/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/password/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /login/i })).toBeInTheDocument();
+  });
+
+  test('calls login function with credentials on form submission', () => {
+    renderWithAuthProvider(<LoginPage />);
+
+    const usernameInput = screen.getByLabelText(/username/i);
+    expect(usernameInput).toBeInTheDocument();
+
+    const passwordInput = screen.getByLabelText(/password/i);
+    expect(passwordInput).toBeInTheDocument();
+
+    const loginButton = screen.getByRole('button', { name: /login/i });
+    expect(loginButton).toBeInTheDocument();
+
+    // ACT: Simulate a user typing and clicking
+    fireEvent.change(usernameInput, { target: { value: 'testuser' } });
+    fireEvent.change(passwordInput, { target: { value: 'password123' } });
+    fireEvent.click(loginButton);
+
+    // ASSERT: Check that our mocked login function was called with the correct data
+    expect(mockLogin).toHaveBeenCalledTimes(1);
+    expect(mockLogin).toHaveBeenCalledWith({
+      username: 'testuser',
+      password: 'password123',
+    });
+  });
 });
