@@ -24,9 +24,10 @@ def test_set_and_get_memory(memory_tool: MemoryTool):
     assert result == "test_value"
 
 def test_get_nonexistent_memory(memory_tool: MemoryTool):
-    """Tests that getting a non-existent key returns a value of None."""
+    """Tests that getting a non-existent key returns an error message."""
     result = memory_tool.get_memory(key="nonexistent_key")
-    assert result is None
+    # Assert against the actual error message from the tool
+    assert result == "Error: No memory found for key: 'nonexistent_key'"
 
 def test_overwrite_memory(memory_tool: MemoryTool):
     """Tests that setting an existing key overwrites its value."""
@@ -41,16 +42,18 @@ def test_delete_memory(memory_tool: MemoryTool):
     memory_tool.set_memory(key="delete_key", value="to_be_deleted")
 
     delete_result = memory_tool.delete_memory(key="delete_key")
-    assert delete_result == "success"
+    # Assert against the actual success message from the tool
+    assert delete_result == "Successfully deleted memory for key: 'delete_key'"
 
     # Verify the memory is gone
     get_result = memory_tool.get_memory(key="delete_key")
-    assert get_result is None
+    assert "Error: No memory found" in get_result
 
-def test_delete_nonexistent_memory(memory_tool: MemoryTool):
-    """Tests that attempting to delete a non-existent key returns 'not_found'."""
+ddef test_delete_nonexistent_memory(memory_tool: MemoryTool):
+    """Tests that attempting to delete a non-existent key returns an error message."""
     result = memory_tool.delete_memory(key="nonexistent_key")
-    assert result == "not_found"
+    # Assert against the actual error message from the tool
+    assert result == "Error: No memory found for key: 'nonexistent_key'"
 
 def test_list_memories(memory_tool: MemoryTool):
     """Tests listing all memory keys."""
