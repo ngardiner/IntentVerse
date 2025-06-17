@@ -84,35 +84,52 @@ class FileSystemTool(BaseTool):
             raise HTTPException(status_code=404, detail=f"File not found: {path}")
         return node.get('content', '')
 
-    def write_file(self, path: str, content: str) -> str:
-        """Writes content to a specified file, creating directories as needed."""
-        if not path or path == '/':
-            raise HTTPException(status_code=400, detail="Invalid file path.")
+def write_file(self, path: str, content: str) -> str:
+    """
+    Writes content to a file at the specified path, creating directories if necessary.
+    """
+    # Get a direct reference to the entire filesystem state
+    fs_state = self.state_manager.get('filesystem')
+    if not fs_state:
+        return "Error: Filesystem state is not initialized."
 
-        parent_node = self._create_parent_dirs(path)
-        file_name = path.split('/')[-1]
+    parts = [part for part in path.split('/') if part]
+    if not parts:
+        return "Error: Cannot write to the root directory itself."
 
-        # Check if file already exists in the parent directory
-        existing_file = None
-        for child in parent_node.get('children', []):
-            if child.get('name') == file_name:
-                existing_file = child
+    filename = parts.pop()
+    current_node = fs_state
+
+    # Traverse the path and create directories if they don't exist
+    for part in parts:
+        found_node = None
+        for child in current_node.get('children', []):
+            if child.get('name') == part and child.get('type') == 'directory':
+                found_node = child
                 break
-
-        if existing_file:
-            if existing_file.get('type') == 'directory':
-                raise HTTPException(status_code=400, detail=f"Cannot write to a directory: {path}")
-            existing_file['content'] = content
+        
+        if not found_node:
+            new_dir = {'type': 'directory', 'name': part, 'children': []}
+            current_node.get('children', []).append(new_dir)
+            current_node = new_dir
         else:
-            new_file = {
-                "type": "file",
-                "name": file_name,
-                "content": content
-            }
-            parent_node.get('children', []).append(new_file)
+            current_node = found_node
 
-        self.state_manager.set('filesystem', self.state_manager.get('filesystem'))
-        return f"Successfully wrote to file: {path}"
+    # Check if a file with the same name already exists and remove it
+    children = current_node.get('children', [])
+    for i, child in enumerate(children):
+        if child.get('name') == filename and child.get('type') == 'file':
+            children.pop(i)
+            break
+
+    # Add the new file
+    new_file = {'type': 'file', 'name': filename, 'content': content}
+    children.append(new_file)
+
+    # Explicitly set the modified filesystem state back into the manager
+    self.state_manager.set('filesystem', fs_state)
+    
+    return f"Successfully wrote to file: {path}"
 
     def delete_file(self, path: str) -> str:
         """Deletes a specified file."""
