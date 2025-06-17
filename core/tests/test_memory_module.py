@@ -49,7 +49,7 @@ def test_delete_memory(memory_tool: MemoryTool):
     get_result = memory_tool.get_memory(key="delete_key")
     assert "Error: No memory found" in get_result
 
-ddef test_delete_nonexistent_memory(memory_tool: MemoryTool):
+def test_delete_nonexistent_memory(memory_tool: MemoryTool):
     """Tests that attempting to delete a non-existent key returns an error message."""
     result = memory_tool.delete_memory(key="nonexistent_key")
     # Assert against the actual error message from the tool
