@@ -88,7 +88,7 @@ class FileSystemTool(BaseTool):
             raise HTTPException(status_code=404, detail=f"File not found: {path}")
         return node.get('content', '')
 
-def write_file(self, path: str, content: str) -> str:
+    def write_file(self, path: str, content: str) -> str:
         """Writes content to a specified file, creating directories as needed."""
         # 1. Perform all validation first.
         if not path or not path.startswith('/'):

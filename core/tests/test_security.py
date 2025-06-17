@@ -5,7 +5,7 @@ import pytest
 from datetime import datetime, timedelta, timezone
 from jose import jwt, JWTError
 
-from core.app.security import (
+from app.security import (
     verify_password, 
     get_password_hash, 
     create_access_token, 

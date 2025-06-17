@@ -7,9 +7,9 @@ from pathlib import Path
 import tempfile
 import os
 
-from core.app.module_loader import ModuleLoader
-from core.app.state_manager import StateManager
-from core.app.modules.base_tool import BaseTool
+from app.module_loader import ModuleLoader
+from app.state_manager import StateManager
+from app.modules.base_tool import BaseTool
 
 
 class MockTool(BaseTool):
