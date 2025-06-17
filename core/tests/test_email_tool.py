@@ -1,4 +1,5 @@
 import pytest
+from fastapi import HTTPException
 from app.state_manager import StateManager
 from app.modules.email.tool import EmailTool
 
@@ -72,10 +73,11 @@ def test_list_sent_items_with_limit(email_tool: EmailTool):
     """Tests the limit parameter when listing sent items."""
     for i in range(5):
         email_tool.send_email(to=[f"user{i}@test.com"], subject=f"Email {i}", body=f"Body {i}")
-        
+
     sent_list = email_tool.list_sent_items(limit=3)
     assert len(sent_list) == 3
-    assert sent_list[0]["subject"] == "Email 0"
+    assert sent_list[0]["subject"] == "Email 4"
+    assert sent_list[1]["subject"] == "Email 3"
     assert sent_list[2]["subject"] == "Email 2"
 
 def test_list_sent_items_empty(email_tool: EmailTool):
@@ -95,7 +97,8 @@ def test_read_email(email_tool: EmailTool):
     assert read_result["body"] == "Full content here."
 
 def test_read_nonexistent_email(email_tool: EmailTool):
-    """Tests that reading a non-existent email ID returns an error."""
-    result = email_tool.read_email(email_id="nonexistent-id")
-    assert "error" in result
-    assert result["error"] == "Email not found."
+    """Tests that reading a non-existent email ID raises a 404 HTTPException."""
+    with pytest.raises(HTTPException) as excinfo:
+        email_tool.read_email(email_id="nonexistent-id")
+    assert excinfo.value.status_code == 404
+    assert "not found" in excinfo.value.detail
