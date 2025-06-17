@@ -1,7 +1,7 @@
 import logging
 import inspect
 from fastapi import APIRouter, Path, HTTPException, Depends
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Union, get_origin, get_args # Import get_origin, get_args
 
 from .module_loader import ModuleLoader
 from .state_manager import state_manager
@@ -43,7 +43,6 @@ def create_api_routes(module_loader: ModuleLoader) -> APIRouter:
         The MCP Interface uses this to dynamically reconstruct function signatures.
         """
         manifest = []
-
         tools = module_loader.get_all_tools()
 
         for module_name, tool_instance in tools.items():
@@ -58,13 +57,43 @@ def create_api_routes(module_loader: ModuleLoader) -> APIRouter:
                         if param.name == 'self':
                             continue
                         
-                        annotation_name = 'Any'
-                        if param.annotation != inspect.Parameter.empty and hasattr(param.annotation, '__name__'):
-                            annotation_name = param.annotation.__name__
+                        param_annotation_details = {
+                            "base_type": 'Any', # e.g., 'str', 'int', 'List'
+                            "is_optional": False,
+                            "union_types": [] # List of string representations if it's a Union
+                        }
+
+                        if param.annotation != inspect.Parameter.empty:
+                            param_origin = get_origin(param.annotation)
+                            param_args = get_args(param.annotation)
+
+                            if param_origin is Union:
+                                # It's a Union type (including Optional which is Union[T, NoneType])
+                                non_none_args = [arg for arg in param_args if arg is not type(None)]
+                                param_annotation_details["is_optional"] = (type(None) in param_args)
+
+                                # Store string representations of all types in the Union
+                                param_annotation_details["union_types"] = [
+                                    (arg.__name__ if hasattr(arg, '__name__') else str(arg))
+                                    for arg in param_args
+                                ]
+
+                                if len(non_none_args) == 1:
+                                    # This is typically an Optional[X] where X is the base_type
+                                    base_arg = non_none_args[0]
+                                    param_annotation_details["base_type"] = base_arg.__name__ if hasattr(base_arg, '__name__') else str(base_arg)
+                                elif len(non_none_args) > 1:
+                                    # A more complex Union (e.g., Union[str, int])
+                                    param_annotation_details["base_type"] = 'Union'
+                                else:
+                                    param_annotation_details["base_type"] = 'NoneType' # Only None in Union, or empty (unlikely for params)
+                            else:
+                                # Not a Union. Get the simple name.
+                                param_annotation_details["base_type"] = param.annotation.__name__ if hasattr(param.annotation, '__name__') else str(param.annotation)
 
                         parameters_info.append({
                             "name": param.name,
-                            "annotation": annotation_name,
+                            "annotation_details": param_annotation_details,
                             "required": param.default == inspect.Parameter.empty,
                         })
 
@@ -74,7 +103,7 @@ def create_api_routes(module_loader: ModuleLoader) -> APIRouter:
                         "parameters": parameters_info,
                     })
         return manifest
-
+    
     @router.post("/execute")
     def execute_tool(payload: Dict[str, Any]) -> Dict[str, Any]:
         """
