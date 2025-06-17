@@ -5,8 +5,8 @@ import pytest
 from unittest.mock import Mock
 from fastapi import HTTPException
 
-from core.app.modules.database.tool import DatabaseTool
-from core.app.state_manager import StateManager
+from app.modules.database.tool import DatabaseTool
+from app.state_manager import StateManager
 
 
 class TestDatabaseTool:

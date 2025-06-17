@@ -3,7 +3,7 @@ Unit tests for the User model.
 """
 import pytest
 from sqlmodel import Session, create_engine, SQLModel
-from core.app.models import User
+from app.models import User
 
 
 @pytest.fixture

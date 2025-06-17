@@ -7,10 +7,10 @@ from fastapi import HTTPException
 from fastapi.testclient import TestClient
 import inspect
 
-from core.app.api import create_api_routes
-from core.app.module_loader import ModuleLoader
-from core.app.state_manager import StateManager
-from core.app.modules.base_tool import BaseTool
+from app.api import create_api_routes
+from app.module_loader import ModuleLoader
+from app.state_manager import StateManager
+from app.modules.base_tool import BaseTool
 
 
 class MockTool(BaseTool):
