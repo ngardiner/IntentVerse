@@ -1,11 +1,27 @@
 import React, { useState, useEffect } from 'react';
-import { getAvailableContentPacks, getLoadedContentPacks, exportContentPack, loadContentPack, unloadContentPack, clearAllLoadedPacks } from '../api/client';
+import { 
+  getAvailableContentPacks, 
+  getLoadedContentPacks, 
+  exportContentPack, 
+  loadContentPack, 
+  unloadContentPack, 
+  clearAllLoadedPacks,
+  getRemoteContentPacks,
+  getRemoteRepositoryInfo,
+  searchRemoteContentPacks,
+  installRemoteContentPack,
+  refreshRemoteCache,
+  clearRemoteCache
+} from '../api/client';
 import ContentPackPreview from './ContentPackPreview';
 
 const ContentPackManager = () => {
   const [availablePacks, setAvailablePacks] = useState([]);
   const [loadedPacks, setLoadedPacks] = useState([]);
+  const [remotePacks, setRemotePacks] = useState([]);
+  const [remoteRepositoryInfo, setRemoteRepositoryInfo] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [remoteLoading, setRemoteLoading] = useState(false);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('available');
   const [exportForm, setExportForm] = useState({
@@ -24,9 +40,13 @@ const ContentPackManager = () => {
     isOpen: false,
     filename: null
   });
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [selectedTags, setSelectedTags] = useState([]);
 
   useEffect(() => {
     fetchContentPacks();
+    fetchRemoteRepositoryInfo();
   }, []);
 
   const fetchContentPacks = async () => {
@@ -45,6 +65,92 @@ const ContentPackManager = () => {
       console.error('Error fetching content packs:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchRemoteContentPacks = async (forceRefresh = false) => {
+    try {
+      setRemoteLoading(true);
+      const response = await getRemoteContentPacks(forceRefresh);
+      setRemotePacks(response.data || []);
+      setError(null);
+    } catch (err) {
+      setError('Failed to fetch remote content packs. Check your internet connection.');
+      console.error('Error fetching remote content packs:', err);
+    } finally {
+      setRemoteLoading(false);
+    }
+  };
+
+  const fetchRemoteRepositoryInfo = async () => {
+    try {
+      const response = await getRemoteRepositoryInfo();
+      setRemoteRepositoryInfo(response.data);
+    } catch (err) {
+      console.error('Error fetching remote repository info:', err);
+      setRemoteRepositoryInfo({ status: 'unavailable' });
+    }
+  };
+
+  const handleSearchRemote = async () => {
+    try {
+      setRemoteLoading(true);
+      const response = await searchRemoteContentPacks(searchQuery, selectedCategory, selectedTags);
+      setRemotePacks(response.data || []);
+      setError(null);
+    } catch (err) {
+      setError('Failed to search remote content packs.');
+      console.error('Error searching remote content packs:', err);
+    } finally {
+      setRemoteLoading(false);
+    }
+  };
+
+  const handleInstallRemotePack = async (filename, loadImmediately = true) => {
+    setActionLoading({...actionLoading, [filename]: true});
+    setActionMessage('');
+
+    try {
+      const response = await installRemoteContentPack(filename, loadImmediately);
+      setActionMessage(`✓ ${response.data.message}`);
+      
+      // Refresh both local and remote packs
+      fetchContentPacks();
+      fetchRemoteContentPacks();
+    } catch (err) {
+      setActionMessage(`✗ Install failed: ${err.response?.data?.detail || err.message}`);
+      console.error('Install error:', err);
+    } finally {
+      setActionLoading({...actionLoading, [filename]: false});
+      setTimeout(() => setActionMessage(''), 3000);
+    }
+  };
+
+  const handleRefreshRemoteCache = async () => {
+    try {
+      setRemoteLoading(true);
+      await refreshRemoteCache();
+      await fetchRemoteContentPacks(true);
+      setActionMessage('✓ Remote cache refreshed successfully');
+    } catch (err) {
+      setActionMessage(`✗ Failed to refresh cache: ${err.response?.data?.detail || err.message}`);
+      console.error('Cache refresh error:', err);
+    } finally {
+      setRemoteLoading(false);
+      setTimeout(() => setActionMessage(''), 3000);
+    }
+  };
+
+  const handleClearRemoteCache = async () => {
+    try {
+      await clearRemoteCache();
+      setRemotePacks([]);
+      setActionMessage('✓ Remote cache cleared successfully');
+    } catch (err) {
+      setActionMessage(`✗ Failed to clear cache: ${err.response?.data?.detail || err.message}`);
+      console.error('Cache clear error:', err);
+    } finally {
+      setTimeout(() => setActionMessage(''), 3000);
     }
   };
 
@@ -341,6 +447,192 @@ const ContentPackManager = () => {
     </div>
   );
 
+  const renderRemotePacks = () => {
+    const getUniqueCategories = () => {
+      const categories = remotePacks.map(pack => pack.category).filter(Boolean);
+      return [...new Set(categories)];
+    };
+
+    const getUniqueTags = () => {
+      const allTags = remotePacks.flatMap(pack => pack.tags || []);
+      return [...new Set(allTags)];
+    };
+
+    return (
+      <div className="content-pack-list">
+        <div className="remote-packs-header">
+          <h3>Remote Content Packs</h3>
+          <div className="remote-controls">
+            <button 
+              onClick={() => fetchRemoteContentPacks(true)}
+              disabled={remoteLoading}
+              className="refresh-button"
+            >
+              {remoteLoading ? 'Loading...' : 'Refresh'}
+            </button>
+            <button 
+              onClick={handleRefreshRemoteCache}
+              disabled={remoteLoading}
+              className="cache-button"
+            >
+              Refresh Cache
+            </button>
+            <button 
+              onClick={handleClearRemoteCache}
+              className="cache-button"
+            >
+              Clear Cache
+            </button>
+          </div>
+        </div>
+
+        {remoteRepositoryInfo && (
+          <div className="repository-info">
+            <p>
+              <strong>Repository Status:</strong> {remoteRepositoryInfo.status}
+              {remoteRepositoryInfo.statistics && (
+                <span> | {remoteRepositoryInfo.statistics.total_packs} packs available</span>
+              )}
+            </p>
+          </div>
+        )}
+
+        <div className="search-controls">
+          <div className="search-row">
+            <input
+              type="text"
+              placeholder="Search content packs..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="search-input"
+            />
+            <select
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              className="category-select"
+            >
+              <option value="">All Categories</option>
+              {getUniqueCategories().map(category => (
+                <option key={category} value={category}>{category}</option>
+              ))}
+            </select>
+            <button 
+              onClick={handleSearchRemote}
+              disabled={remoteLoading}
+              className="search-button"
+            >
+              Search
+            </button>
+            <button 
+              onClick={() => {
+                setSearchQuery('');
+                setSelectedCategory('');
+                setSelectedTags([]);
+                fetchRemoteContentPacks();
+              }}
+              className="clear-search-button"
+            >
+              Clear
+            </button>
+          </div>
+        </div>
+
+        {actionMessage && (
+          <div className={`action-message ${actionMessage.startsWith('✓') ? 'success' : 'error'}`}>
+            {actionMessage}
+          </div>
+        )}
+
+        {remoteLoading ? (
+          <div className="loading-message">Loading remote content packs...</div>
+        ) : remotePacks.length === 0 ? (
+          <p>No remote content packs found. Check your internet connection or try refreshing.</p>
+        ) : (
+          <div className="pack-grid">
+            {remotePacks.map((pack, index) => {
+              const isInstalled = availablePacks.some(localPack => localPack.filename === pack.filename);
+              const isLoading = actionLoading[pack.filename];
+              
+              return (
+                <div key={index} className={`pack-card remote ${isInstalled ? 'installed' : ''}`}>
+                  <div className="pack-header">
+                    <h4>{pack.name || pack.filename}</h4>
+                    <div className="pack-status">
+                      <span className="pack-filename">{pack.filename}</span>
+                      <span className="source-badge remote">Remote</span>
+                      {isInstalled && <span className="installed-badge">Installed</span>}
+                    </div>
+                  </div>
+                  
+                  <div className="pack-content">
+                    {pack.summary && (
+                      <p className="pack-summary">{pack.summary}</p>
+                    )}
+                    
+                    <div className="pack-features">
+                      {pack.sections?.has_database && <span className="feature-badge database">Database</span>}
+                      {pack.sections?.has_state && <span className="feature-badge state">State</span>}
+                      {pack.sections?.has_prompts && <span className="feature-badge prompts">Prompts</span>}
+                    </div>
+                    
+                    {pack.category && (
+                      <p className="pack-category">Category: {pack.category}</p>
+                    )}
+                    
+                    {pack.tags && pack.tags.length > 0 && (
+                      <div className="pack-tags">
+                        {pack.tags.map(tag => (
+                          <span key={tag} className="tag-badge">{tag}</span>
+                        ))}
+                      </div>
+                    )}
+                    
+                    {pack.author_name && (
+                      <p className="pack-author">By: {pack.author_name}</p>
+                    )}
+                    
+                    {pack.version && (
+                      <p className="pack-version">Version: {pack.version}</p>
+                    )}
+                    
+                    {pack.file_size_bytes && (
+                      <p className="pack-size">Size: {(pack.file_size_bytes / 1024).toFixed(1)} KB</p>
+                    )}
+                    
+                    <div className="pack-actions">
+                      <div className="action-buttons">
+                        {!isInstalled ? (
+                          <>
+                            <button 
+                              className="install-button primary"
+                              onClick={() => handleInstallRemotePack(pack.filename, true)}
+                              disabled={isLoading}
+                            >
+                              {isLoading ? 'Installing...' : 'Install & Load'}
+                            </button>
+                            <button 
+                              className="install-button secondary"
+                              onClick={() => handleInstallRemotePack(pack.filename, false)}
+                              disabled={isLoading}
+                            >
+                              Install Only
+                            </button>
+                          </>
+                        ) : (
+                          <span className="installed-text">Already Installed</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const renderExportForm = () => (
     <div className="export-form-container">
       <h3>Export Current State as Content Pack</h3>
@@ -454,7 +746,18 @@ const ContentPackManager = () => {
           className={`tab ${activeTab === 'available' ? 'active' : ''}`}
           onClick={() => setActiveTab('available')}
         >
-          Available ({availablePacks.length})
+          Local ({availablePacks.length})
+        </button>
+        <button 
+          className={`tab ${activeTab === 'remote' ? 'active' : ''}`}
+          onClick={() => {
+            setActiveTab('remote');
+            if (remotePacks.length === 0) {
+              fetchRemoteContentPacks();
+            }
+          }}
+        >
+          Remote ({remotePacks.length})
         </button>
         <button 
           className={`tab ${activeTab === 'loaded' ? 'active' : ''}`}
@@ -472,6 +775,7 @@ const ContentPackManager = () => {
 
       <div className="content-pack-content">
         {activeTab === 'available' && renderAvailablePacks()}
+        {activeTab === 'remote' && renderRemotePacks()}
         {activeTab === 'loaded' && renderLoadedPacks()}
         {activeTab === 'export' && renderExportForm()}
       </div>

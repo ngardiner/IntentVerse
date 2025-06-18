@@ -278,5 +278,113 @@ def create_api_routes(module_loader: ModuleLoader, content_pack_manager=None) ->
                 "filename": filename,
                 "validation": preview_result["validation"]
             }
+        
+        # --- Remote Content Pack Endpoints ---
+        
+        @router.get("/content-packs/remote")
+        def list_remote_content_packs(force_refresh: bool = False) -> List[Dict[str, Any]]:
+            """
+            Returns a list of all available remote content packs.
+            """
+            return content_pack_manager.list_remote_content_packs(force_refresh)
+        
+        @router.get("/content-packs/remote/info/{filename}")
+        def get_remote_content_pack_info(filename: str) -> Dict[str, Any]:
+            """
+            Get detailed information about a specific remote content pack.
+            """
+            pack_info = content_pack_manager.get_remote_content_pack_info(filename)
+            if not pack_info:
+                raise HTTPException(status_code=404, detail=f"Remote content pack '{filename}' not found")
+            return pack_info
+        
+        @router.post("/content-packs/remote/search")
+        def search_remote_content_packs(request: Dict[str, Any]) -> List[Dict[str, Any]]:
+            """
+            Search remote content packs by query, category, or tags.
+            """
+            query = request.get("query", "")
+            category = request.get("category", "")
+            tags = request.get("tags", [])
+            
+            return content_pack_manager.search_remote_content_packs(query, category, tags)
+        
+        @router.post("/content-packs/remote/download")
+        def download_remote_content_pack(request: Dict[str, Any]) -> Dict[str, Any]:
+            """
+            Download a remote content pack to local cache.
+            """
+            filename = request.get("filename")
+            if not filename:
+                raise HTTPException(status_code=400, detail="Filename is required")
+            
+            downloaded_path = content_pack_manager.download_remote_content_pack(filename)
+            
+            if downloaded_path:
+                return {
+                    "status": "success",
+                    "message": f"Content pack '{filename}' downloaded successfully",
+                    "cache_path": str(downloaded_path)
+                }
+            else:
+                raise HTTPException(status_code=500, detail=f"Failed to download content pack '{filename}'")
+        
+        @router.post("/content-packs/remote/install")
+        def install_remote_content_pack(request: Dict[str, Any]) -> Dict[str, Any]:
+            """
+            Download and install a remote content pack.
+            """
+            filename = request.get("filename")
+            load_immediately = request.get("load_immediately", True)
+            
+            if not filename:
+                raise HTTPException(status_code=400, detail="Filename is required")
+            
+            success = content_pack_manager.install_remote_content_pack(filename, load_immediately)
+            
+            if success:
+                action = "installed and loaded" if load_immediately else "installed"
+                return {
+                    "status": "success",
+                    "message": f"Content pack '{filename}' {action} successfully"
+                }
+            else:
+                raise HTTPException(status_code=500, detail=f"Failed to install content pack '{filename}'")
+        
+        @router.get("/content-packs/remote/repository-info")
+        def get_remote_repository_info() -> Dict[str, Any]:
+            """
+            Get information about the remote repository including statistics.
+            """
+            return content_pack_manager.get_remote_repository_info()
+        
+        @router.post("/content-packs/remote/refresh-cache")
+        def refresh_remote_cache() -> Dict[str, Any]:
+            """
+            Force refresh the remote manifest cache.
+            """
+            manifest = content_pack_manager.fetch_remote_manifest(force_refresh=True)
+            if manifest:
+                return {
+                    "status": "success",
+                    "message": "Remote cache refreshed successfully",
+                    "content_packs_count": len(manifest.get("content_packs", []))
+                }
+            else:
+                raise HTTPException(status_code=500, detail="Failed to refresh remote cache")
+        
+        @router.post("/content-packs/remote/clear-cache")
+        def clear_remote_cache() -> Dict[str, Any]:
+            """
+            Clear the remote content pack cache.
+            """
+            success = content_pack_manager.clear_remote_cache()
+            if success:
+                return {
+                    "status": "success",
+                    "message": "Remote cache cleared successfully"
+                }
+            else:
+                raise HTTPException(status_code=500, detail="Failed to clear remote cache")
 
     return router

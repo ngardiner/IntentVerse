@@ -3,6 +3,11 @@ import logging
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 from datetime import datetime
+import httpx
+import tempfile
+from urllib.parse import urljoin
+import time
+from .config import Config
 
 class ContentPackManager:
     """
@@ -20,6 +25,20 @@ class ContentPackManager:
         self.module_loader = module_loader
         self.content_packs_dir = Path(__file__).parent.parent / "content_packs"
         self.loaded_packs = []
+        
+        # Remote repository configuration
+        self.remote_repo_url = Config.get_remote_repo_url()
+        self.manifest_url = Config.get_manifest_url()
+        self.remote_cache_dir = Path(__file__).parent.parent / "cache" / "remote_packs"
+        self.remote_cache_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Cache for remote manifest
+        self._remote_manifest = None
+        self._manifest_cache_time = None
+        self._manifest_cache_duration = Config.get_cache_duration()
+        
+        # HTTP client for remote requests
+        self._http_client = httpx.Client(timeout=Config.get_http_timeout())
         
     def load_default_content_pack(self):
         """Load the default content pack if it exists."""
@@ -471,4 +490,305 @@ class ContentPackManager:
             "author_name": "",
             "author_email": "",
             "version": "1.0.0"
+        }
+    
+    def fetch_remote_manifest(self, force_refresh: bool = False) -> Optional[Dict[str, Any]]:
+        """
+        Fetch the remote content pack manifest from the repository.
+        
+        Args:
+            force_refresh: If True, bypass cache and fetch fresh data
+            
+        Returns:
+            Remote manifest dictionary or None if fetch fails
+        """
+        current_time = time.time()
+        
+        # Check if we have cached data and it's still valid
+        if (not force_refresh and 
+            self._remote_manifest is not None and 
+            self._manifest_cache_time is not None and
+            (current_time - self._manifest_cache_time) < self._manifest_cache_duration):
+            logging.debug("Using cached remote manifest")
+            return self._remote_manifest
+        
+        try:
+            logging.info(f"Fetching remote manifest from: {self.manifest_url}")
+            response = self._http_client.get(self.manifest_url)
+            response.raise_for_status()
+            
+            manifest_data = response.json()
+            
+            # Cache the manifest
+            self._remote_manifest = manifest_data
+            self._manifest_cache_time = current_time
+            
+            logging.info(f"Successfully fetched remote manifest with {len(manifest_data.get('content_packs', []))} content packs")
+            return manifest_data
+            
+        except httpx.RequestError as e:
+            logging.error(f"Network error fetching remote manifest: {e}")
+            return None
+        except httpx.HTTPStatusError as e:
+            logging.error(f"HTTP error fetching remote manifest: {e.response.status_code}")
+            return None
+        except json.JSONDecodeError as e:
+            logging.error(f"Invalid JSON in remote manifest: {e}")
+            return None
+        except Exception as e:
+            logging.error(f"Unexpected error fetching remote manifest: {e}")
+            return None
+    
+    def list_remote_content_packs(self, force_refresh: bool = False) -> List[Dict[str, Any]]:
+        """
+        List all available remote content packs.
+        
+        Args:
+            force_refresh: If True, bypass cache and fetch fresh data
+            
+        Returns:
+            List of remote content pack information
+        """
+        manifest = self.fetch_remote_manifest(force_refresh)
+        if not manifest:
+            logging.warning("Could not fetch remote manifest")
+            return []
+        
+        content_packs = manifest.get("content_packs", [])
+        
+        # Add remote-specific metadata
+        for pack in content_packs:
+            pack["source"] = "remote"
+            pack["download_url"] = urljoin(
+                self.remote_repo_url, 
+                f"content-packs/{pack.get('relative_path', pack.get('filename', ''))}"
+            )
+        
+        return content_packs
+    
+    def download_remote_content_pack(self, pack_filename: str) -> Optional[Path]:
+        """
+        Download a remote content pack to the local cache.
+        
+        Args:
+            pack_filename: Filename of the content pack to download
+            
+        Returns:
+            Path to downloaded file or None if download fails
+        """
+        # First get the manifest to find the pack details
+        manifest = self.fetch_remote_manifest()
+        if not manifest:
+            logging.error("Could not fetch remote manifest for download")
+            return None
+        
+        # Find the pack in the manifest
+        pack_info = None
+        for pack in manifest.get("content_packs", []):
+            if pack.get("filename") == pack_filename:
+                pack_info = pack
+                break
+        
+        if not pack_info:
+            logging.error(f"Content pack '{pack_filename}' not found in remote manifest")
+            return None
+        
+        # Construct download URL
+        relative_path = pack_info.get("relative_path", pack_filename)
+        download_url = urljoin(self.remote_repo_url, f"content-packs/{relative_path}")
+        
+        # Download to cache directory
+        cache_file_path = self.remote_cache_dir / pack_filename
+        
+        try:
+            logging.info(f"Downloading content pack from: {download_url}")
+            response = self._http_client.get(download_url)
+            response.raise_for_status()
+            
+            # Validate it's valid JSON
+            content_pack_data = response.json()
+            
+            # Write to cache file
+            with open(cache_file_path, 'w', encoding='utf-8') as f:
+                json.dump(content_pack_data, f, indent=2, ensure_ascii=False)
+            
+            logging.info(f"Successfully downloaded content pack to: {cache_file_path}")
+            return cache_file_path
+            
+        except httpx.RequestError as e:
+            logging.error(f"Network error downloading content pack: {e}")
+            return None
+        except httpx.HTTPStatusError as e:
+            logging.error(f"HTTP error downloading content pack: {e.response.status_code}")
+            return None
+        except json.JSONDecodeError as e:
+            logging.error(f"Downloaded content pack is not valid JSON: {e}")
+            return None
+        except Exception as e:
+            logging.error(f"Unexpected error downloading content pack: {e}")
+            return None
+    
+    def install_remote_content_pack(self, pack_filename: str, load_immediately: bool = True) -> bool:
+        """
+        Download and install a remote content pack.
+        
+        Args:
+            pack_filename: Filename of the content pack to install
+            load_immediately: If True, load the pack after installation
+            
+        Returns:
+            True if installed successfully, False otherwise
+        """
+        # Download the pack
+        downloaded_path = self.download_remote_content_pack(pack_filename)
+        if not downloaded_path:
+            return False
+        
+        # Copy to local content packs directory
+        local_path = self.content_packs_dir / pack_filename
+        
+        try:
+            # Ensure local content packs directory exists
+            self.content_packs_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Copy from cache to local directory
+            with open(downloaded_path, 'r', encoding='utf-8') as src:
+                content = src.read()
+            
+            with open(local_path, 'w', encoding='utf-8') as dst:
+                dst.write(content)
+            
+            logging.info(f"Installed content pack to: {local_path}")
+            
+            # Load immediately if requested
+            if load_immediately:
+                success = self.load_content_pack(local_path)
+                if success:
+                    logging.info(f"Successfully installed and loaded content pack: {pack_filename}")
+                else:
+                    logging.warning(f"Installed content pack but failed to load: {pack_filename}")
+                return success
+            else:
+                logging.info(f"Successfully installed content pack: {pack_filename}")
+                return True
+                
+        except Exception as e:
+            logging.error(f"Error installing content pack {pack_filename}: {e}")
+            return False
+    
+    def get_remote_content_pack_info(self, pack_filename: str) -> Optional[Dict[str, Any]]:
+        """
+        Get detailed information about a remote content pack.
+        
+        Args:
+            pack_filename: Filename of the content pack
+            
+        Returns:
+            Content pack information or None if not found
+        """
+        manifest = self.fetch_remote_manifest()
+        if not manifest:
+            return None
+        
+        for pack in manifest.get("content_packs", []):
+            if pack.get("filename") == pack_filename:
+                pack["source"] = "remote"
+                pack["download_url"] = urljoin(
+                    self.remote_repo_url, 
+                    f"content-packs/{pack.get('relative_path', pack_filename)}"
+                )
+                return pack
+        
+        return None
+    
+    def search_remote_content_packs(self, query: str = "", category: str = "", tags: List[str] = None) -> List[Dict[str, Any]]:
+        """
+        Search remote content packs by query, category, or tags.
+        
+        Args:
+            query: Search query to match against name, summary, or description
+            category: Filter by category
+            tags: Filter by tags (must contain all specified tags)
+            
+        Returns:
+            List of matching content packs
+        """
+        all_packs = self.list_remote_content_packs()
+        filtered_packs = []
+        
+        for pack in all_packs:
+            # Category filter
+            if category and pack.get("category", "").lower() != category.lower():
+                continue
+            
+            # Tags filter
+            if tags:
+                pack_tags = [tag.lower() for tag in pack.get("tags", [])]
+                if not all(tag.lower() in pack_tags for tag in tags):
+                    continue
+            
+            # Query filter (search in name, summary, description)
+            if query:
+                query_lower = query.lower()
+                searchable_text = " ".join([
+                    pack.get("name", ""),
+                    pack.get("summary", ""),
+                    pack.get("detailed_description", "")
+                ]).lower()
+                
+                if query_lower not in searchable_text:
+                    continue
+            
+            filtered_packs.append(pack)
+        
+        return filtered_packs
+    
+    def clear_remote_cache(self) -> bool:
+        """
+        Clear the remote content pack cache.
+        
+        Returns:
+            True if cleared successfully
+        """
+        try:
+            # Clear manifest cache
+            self._remote_manifest = None
+            self._manifest_cache_time = None
+            
+            # Clear cached files
+            if self.remote_cache_dir.exists():
+                for cache_file in self.remote_cache_dir.glob("*.json"):
+                    cache_file.unlink()
+                logging.info("Remote cache cleared successfully")
+            
+            return True
+        except Exception as e:
+            logging.error(f"Error clearing remote cache: {e}")
+            return False
+    
+    def get_remote_repository_info(self) -> Dict[str, Any]:
+        """
+        Get information about the remote repository.
+        
+        Returns:
+            Repository information including statistics
+        """
+        manifest = self.fetch_remote_manifest()
+        if not manifest:
+            return {
+                "status": "unavailable",
+                "error": "Could not fetch remote manifest"
+            }
+        
+        return {
+            "status": "available",
+            "repository_url": manifest.get("repository_url", ""),
+            "manifest_version": manifest.get("manifest_version", ""),
+            "generated_at": manifest.get("generated_at", ""),
+            "statistics": manifest.get("statistics", {}),
+            "cache_status": {
+                "cached": self._remote_manifest is not None,
+                "cache_time": self._manifest_cache_time,
+                "cache_age_seconds": time.time() - self._manifest_cache_time if self._manifest_cache_time else None
+            }
         }
