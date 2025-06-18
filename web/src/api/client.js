@@ -71,4 +71,30 @@ export const exportContentPack = (filename, metadata = {}) => {
   });
 };
 
+export const loadContentPack = (filename) => {
+  return apiClient.post('/api/v1/content-packs/load', {
+    filename
+  });
+};
+
+export const unloadContentPack = (identifier) => {
+  return apiClient.post('/api/v1/content-packs/unload', {
+    identifier
+  });
+};
+
+export const clearAllLoadedPacks = () => {
+  return apiClient.post('/api/v1/content-packs/clear-all');
+};
+
+export const previewContentPack = (filename) => {
+  return apiClient.get(`/api/v1/content-packs/preview/${filename}`);
+};
+
+export const validateContentPack = (filename) => {
+  return apiClient.post('/api/v1/content-packs/validate', {
+    filename
+  });
+};
+
 export default apiClient;

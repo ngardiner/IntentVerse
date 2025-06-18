@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { getAvailableContentPacks, getLoadedContentPacks, exportContentPack } from '../api/client';
+import { getAvailableContentPacks, getLoadedContentPacks, exportContentPack, loadContentPack, unloadContentPack, clearAllLoadedPacks } from '../api/client';
+import ContentPackPreview from './ContentPackPreview';
 
 const ContentPackManager = () => {
   const [availablePacks, setAvailablePacks] = useState([]);
@@ -17,6 +18,12 @@ const ContentPackManager = () => {
   });
   const [exportLoading, setExportLoading] = useState(false);
   const [exportMessage, setExportMessage] = useState('');
+  const [actionLoading, setActionLoading] = useState({});
+  const [actionMessage, setActionMessage] = useState('');
+  const [previewModal, setPreviewModal] = useState({
+    isOpen: false,
+    filename: null
+  });
 
   useEffect(() => {
     fetchContentPacks();
@@ -78,6 +85,95 @@ const ContentPackManager = () => {
     }
   };
 
+  const handleLoadPack = async (filename) => {
+    setActionLoading({...actionLoading, [filename]: true});
+    setActionMessage('');
+
+    try {
+      const response = await loadContentPack(filename);
+      setActionMessage(`✓ ${response.data.message}`);
+      
+      // Refresh the packs list
+      fetchContentPacks();
+    } catch (err) {
+      setActionMessage(`✗ Load failed: ${err.response?.data?.detail || err.message}`);
+      console.error('Load error:', err);
+    } finally {
+      setActionLoading({...actionLoading, [filename]: false});
+      // Clear message after 3 seconds
+      setTimeout(() => setActionMessage(''), 3000);
+    }
+  };
+
+  const handleUnloadPack = async (identifier) => {
+    setActionLoading({...actionLoading, [identifier]: true});
+    setActionMessage('');
+
+    try {
+      const response = await unloadContentPack(identifier);
+      setActionMessage(`✓ ${response.data.message}`);
+      
+      // Refresh the packs list
+      fetchContentPacks();
+    } catch (err) {
+      setActionMessage(`✗ Unload failed: ${err.response?.data?.detail || err.message}`);
+      console.error('Unload error:', err);
+    } finally {
+      setActionLoading({...actionLoading, [identifier]: false});
+      // Clear message after 3 seconds
+      setTimeout(() => setActionMessage(''), 3000);
+    }
+  };
+
+  const handleClearAll = async () => {
+    if (!window.confirm('Are you sure you want to clear all loaded content packs from tracking? This will not revert state or database changes.')) {
+      return;
+    }
+
+    setActionLoading({...actionLoading, 'clear-all': true});
+    setActionMessage('');
+
+    try {
+      const response = await clearAllLoadedPacks();
+      setActionMessage(`✓ ${response.data.message}`);
+      
+      // Refresh the packs list
+      fetchContentPacks();
+    } catch (err) {
+      setActionMessage(`✗ Clear failed: ${err.response?.data?.detail || err.message}`);
+      console.error('Clear error:', err);
+    } finally {
+      setActionLoading({...actionLoading, 'clear-all': false});
+      // Clear message after 3 seconds
+      setTimeout(() => setActionMessage(''), 3000);
+    }
+  };
+
+  const isPackLoaded = (filename) => {
+    return loadedPacks.some(pack => {
+      const packFilename = pack.path ? pack.path.split('/').pop() : '';
+      return packFilename === filename;
+    });
+  };
+
+  const handlePreviewPack = (filename) => {
+    setPreviewModal({
+      isOpen: true,
+      filename: filename
+    });
+  };
+
+  const handleClosePreview = () => {
+    setPreviewModal({
+      isOpen: false,
+      filename: null
+    });
+  };
+
+  const handleLoadFromPreview = (filename) => {
+    handleLoadPack(filename);
+  };
+
   const formatDate = (dateString) => {
     if (!dateString) return 'Unknown';
     try {
@@ -90,38 +186,80 @@ const ContentPackManager = () => {
   const renderAvailablePacks = () => (
     <div className="content-pack-list">
       <h3>Available Content Packs</h3>
+      {actionMessage && (
+        <div className={`action-message ${actionMessage.startsWith('✓') ? 'success' : 'error'}`}>
+          {actionMessage}
+        </div>
+      )}
       {availablePacks.length === 0 ? (
         <p>No content packs found in the content_packs directory.</p>
       ) : (
         <div className="pack-grid">
-          {availablePacks.map((pack, index) => (
-            <div key={index} className="pack-card">
-              <div className="pack-header">
-                <h4>{pack.metadata?.name || pack.filename}</h4>
-                <span className="pack-filename">{pack.filename}</span>
-              </div>
-              
-              <div className="pack-content">
-                {pack.metadata?.summary && (
-                  <p className="pack-summary">{pack.metadata.summary}</p>
-                )}
-                
-                <div className="pack-features">
-                  {pack.has_database && <span className="feature-badge database">Database</span>}
-                  {pack.has_state && <span className="feature-badge state">State</span>}
-                  {pack.has_prompts && <span className="feature-badge prompts">Prompts</span>}
+          {availablePacks.map((pack, index) => {
+            const isLoaded = isPackLoaded(pack.filename);
+            const isLoading = actionLoading[pack.filename];
+            
+            return (
+              <div key={index} className={`pack-card ${isLoaded ? 'loaded' : ''}`}>
+                <div className="pack-header">
+                  <h4>{pack.metadata?.name || pack.filename}</h4>
+                  <div className="pack-status">
+                    <span className="pack-filename">{pack.filename}</span>
+                    {isLoaded && <span className="loaded-badge">Loaded</span>}
+                  </div>
                 </div>
                 
-                {pack.metadata?.author_name && (
-                  <p className="pack-author">By: {pack.metadata.author_name}</p>
-                )}
-                
-                {pack.metadata?.version && (
-                  <p className="pack-version">Version: {pack.metadata.version}</p>
-                )}
+                <div className="pack-content">
+                  {pack.metadata?.summary && (
+                    <p className="pack-summary">{pack.metadata.summary}</p>
+                  )}
+                  
+                  <div className="pack-features">
+                    {pack.has_database && <span className="feature-badge database">Database</span>}
+                    {pack.has_state && <span className="feature-badge state">State</span>}
+                    {pack.has_prompts && <span className="feature-badge prompts">Prompts</span>}
+                  </div>
+                  
+                  {pack.metadata?.author_name && (
+                    <p className="pack-author">By: {pack.metadata.author_name}</p>
+                  )}
+                  
+                  {pack.metadata?.version && (
+                    <p className="pack-version">Version: {pack.metadata.version}</p>
+                  )}
+                  
+                  <div className="pack-actions">
+                    <div className="action-buttons">
+                      {!isLoaded ? (
+                        <button 
+                          className="load-button"
+                          onClick={() => handleLoadPack(pack.filename)}
+                          disabled={isLoading}
+                        >
+                          {isLoading ? 'Loading...' : 'Load Pack'}
+                        </button>
+                      ) : (
+                        <button 
+                          className="unload-button"
+                          onClick={() => handleUnloadPack(pack.filename)}
+                          disabled={isLoading}
+                        >
+                          {isLoading ? 'Unloading...' : 'Unload Pack'}
+                        </button>
+                      )}
+                      <button 
+                        className="preview-button"
+                        onClick={() => handlePreviewPack(pack.filename)}
+                        disabled={isLoading}
+                      >
+                        Preview
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
@@ -129,33 +267,75 @@ const ContentPackManager = () => {
 
   const renderLoadedPacks = () => (
     <div className="content-pack-list">
-      <h3>Currently Loaded Content Packs</h3>
+      <div className="loaded-packs-header">
+        <h3>Currently Loaded Content Packs</h3>
+        {loadedPacks.length > 0 && (
+          <button 
+            className="clear-all-button"
+            onClick={handleClearAll}
+            disabled={actionLoading['clear-all']}
+          >
+            {actionLoading['clear-all'] ? 'Clearing...' : 'Clear All'}
+          </button>
+        )}
+      </div>
+      
+      {actionMessage && (
+        <div className={`action-message ${actionMessage.startsWith('✓') ? 'success' : 'error'}`}>
+          {actionMessage}
+        </div>
+      )}
+      
       {loadedPacks.length === 0 ? (
         <p>No content packs are currently loaded.</p>
       ) : (
         <div className="pack-grid">
-          {loadedPacks.map((pack, index) => (
-            <div key={index} className="pack-card loaded">
-              <div className="pack-header">
-                <h4>{pack.metadata?.name || 'Unnamed Pack'}</h4>
-                <span className="loaded-badge">Loaded</span>
-              </div>
-              
-              <div className="pack-content">
-                {pack.metadata?.summary && (
-                  <p className="pack-summary">{pack.metadata.summary}</p>
-                )}
+          {loadedPacks.map((pack, index) => {
+            const packFilename = pack.path ? pack.path.split('/').pop() : '';
+            const isLoading = actionLoading[packFilename] || actionLoading[pack.metadata?.name];
+            
+            return (
+              <div key={index} className="pack-card loaded">
+                <div className="pack-header">
+                  <h4>{pack.metadata?.name || 'Unnamed Pack'}</h4>
+                  <span className="loaded-badge">Loaded</span>
+                </div>
                 
-                <p className="pack-loaded-time">
-                  Loaded: {formatDate(pack.loaded_at)}
-                </p>
-                
-                {pack.path && (
-                  <p className="pack-path">Path: {pack.path}</p>
-                )}
+                <div className="pack-content">
+                  {pack.metadata?.summary && (
+                    <p className="pack-summary">{pack.metadata.summary}</p>
+                  )}
+                  
+                  <p className="pack-loaded-time">
+                    Loaded: {formatDate(pack.loaded_at)}
+                  </p>
+                  
+                  {pack.path && (
+                    <p className="pack-path">Path: {pack.path}</p>
+                  )}
+                  
+                  <div className="pack-actions">
+                    <div className="action-buttons">
+                      <button 
+                        className="unload-button"
+                        onClick={() => handleUnloadPack(packFilename || pack.metadata?.name)}
+                        disabled={isLoading}
+                      >
+                        {isLoading ? 'Unloading...' : 'Unload Pack'}
+                      </button>
+                      <button 
+                        className="preview-button"
+                        onClick={() => handlePreviewPack(packFilename)}
+                        disabled={isLoading || !packFilename}
+                      >
+                        Preview
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
@@ -295,6 +475,14 @@ const ContentPackManager = () => {
         {activeTab === 'loaded' && renderLoadedPacks()}
         {activeTab === 'export' && renderExportForm()}
       </div>
+
+      {/* Preview Modal */}
+      <ContentPackPreview
+        filename={previewModal.filename}
+        isOpen={previewModal.isOpen}
+        onClose={handleClosePreview}
+        onLoad={handleLoadFromPreview}
+      />
     </div>
   );
 };

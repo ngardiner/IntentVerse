@@ -156,9 +156,184 @@ class ContentPackManager:
         """Get information about currently loaded content packs."""
         return self.loaded_packs.copy()
     
+    def load_content_pack_by_filename(self, filename: str) -> bool:
+        """
+        Load a content pack by filename from the content_packs directory.
+        
+        Args:
+            filename: Name of the content pack file to load
+            
+        Returns:
+            True if loaded successfully, False otherwise
+        """
+        pack_path = self.content_packs_dir / filename
+        if not pack_path.exists():
+            logging.error(f"Content pack file not found: {filename}")
+            return False
+        
+        return self.load_content_pack(pack_path)
+    
+    def unload_content_pack(self, pack_identifier: str) -> bool:
+        """
+        Unload a content pack. Note: This only removes it from the loaded_packs list.
+        The actual state and database changes cannot be easily reverted without 
+        implementing a more complex state management system.
+        
+        Args:
+            pack_identifier: Either the filename or the pack name to unload
+            
+        Returns:
+            True if unloaded successfully, False otherwise
+        """
+        try:
+            # Find the pack to unload
+            pack_to_remove = None
+            for i, pack in enumerate(self.loaded_packs):
+                pack_filename = Path(pack["path"]).name
+                pack_name = pack.get("metadata", {}).get("name", "")
+                
+                if pack_identifier == pack_filename or pack_identifier == pack_name:
+                    pack_to_remove = i
+                    break
+            
+            if pack_to_remove is not None:
+                removed_pack = self.loaded_packs.pop(pack_to_remove)
+                logging.info(f"Unloaded content pack: {pack_identifier}")
+                return True
+            else:
+                logging.warning(f"Content pack not found in loaded packs: {pack_identifier}")
+                return False
+                
+        except Exception as e:
+            logging.error(f"Error unloading content pack {pack_identifier}: {e}")
+            return False
+    
+    def clear_all_loaded_packs(self) -> bool:
+        """
+        Clear all loaded content packs from the tracking list.
+        Note: This does not revert state or database changes.
+        
+        Returns:
+            True if cleared successfully
+        """
+        try:
+            self.loaded_packs.clear()
+            logging.info("Cleared all loaded content packs from tracking")
+            return True
+        except Exception as e:
+            logging.error(f"Error clearing loaded packs: {e}")
+            return False
+    
+    def validate_content_pack_detailed(self, content_pack: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Perform detailed validation of a content pack and return validation results.
+        
+        Args:
+            content_pack: The content pack dictionary to validate
+            
+        Returns:
+            Dictionary with validation results, errors, and warnings
+        """
+        validation_result = {
+            "is_valid": True,
+            "errors": [],
+            "warnings": [],
+            "summary": {
+                "has_metadata": False,
+                "has_database": False,
+                "has_state": False,
+                "has_prompts": False,
+                "database_statements": 0,
+                "state_modules": [],
+                "prompts_count": 0
+            }
+        }
+        
+        # Check that it's a dictionary
+        if not isinstance(content_pack, dict):
+            validation_result["is_valid"] = False
+            validation_result["errors"].append("Content pack must be a JSON object")
+            return validation_result
+        
+        # Check for required top-level keys
+        has_content = any(key in content_pack for key in ["database", "state", "prompts"])
+        if not has_content:
+            validation_result["is_valid"] = False
+            validation_result["errors"].append("Content pack must contain at least one of: database, state, or prompts")
+        
+        # Validate metadata section
+        if "metadata" in content_pack:
+            validation_result["summary"]["has_metadata"] = True
+            metadata = content_pack["metadata"]
+            if not isinstance(metadata, dict):
+                validation_result["errors"].append("Metadata section must be an object")
+            else:
+                # Check for recommended metadata fields
+                recommended_fields = ["name", "summary", "version"]
+                missing_fields = [field for field in recommended_fields if not metadata.get(field)]
+                if missing_fields:
+                    validation_result["warnings"].append(f"Missing recommended metadata fields: {', '.join(missing_fields)}")
+        else:
+            validation_result["warnings"].append("No metadata section found - recommended for content pack identification")
+        
+        # Validate database section
+        if "database" in content_pack:
+            validation_result["summary"]["has_database"] = True
+            database = content_pack["database"]
+            if not isinstance(database, list):
+                validation_result["errors"].append("Database section must be an array of SQL statements")
+            else:
+                validation_result["summary"]["database_statements"] = len(database)
+                # Validate SQL statements
+                for i, statement in enumerate(database):
+                    if not isinstance(statement, str):
+                        validation_result["errors"].append(f"Database statement {i+1} must be a string")
+                    elif not statement.strip():
+                        validation_result["warnings"].append(f"Database statement {i+1} is empty")
+                    elif not any(statement.strip().upper().startswith(cmd) for cmd in ["CREATE", "INSERT", "UPDATE", "DELETE", "ALTER"]):
+                        validation_result["warnings"].append(f"Database statement {i+1} may not be a valid SQL command")
+        
+        # Validate state section
+        if "state" in content_pack:
+            validation_result["summary"]["has_state"] = True
+            state = content_pack["state"]
+            if not isinstance(state, dict):
+                validation_result["errors"].append("State section must be an object")
+            else:
+                validation_result["summary"]["state_modules"] = list(state.keys())
+                # Check for known module types
+                known_modules = ["filesystem", "email", "memory", "web_search"]
+                unknown_modules = [module for module in state.keys() if module not in known_modules and module != "database"]
+                if unknown_modules:
+                    validation_result["warnings"].append(f"Unknown state modules (may be custom): {', '.join(unknown_modules)}")
+        
+        # Validate prompts section
+        if "prompts" in content_pack:
+            validation_result["summary"]["has_prompts"] = True
+            prompts = content_pack["prompts"]
+            if not isinstance(prompts, list):
+                validation_result["errors"].append("Prompts section must be an array")
+            else:
+                validation_result["summary"]["prompts_count"] = len(prompts)
+                # Validate prompt structure
+                for i, prompt in enumerate(prompts):
+                    if not isinstance(prompt, dict):
+                        validation_result["errors"].append(f"Prompt {i+1} must be an object")
+                    else:
+                        required_prompt_fields = ["name", "content"]
+                        missing_prompt_fields = [field for field in required_prompt_fields if not prompt.get(field)]
+                        if missing_prompt_fields:
+                            validation_result["errors"].append(f"Prompt {i+1} missing required fields: {', '.join(missing_prompt_fields)}")
+        
+        # Set final validation status
+        if validation_result["errors"]:
+            validation_result["is_valid"] = False
+        
+        return validation_result
+    
     def _validate_content_pack(self, content_pack: Dict[str, Any]) -> bool:
         """
-        Validate the structure of a content pack.
+        Simple validation for backward compatibility.
         
         Args:
             content_pack: The content pack dictionary to validate
@@ -166,31 +341,108 @@ class ContentPackManager:
         Returns:
             True if valid, False otherwise
         """
-        # Check that it's a dictionary
-        if not isinstance(content_pack, dict):
-            return False
+        validation_result = self.validate_content_pack_detailed(content_pack)
+        return validation_result["is_valid"]
+    
+    def preview_content_pack(self, filename: str) -> Dict[str, Any]:
+        """
+        Preview a content pack without loading it, including validation results.
         
-        # Check for required top-level keys (at least one of database, state, or prompts)
-        has_content = any(key in content_pack for key in ["database", "state", "prompts"])
-        if not has_content:
-            return False
+        Args:
+            filename: Name of the content pack file to preview
+            
+        Returns:
+            Dictionary with content pack preview and validation information
+        """
+        pack_path = self.content_packs_dir / filename
         
-        # Validate database section if present
-        if "database" in content_pack:
-            if not isinstance(content_pack["database"], list):
-                return False
+        preview_result = {
+            "filename": filename,
+            "exists": False,
+            "content_pack": None,
+            "validation": None,
+            "preview": {
+                "metadata": {},
+                "database_preview": [],
+                "state_preview": {},
+                "prompts_preview": []
+            }
+        }
         
-        # Validate state section if present
-        if "state" in content_pack:
-            if not isinstance(content_pack["state"], dict):
-                return False
+        if not pack_path.exists():
+            preview_result["validation"] = {
+                "is_valid": False,
+                "errors": [f"Content pack file '{filename}' not found"],
+                "warnings": [],
+                "summary": {}
+            }
+            return preview_result
         
-        # Validate prompts section if present
-        if "prompts" in content_pack:
-            if not isinstance(content_pack["prompts"], list):
-                return False
+        try:
+            with open(pack_path, 'r', encoding='utf-8') as f:
+                content_pack = json.load(f)
+            
+            preview_result["exists"] = True
+            preview_result["content_pack"] = content_pack
+            
+            # Perform detailed validation
+            preview_result["validation"] = self.validate_content_pack_detailed(content_pack)
+            
+            # Generate preview information
+            if "metadata" in content_pack:
+                preview_result["preview"]["metadata"] = content_pack["metadata"]
+            
+            if "database" in content_pack and isinstance(content_pack["database"], list):
+                # Show first few database statements as preview
+                db_statements = content_pack["database"]
+                preview_result["preview"]["database_preview"] = db_statements[:5]  # First 5 statements
+            
+            if "state" in content_pack and isinstance(content_pack["state"], dict):
+                # Create a summary of state content
+                state_summary = {}
+                for module_name, module_state in content_pack["state"].items():
+                    if isinstance(module_state, dict):
+                        state_summary[module_name] = {
+                            "type": type(module_state).__name__,
+                            "keys": list(module_state.keys())[:10],  # First 10 keys
+                            "total_keys": len(module_state.keys()) if hasattr(module_state, 'keys') else 0
+                        }
+                    else:
+                        state_summary[module_name] = {
+                            "type": type(module_state).__name__,
+                            "value": str(module_state)[:100] + "..." if len(str(module_state)) > 100 else str(module_state)
+                        }
+                preview_result["preview"]["state_preview"] = state_summary
+            
+            if "prompts" in content_pack and isinstance(content_pack["prompts"], list):
+                # Show prompt summaries
+                prompts_preview = []
+                for prompt in content_pack["prompts"][:5]:  # First 5 prompts
+                    if isinstance(prompt, dict):
+                        prompt_summary = {
+                            "name": prompt.get("name", "Unnamed"),
+                            "description": prompt.get("description", "No description"),
+                            "content_length": len(prompt.get("content", ""))
+                        }
+                        prompts_preview.append(prompt_summary)
+                preview_result["preview"]["prompts_preview"] = prompts_preview
+            
+        except json.JSONDecodeError as e:
+            preview_result["validation"] = {
+                "is_valid": False,
+                "errors": [f"Invalid JSON format: {str(e)}"],
+                "warnings": [],
+                "summary": {}
+            }
+        except Exception as e:
+            preview_result["validation"] = {
+                "is_valid": False,
+                "errors": [f"Error reading content pack: {str(e)}"],
+                "warnings": [],
+                "summary": {}
+            }
         
-        return True
+        return preview_result
     
     def _merge_state_content(self, new_state: Dict[str, Any]):
         """

@@ -191,5 +191,92 @@ def create_api_routes(module_loader: ModuleLoader, content_pack_manager=None) ->
                 }
             else:
                 raise HTTPException(status_code=500, detail="Failed to export content pack")
+        
+        @router.post("/content-packs/load")
+        def load_content_pack(request: Dict[str, Any]) -> Dict[str, Any]:
+            """
+            Load a content pack by filename.
+            """
+            filename = request.get("filename")
+            if not filename:
+                raise HTTPException(status_code=400, detail="Filename is required")
+            
+            success = content_pack_manager.load_content_pack_by_filename(filename)
+            
+            if success:
+                return {
+                    "status": "success",
+                    "message": f"Content pack '{filename}' loaded successfully"
+                }
+            else:
+                raise HTTPException(status_code=500, detail=f"Failed to load content pack '{filename}'")
+        
+        @router.post("/content-packs/unload")
+        def unload_content_pack(request: Dict[str, Any]) -> Dict[str, Any]:
+            """
+            Unload a content pack by filename or name.
+            Note: This only removes it from the loaded packs tracking.
+            State and database changes are not reverted.
+            """
+            identifier = request.get("identifier")
+            if not identifier:
+                raise HTTPException(status_code=400, detail="Pack identifier (filename or name) is required")
+            
+            success = content_pack_manager.unload_content_pack(identifier)
+            
+            if success:
+                return {
+                    "status": "success",
+                    "message": f"Content pack '{identifier}' unloaded successfully"
+                }
+            else:
+                raise HTTPException(status_code=404, detail=f"Content pack '{identifier}' not found in loaded packs")
+        
+        @router.post("/content-packs/clear-all")
+        def clear_all_loaded_packs() -> Dict[str, Any]:
+            """
+            Clear all loaded content packs from tracking.
+            Note: This does not revert state or database changes.
+            """
+            success = content_pack_manager.clear_all_loaded_packs()
+            
+            if success:
+                return {
+                    "status": "success",
+                    "message": "All loaded content packs cleared from tracking"
+                }
+            else:
+                raise HTTPException(status_code=500, detail="Failed to clear loaded content packs")
+        
+        @router.get("/content-packs/preview/{filename}")
+        def preview_content_pack(filename: str) -> Dict[str, Any]:
+            """
+            Preview a content pack without loading it, including validation results.
+            """
+            preview_result = content_pack_manager.preview_content_pack(filename)
+            
+            if not preview_result["exists"]:
+                raise HTTPException(status_code=404, detail=f"Content pack '{filename}' not found")
+            
+            return preview_result
+        
+        @router.post("/content-packs/validate")
+        def validate_content_pack(request: Dict[str, Any]) -> Dict[str, Any]:
+            """
+            Validate a content pack by filename and return detailed validation results.
+            """
+            filename = request.get("filename")
+            if not filename:
+                raise HTTPException(status_code=400, detail="Filename is required")
+            
+            preview_result = content_pack_manager.preview_content_pack(filename)
+            
+            if not preview_result["exists"]:
+                raise HTTPException(status_code=404, detail=f"Content pack '{filename}' not found")
+            
+            return {
+                "filename": filename,
+                "validation": preview_result["validation"]
+            }
 
     return router
