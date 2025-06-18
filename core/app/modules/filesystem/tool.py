@@ -59,6 +59,9 @@ class FileSystemTool(BaseTool):
             found_child = None
             for child in current_node.get('children', []):
                 if child.get('name') == part:
+                    # Check if the found child is a directory
+                    if child.get('type') != 'directory':
+                        raise HTTPException(status_code=400, detail=f"A part of the path '{part}' is a file, not a directory.")
                     current_node = child
                     found_child = True
                     break
@@ -102,13 +105,20 @@ class FileSystemTool(BaseTool):
         # 3. Handle validation based on what was found.
         if node and node.get('type') == 'directory':
             raise HTTPException(status_code=400, detail=f"A directory already exists at path: {path}")
+        
+        # 4. If parent doesn't exist, create all necessary parent directories
         if not parent:
-            # This can happen if the path is invalid, e.g., /file.txt/newfile.txt
-            raise HTTPException(status_code=400, detail=f"Invalid path: cannot find a valid parent directory for {path}")
+            try:
+                parent = self._create_parent_dirs(path)
+            except HTTPException:
+                # Re-raise if _create_parent_dirs found an invalid path structure
+                raise
+            except Exception:
+                raise HTTPException(status_code=400, detail=f"Invalid path: cannot create parent directories for {path}")
         
         file_name = path.split('/')[-1]
 
-        # 4. Perform the write/overwrite.
+        # 5. Perform the write/overwrite.
         # Remove the old file if it exists.
         parent['children'] = [child for child in parent.get('children', []) if not (child.get('name') == file_name and child.get('type') == 'file')]
         
