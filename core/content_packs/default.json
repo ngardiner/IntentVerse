@@ -1,0 +1,84 @@
+{
+  "metadata": {
+    "name": "Default Content Pack",
+    "summary": "Basic sample data for testing and demonstration",
+    "detailed_description": "This is the default content pack that comes with IntentVerse. It includes sample users, products, and orders data to demonstrate the database functionality and provide a starting point for testing AI agent interactions.",
+    "date_exported": "2024-06-17T14:00:00Z",
+    "author_name": "",
+    "author_email": "",
+    "version": "1.0.0"
+  },
+  "database": [
+    "CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE NOT NULL, email TEXT UNIQUE NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);",
+    "CREATE TABLE IF NOT EXISTS products (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, price DECIMAL(10,2) NOT NULL, category TEXT, in_stock BOOLEAN DEFAULT 1);",
+    "CREATE TABLE IF NOT EXISTS orders (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, product_id INTEGER, quantity INTEGER DEFAULT 1, order_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (user_id) REFERENCES users (id), FOREIGN KEY (product_id) REFERENCES products (id));",
+    "INSERT OR IGNORE INTO users (username, email) VALUES ('alice_smith', 'alice@example.com');",
+    "INSERT OR IGNORE INTO users (username, email) VALUES ('bob_jones', 'bob@example.com');",
+    "INSERT OR IGNORE INTO users (username, email) VALUES ('charlie_brown', 'charlie@example.com');",
+    "INSERT OR IGNORE INTO products (name, price, category) VALUES ('AI Agent Pro', 99.99, 'Software');",
+    "INSERT OR IGNORE INTO products (name, price, category) VALUES ('IntentVerse Subscription', 29.99, 'SaaS');",
+    "INSERT OR IGNORE INTO products (name, price, category) VALUES ('Database Toolkit', 149.99, 'Software');",
+    "INSERT OR IGNORE INTO products (name, price, category) VALUES ('Analytics Dashboard', 79.99, 'SaaS');"
+  ],
+  "prompts": [
+    {
+      "name": "explore_database",
+      "description": "Prompt to encourage the AI to explore the database structure",
+      "content": "Please explore the database structure. Start by listing all available tables, then examine the schema of each table to understand the data model. Finally, run some sample queries to see what data is available."
+    },
+    {
+      "name": "analyze_sales_data",
+      "description": "Prompt to analyze the sample sales data",
+      "content": "Analyze the sales data in the database. Look at the products, users, and any orders. Create some meaningful queries to understand customer behavior, popular products, and sales patterns."
+    }
+  ],
+  "state": {
+    "filesystem": {
+      "type": "directory",
+      "name": "/",
+      "children": [
+        {
+          "type": "directory",
+          "name": "documents",
+          "children": [
+            {
+              "type": "file",
+              "name": "welcome.txt",
+              "content": "Welcome to IntentVerse!\n\nThis is a sample file system with some basic content to get you started.\n\nFeel free to explore, create new files, and test the various tools available."
+            },
+            {
+              "type": "file",
+              "name": "database_guide.md",
+              "content": "# Database Guide\n\n## Available Tables\n\n- **users**: Sample user accounts\n- **products**: Product catalog\n- **orders**: Order history\n\n## Getting Started\n\n1. List all tables: `SELECT name FROM sqlite_master WHERE type='table';`\n2. Explore table structure: `PRAGMA table_info(table_name);`\n3. Query data: `SELECT * FROM users LIMIT 5;`\n\nHappy exploring!"
+            }
+          ]
+        },
+        {
+          "type": "directory",
+          "name": "projects",
+          "children": []
+        }
+      ]
+    },
+    "email": {
+      "inbox": [
+        {
+          "id": 1,
+          "from": "admin@intentverse.com",
+          "to": "user@example.com",
+          "subject": "Welcome to IntentVerse",
+          "body": "Welcome to IntentVerse! This is your AI agent testing environment. You can safely experiment with various tools and see the results in real-time through the web interface.",
+          "timestamp": "2024-06-17T10:00:00Z",
+          "read": false
+        }
+      ],
+      "sent": [],
+      "drafts": []
+    },
+    "memory": {
+      "short_term": {},
+      "long_term": {},
+      "context": {}
+    }
+  }
+}

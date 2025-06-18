@@ -8,6 +8,7 @@ from .module_loader import ModuleLoader
 from .api import create_api_routes
 from .auth import router as auth_router
 from .database import create_db_and_tables
+from .content_pack_manager import ContentPackManager
 from .logging_config import setup_logging
 
 # Apply the JSON logging configuration at the earliest point
@@ -20,6 +21,8 @@ async def lifespan(app: FastAPI):
     create_db_and_tables()
     # Discover and load all modules from the 'modules' directory
     loader.load_modules()
+    # Load default content pack after modules are loaded
+    content_pack_manager.load_default_content_pack()
     yield
     # This code runs on server shutdown
     logging.info("--- IntentVerse Core Engine Shutting Down ---")
@@ -34,9 +37,10 @@ app = FastAPI(
 
 state_manager = StateManager()
 loader = ModuleLoader(state_manager)
+content_pack_manager = ContentPackManager(state_manager, loader)
 
-# Create the main API routes, passing the loader to them.
-api_router = create_api_routes(loader)
+# Create the main API routes, passing the loader and content pack manager to them.
+api_router = create_api_routes(loader, content_pack_manager)
 app.include_router(api_router)
 app.include_router(auth_router)
 

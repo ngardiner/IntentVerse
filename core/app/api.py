@@ -6,7 +6,7 @@ from typing import Dict, Any, List, Union, get_origin, get_args # Import get_ori
 from .module_loader import ModuleLoader
 from .state_manager import state_manager
 
-def create_api_routes(module_loader: ModuleLoader) -> APIRouter:
+def create_api_routes(module_loader: ModuleLoader, content_pack_manager=None) -> APIRouter:
     """
     Creates and returns the API router, wiring up the endpoints
     to the loaded modules.
@@ -147,5 +147,49 @@ def create_api_routes(module_loader: ModuleLoader) -> APIRouter:
             # Catch any other unexpected errors from the tool execution
             logging.error(f"ERROR executing tool '{tool_full_name}': {e}", exc_info=True)
             raise HTTPException(status_code=500, detail=f"An error occurred while executing tool '{tool_full_name}': {str(e)}")
+
+    # --- Content Pack Management Endpoints ---
+    
+    if content_pack_manager:
+        @router.get("/content-packs/available")
+        def list_available_content_packs() -> List[Dict[str, Any]]:
+            """
+            Returns a list of all available content packs in the content_packs directory.
+            """
+            return content_pack_manager.list_available_content_packs()
+        
+        @router.get("/content-packs/loaded")
+        def get_loaded_content_packs() -> List[Dict[str, Any]]:
+            """
+            Returns information about currently loaded content packs.
+            """
+            return content_pack_manager.get_loaded_packs_info()
+        
+        @router.post("/content-packs/export")
+        def export_content_pack(request: Dict[str, Any]) -> Dict[str, Any]:
+            """
+            Export current system state as a content pack.
+            """
+            from pathlib import Path
+            
+            filename = request.get("filename", "exported_content_pack.json")
+            metadata = request.get("metadata", {})
+            
+            # Ensure filename ends with .json
+            if not filename.endswith('.json'):
+                filename += '.json'
+            
+            output_path = content_pack_manager.content_packs_dir / filename
+            
+            success = content_pack_manager.export_content_pack(output_path, metadata)
+            
+            if success:
+                return {
+                    "status": "success", 
+                    "message": f"Content pack exported to {filename}",
+                    "path": str(output_path)
+                }
+            else:
+                raise HTTPException(status_code=500, detail="Failed to export content pack")
 
     return router

@@ -64,3 +64,24 @@ The UI is not statically coded. At startup, the Web UI queries the Core Engine f
 ### External Observability
 
 The Core Engine does not directly push logs to an external service. Instead, it emits structured JSON logs to `stdout`. This allows users to employ standard, robust collector agents (e.g., Vector, Fluent Bit) to pick up these logs and forward them to any observability platform of their choice (Splunk, Datadog, etc.).
+
+### Content
+
+Whilst the project presents a set of interfaces for mock MCP interfaces, these alone are not particularly useful. A key use case is the ability to inject mock content for the model to interact with, and for the model to then generate and store its own content. This will be done through content packs.
+
+The content presented by these packs is not part of the core distribution in this source tree. Below are the key points on how content is handled in this project:
+
+* The system is instantiated with a blank StateManager, and blank SQLite database. All modules other than SQLite are stored in StateManager, SQLite will always need to be an outlier. There will never be static content within the python modules themselves.
+* There will be a single default content pack that is distributed with the release which has some dummy data for testing and is turned on by default, but can be turned off within the UI. Other content packs can be added/removed.
+* Content packs are JSON files directly exported from the UI, with 4 key sections: Metadata, Database, Prompts and State.
+   * Metadata
+       * Metadata contains the key details needed to populate the manifest for content packs uploaded to the repository. It will contain details such as Name, Summary, Detailed Description, Date Exported, Author Name and Email. These are not mandatory for a UI export, but they will be for inclusion into the content repository. Name/Summary/Date should be populated by core on export, the rest blank placeholders for manual user population when submitting to the Content repository. Metadata is mandatory.
+   * Database
+       * Export of the SQLite database content, in a mergeable format. It should not replace current content but consist of CREATE/INSERT statements to add the content currently in the SQLite database to any database it is imported into. This is optional.
+   * Prompts
+       * Prompts allow for storage of text prompts which instruct the model to create content based on the text prompt provided. This is optional.
+   * State
+      * State is an export of the StateManager, providing the current content state of every module other than database.
+      * It must be mergable. The content within state will be merged into the current StateManager context, allowing multiple content packs to exist
+      * This section is optional. A content pack may have no state (or empty state) and the modules may or may not be populated with state, ie it could just be memory and no other module. No scenario should ever lead to current state being cleared.
+* A separate repository will be created to manage the content packs.

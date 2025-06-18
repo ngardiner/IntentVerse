@@ -5,6 +5,7 @@ import { getUILayout } from '../api/client';
 import GenericFileTree from '../components/generic/GenericFileTree';
 import GenericTable from '../components/generic/GenericTable';
 import GenericKeyValue from '../components/generic/GenericKeyValue';
+import ContentPackManager from '../components/ContentPackManager';
 
 const DashboardPage = () => {
   const [layout, setLayout] = useState([]);
@@ -66,6 +67,10 @@ const DashboardPage = () => {
 
   return (
     <div className="dashboard-container">
+      {/* Content Pack Manager Section */}
+      <ContentPackManager />
+      
+      {/* Modules Grid */}
       <div className="modules-grid">
         {layout.length > 0 ? (
           layout.map(renderComponent)

@@ -54,4 +54,21 @@ export const getModuleState = (moduleName) => {
   return apiClient.get(`/api/v1/${moduleName}/state`);
 };
 
+// --- Content Pack API Functions ---
+
+export const getAvailableContentPacks = () => {
+  return apiClient.get('/api/v1/content-packs/available');
+};
+
+export const getLoadedContentPacks = () => {
+  return apiClient.get('/api/v1/content-packs/loaded');
+};
+
+export const exportContentPack = (filename, metadata = {}) => {
+  return apiClient.post('/api/v1/content-packs/export', {
+    filename,
+    metadata
+  });
+};
+
 export default apiClient;
