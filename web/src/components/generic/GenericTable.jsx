@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { getModuleState } from '../../api/client';
+import EmailPopout from './EmailPopout';
 
-const GenericTable = ({ title, data_source_api, columns }) => {
+const GenericTable = ({ title, data_source_api, columns, sizeClass = '', module_id = '' }) => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [selectedEmail, setSelectedEmail] = useState(null);
+  const isEmailModule = module_id === 'email';
 
   useEffect(() => {
     const moduleName = data_source_api?.split('/')[3];
@@ -60,7 +63,11 @@ const GenericTable = ({ title, data_source_api, columns }) => {
         </thead>
         <tbody>
           {data.map((row, index) => (
-            <tr key={row.id || index}>
+            <tr 
+              key={row.id || index}
+              className={isEmailModule ? 'email-row' : ''}
+              onClick={isEmailModule ? () => setSelectedEmail(row) : undefined}
+            >
               {columns.map(col => (
                 <td key={col.data_key}>{Array.isArray(row[col.data_key]) ? row[col.data_key].join(', ') : row[col.data_key]}</td>
               ))}
@@ -72,11 +79,14 @@ const GenericTable = ({ title, data_source_api, columns }) => {
   };
 
   return (
-    <div className="module-container">
+    <div className={`module-container ${sizeClass}`}>
       <h2>{title}</h2>
       <div className="module-content">
         {renderContent()}
       </div>
+      {selectedEmail && (
+        <EmailPopout email={selectedEmail} onClose={() => setSelectedEmail(null)} />
+      )}
     </div>
   );
 };

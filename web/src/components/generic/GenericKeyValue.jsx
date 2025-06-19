@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getModuleState } from '../../api/client';
 
-const GenericKeyValue = ({ title, data_source_api }) => {
+const GenericKeyValue = ({ title, data_source_api, sizeClass = '' }) => {
   const [data, setData] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -62,7 +62,7 @@ const GenericKeyValue = ({ title, data_source_api }) => {
   };
 
   return (
-    <div className="module-container">
+    <div className={`module-container ${sizeClass}`}>
       <h2>{title}</h2>
       <div className="module-content">
         {renderContent()}

@@ -26,7 +26,7 @@ const TreeNode = ({ node }) => {
 };
 
 
-const GenericFileTree = ({ title, data_source_api }) => {
+const GenericFileTree = ({ title, data_source_api, sizeClass = '' }) => {
   const [treeData, setTreeData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -85,7 +85,7 @@ const GenericFileTree = ({ title, data_source_api }) => {
   };
 
   return (
-    <div className="module-container">
+    <div className={`module-container ${sizeClass}`}>
       <h2>{title}</h2>
       <div className="module-content">
         {renderContent()}
