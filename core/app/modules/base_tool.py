@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import Any, Dict
 
 class BaseTool(ABC):
     """
@@ -22,3 +22,22 @@ class BaseTool(ABC):
         """
         self.state_manager = state_manager
         pass
+        
+    def get_ui_schema(self) -> Dict[str, Any]:
+        """
+        Returns the UI schema for this tool module.
+        
+        This method can be overridden by subclasses to provide custom UI schemas.
+        By default, returns a basic schema with the module name.
+        
+        Returns:
+            A dictionary containing the UI schema.
+        """
+        module_name = self.__class__.__module__.split('.')[-2]
+        return {
+            "name": module_name,
+            "displayName": module_name.replace('_', ' ').title(),
+            "description": self.__class__.__doc__ or f"Tool module for {module_name}",
+            "version": "1.0.0",
+            "components": []
+        }
