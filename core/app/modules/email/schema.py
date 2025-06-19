@@ -6,12 +6,24 @@ UI_SCHEMA = {
   "components": [
     {
       "component_type": "table",
-      "title": "Sent Items",
-      "data_source_api": "/api/v1/email/sent_items",
+      "title": "Inbox",
+      "data_source_api": "/api/v1/email/state",
+      "data_path": "inbox",
       "columns": [
+        { "header": "Date", "data_key": "timestamp" },
+        { "header": "From", "data_key": "from" },
+        { "header": "Subject", "data_key": "subject" }
+      ]
+    },
+    {
+      "component_type": "table",
+      "title": "Sent Items",
+      "data_source_api": "/api/v1/email/state",
+      "data_path": "sent_items",
+      "columns": [
+        { "header": "Date", "data_key": "timestamp" },
         { "header": "To", "data_key": "to" },
-        { "header": "Subject", "data_key": "subject" },
-        { "header": "Timestamp", "data_key": "timestamp" }
+        { "header": "Subject", "data_key": "subject" }
       ]
     }
   ]

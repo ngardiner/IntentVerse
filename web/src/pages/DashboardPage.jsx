@@ -62,10 +62,20 @@ const DashboardPage = () => {
           case 'file_tree':
             return <GenericFileTree {...props} />;
           case 'table':
-            return <GenericTable {...props} />;
+            return <GenericTable 
+              {...props} 
+              data_path={component.data_path}
+              dynamic_columns={component.dynamic_columns}
+              max_rows={component.max_rows}
+            />;
           case 'key_value_viewer':
           case 'key_value':
-            return <GenericKeyValue {...props} />;
+            return <GenericKeyValue 
+              {...props} 
+              data_path={component.data_path}
+              display_as={component.display_as}
+              language={component.language}
+            />;
           default:
             return (
               <div key={props.key} className={`module-container ${sizeClass}`}>
@@ -90,10 +100,20 @@ const DashboardPage = () => {
       case 'file_tree':
         return <GenericFileTree {...props} />;
       case 'table':
-        return <GenericTable {...props} />;
+        return <GenericTable 
+          {...props} 
+          data_path={moduleSchema.data_path}
+          dynamic_columns={moduleSchema.dynamic_columns}
+          max_rows={moduleSchema.max_rows}
+        />;
       case 'key_value_viewer':
       case 'key_value':
-        return <GenericKeyValue {...props} />;
+        return <GenericKeyValue 
+          {...props} 
+          data_path={moduleSchema.data_path}
+          display_as={moduleSchema.display_as}
+          language={moduleSchema.language}
+        />;
       default:
         return (
           <div key={moduleSchema.module_id || moduleSchema.name} className={`module-container ${sizeClass}`}>

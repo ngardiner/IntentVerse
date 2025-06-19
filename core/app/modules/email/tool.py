@@ -19,9 +19,48 @@ class EmailTool(BaseTool):
             state_manager: An instance of the StateManager class.
         """
         super().__init__(state_manager)
-        # Ensure the email state exists with 'sent_items' and 'drafts' lists
+        # Ensure the email state exists with 'inbox', 'sent_items', and 'drafts' lists
         if 'email' not in self.state_manager.get_full_state():
-            self.state_manager.set('email', {'sent_items': [], 'drafts': []})
+            self.state_manager.set('email', {
+                'inbox': [],
+                'sent_items': [], 
+                'drafts': []
+            })
+            
+            # Add some sample emails to the inbox for demonstration
+            inbox = self.state_manager.get('email')['inbox']
+            inbox.append({
+                "email_id": f"inbox-{uuid.uuid4()}",
+                "from": "support@example.com",
+                "to": ["user@intentverse.ai"],
+                "cc": [],
+                "subject": "Welcome to our service",
+                "body": "Thank you for signing up! We're excited to have you on board.",
+                "timestamp": (datetime.now(timezone.utc) - timedelta(days=1)).isoformat(),
+                "read": False
+            })
+            
+            inbox.append({
+                "email_id": f"inbox-{uuid.uuid4()}",
+                "from": "newsletter@tech-updates.com",
+                "to": ["user@intentverse.ai"],
+                "cc": [],
+                "subject": "Weekly Technology Digest",
+                "body": "Here are this week's top stories in technology...",
+                "timestamp": (datetime.now(timezone.utc) - timedelta(hours=12)).isoformat(),
+                "read": False
+            })
+            
+            inbox.append({
+                "email_id": f"inbox-{uuid.uuid4()}",
+                "from": "team@project-x.org",
+                "to": ["user@intentverse.ai", "team@intentverse.ai"],
+                "cc": ["manager@intentverse.ai"],
+                "subject": "Project Update - Q3 Goals",
+                "body": "Dear team,\n\nHere's an update on our Q3 goals and progress...",
+                "timestamp": (datetime.now(timezone.utc) - timedelta(hours=3)).isoformat(),
+                "read": False
+            })
             
     def get_ui_schema(self) -> Dict[str, Any]:
         """Returns the UI schema for the email module."""
@@ -37,7 +76,7 @@ class EmailTool(BaseTool):
         
         email_data = {
             "email_id": email_id,
-            "from": "agent@intentverse.ai",
+            "from": "user@intentverse.ai",
             "to": to,
             "cc": cc or [],
             "subject": subject,
@@ -67,11 +106,15 @@ class EmailTool(BaseTool):
         """
         Reads the full content of a specific email in any folder using its unique ID.
         """
+        inbox = self.state_manager.get('email').get('inbox', [])
         sent_items = self.state_manager.get('email').get('sent_items', [])
         drafts = self.state_manager.get('email').get('drafts', [])
         
-        for email in sent_items + drafts:
+        for email in inbox + sent_items + drafts:
             if email["email_id"] == email_id:
+                # If this is an inbox email, mark it as read
+                if email.get("read") is False and email in inbox:
+                    email["read"] = True
                 return email
                 
         raise HTTPException(status_code=404, detail=f"Email with ID '{email_id}' not found.")
