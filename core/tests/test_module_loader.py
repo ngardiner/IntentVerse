@@ -85,7 +85,7 @@ class TestModuleLoader:
         assert len(loader.modules) == 0
         assert len(loader.errors) == 0
     
-    @patch('core.app.module_loader.importlib.import_module')
+    @patch('app.module_loader.importlib.import_module')
     def test_load_modules_import_error(self, mock_import, state_manager, temp_modules_dir):
         """Test handling of import errors during module loading."""
         # Create a module directory with __init__.py
@@ -103,7 +103,7 @@ class TestModuleLoader:
         assert len(loader.errors) == 1
         assert "ImportError in test_module" in loader.errors[0]
     
-    @patch('core.app.module_loader.importlib.import_module')
+    @patch('app.module_loader.importlib.import_module')
     def test_load_modules_no_tool_class(self, mock_import, state_manager, temp_modules_dir):
         """Test loading a module that doesn't contain a BaseTool subclass."""
         # Create a module directory with __init__.py
@@ -121,7 +121,7 @@ class TestModuleLoader:
         mock_import.return_value = mock_module
         
         # Mock inspect.getmembers to return our mock classes
-        with patch('core.app.module_loader.inspect.getmembers') as mock_getmembers:
+        with patch('app.module_loader.inspect.getmembers') as mock_getmembers:
             mock_getmembers.return_value = [
                 ("SomeClass", mock_module.SomeClass),
                 ("AnotherClass", mock_module.AnotherClass)
@@ -133,7 +133,7 @@ class TestModuleLoader:
         assert len(loader.modules) == 0
         assert len(loader.errors) == 0
     
-    @patch('core.app.module_loader.importlib.import_module')
+    @patch('app.module_loader.importlib.import_module')
     def test_load_modules_successful_loading(self, mock_import, state_manager, temp_modules_dir):
         """Test successful loading of a module with a BaseTool subclass."""
         # Create a module directory with __init__.py
@@ -149,7 +149,7 @@ class TestModuleLoader:
         mock_import.return_value = mock_module
         
         # Mock inspect.getmembers to return our mock tool class
-        with patch('core.app.module_loader.inspect.getmembers') as mock_getmembers:
+        with patch('app.module_loader.inspect.getmembers') as mock_getmembers:
             mock_getmembers.return_value = [
                 ("TestTool", MockTool),
                 ("BaseTool", BaseTool)  # Should be ignored
@@ -164,7 +164,7 @@ class TestModuleLoader:
         assert loader.modules["test_module"].state_manager == state_manager
         assert len(loader.errors) == 0
     
-    @patch('core.app.module_loader.importlib.import_module')
+    @patch('app.module_loader.importlib.import_module')
     def test_load_modules_instantiation_error(self, mock_import, state_manager, temp_modules_dir):
         """Test handling of errors during tool instantiation."""
         # Create a module directory with __init__.py
@@ -185,7 +185,7 @@ class TestModuleLoader:
         mock_import.return_value = mock_module
         
         # Mock inspect.getmembers to return our failing tool class
-        with patch('core.app.module_loader.inspect.getmembers') as mock_getmembers:
+        with patch('app.module_loader.inspect.getmembers') as mock_getmembers:
             mock_getmembers.return_value = [
                 ("FailingTool", FailingTool)
             ]

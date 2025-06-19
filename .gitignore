@@ -1,3 +1,5 @@
 *.md
 *.pyc
-core/venv/
+venv/
+core/*venv/
+web/node_modules/*

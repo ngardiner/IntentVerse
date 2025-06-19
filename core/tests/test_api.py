@@ -248,9 +248,9 @@ class TestAPIRoutes:
         
         module_loader.get_tool.return_value = mock_tool
         
-        with patch('core.app.api.inspect.signature', return_value=mock_sig):
-            with patch('core.app.api.hasattr', return_value=True):
-                with patch('core.app.api.getattr', return_value=mock_method):
+        with patch('app.api.inspect.signature', return_value=mock_sig):
+            with patch('app.api.hasattr', return_value=True):
+                with patch('app.api.getattr', return_value=mock_method):
                     payload = {
                         "tool_name": "test_module.simple_method",
                         "parameters": {"param1": "test_value"}
@@ -276,9 +276,9 @@ class TestAPIRoutes:
         
         module_loader.get_tool.return_value = mock_tool
         
-        with patch('core.app.api.inspect.signature', return_value=mock_sig):
-            with patch('core.app.api.hasattr', return_value=True):
-                with patch('core.app.api.getattr', return_value=mock_method):
+        with patch('app.api.inspect.signature', return_value=mock_sig):
+            with patch('app.api.hasattr', return_value=True):
+                with patch('app.api.getattr', return_value=mock_method):
                     payload = {
                         "tool_name": "test_module.simple_method",
                         "parameters": {"param1": "test_value"}
