@@ -68,3 +68,11 @@ class ModuleLoader:
     def get_all_tools(self) -> Dict[str, BaseTool]:
         """Returns a dictionary of all loaded tool instances."""
         return self.modules
+        
+    def get_schemas(self) -> Dict[str, Any]:
+        """Returns a dictionary of UI schemas for all loaded modules."""
+        schemas = {}
+        for module_name, tool_instance in self.modules.items():
+            if hasattr(tool_instance, 'get_ui_schema'):
+                schemas[module_name] = tool_instance.get_ui_schema()
+        return schemas
