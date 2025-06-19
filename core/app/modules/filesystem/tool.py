@@ -13,6 +13,11 @@ class FileSystemTool(BaseTool):
         if 'filesystem' not in self.state_manager.get_full_state():
             root = {'type': 'directory', 'name': '/', 'children': []}
             self.state_manager.set('filesystem', root)
+            
+    def get_ui_schema(self) -> Dict[str, Any]:
+        """Returns the UI schema for the filesystem module."""
+        from .schema import UI_SCHEMA
+        return UI_SCHEMA
 
     def _find_node_and_parent(self, path: str) -> Tuple[Optional[Dict], Optional[Dict]]:
         """A helper to find an existing node and its parent given a path."""

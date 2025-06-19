@@ -18,6 +18,11 @@ class MemoryTool(BaseTool):
         # Ensure the memory state exists as a dictionary
         if 'memory' not in self.state_manager.get_full_state():
             self.state_manager.set('memory', {})
+            
+    def get_ui_schema(self) -> Dict[str, Any]:
+        """Returns the UI schema for the memory module."""
+        from .schema import UI_SCHEMA
+        return UI_SCHEMA
 
     def set_memory(self, key: str, value: str) -> str:
         """

@@ -1,4 +1,5 @@
 import sqlite3
+from typing import Any, Dict, List, Optional, Tuple
 import logging
 from typing import Any, Dict, List, Optional, Tuple
 from ..base_tool import BaseTool
@@ -9,6 +10,11 @@ class DatabaseTool(BaseTool):
     Implements a fully functional in-memory SQLite database tool.
     This provides a safe, observable environment for AI agents to interact with databases.
     """
+    
+    def get_ui_schema(self) -> Dict[str, Any]:
+        """Returns the UI schema for the database module."""
+        from .schema import UI_SCHEMA
+        return UI_SCHEMA
 
     def __init__(self, state_manager: Any):
         """

@@ -22,6 +22,11 @@ class EmailTool(BaseTool):
         # Ensure the email state exists with 'sent_items' and 'drafts' lists
         if 'email' not in self.state_manager.get_full_state():
             self.state_manager.set('email', {'sent_items': [], 'drafts': []})
+            
+    def get_ui_schema(self) -> Dict[str, Any]:
+        """Returns the UI schema for the email module."""
+        from .schema import UI_SCHEMA
+        return UI_SCHEMA
 
     def send_email(self, to: List[str], subject: str, body: str, cc: List[str] = None) -> Dict[str, str]:
         """
