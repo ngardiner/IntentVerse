@@ -9,7 +9,7 @@ class FileSystemTool(BaseTool):
     """
 
     def __init__(self, state_manager: Any):
-        self.state_manager = state_manager
+        super().__init__(state_manager)
         if 'filesystem' not in self.state_manager.get_full_state():
             root = {'type': 'directory', 'name': '/', 'children': []}
             self.state_manager.set('filesystem', root)
