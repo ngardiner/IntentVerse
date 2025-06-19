@@ -2,6 +2,8 @@
 Unit tests for the API layer.
 """
 import pytest
+import json
+from pathlib import Path
 from unittest.mock import Mock, MagicMock, patch
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
@@ -11,6 +13,7 @@ from app.api import create_api_routes
 from app.module_loader import ModuleLoader
 from app.state_manager import StateManager
 from app.modules.base_tool import BaseTool
+from app.content_pack_manager import ContentPackManager
 
 
 class MockTool(BaseTool):
@@ -72,6 +75,121 @@ class TestAPIRoutes:
         app = FastAPI()
         app.include_router(api_router)
         return app
+    
+    @pytest.fixture
+    def mock_content_pack_manager(self):
+        """Create a mock content pack manager."""
+        mock_cpm = Mock(spec=ContentPackManager)
+        
+        # Mock list_available_content_packs
+        mock_cpm.list_available_content_packs.return_value = [
+            {
+                "filename": "test_pack.json",
+                "path": "/path/to/test_pack.json",
+                "metadata": {"name": "Test Pack", "version": "1.0.0"},
+                "has_database": True,
+                "has_state": True,
+                "has_prompts": False
+            }
+        ]
+        
+        # Mock get_loaded_packs_info
+        mock_cpm.get_loaded_packs_info.return_value = [
+            {
+                "path": "/path/to/test_pack.json",
+                "metadata": {"name": "Test Pack", "version": "1.0.0"},
+                "loaded_at": "2023-01-01T12:00:00"
+            }
+        ]
+        
+        # Mock export_content_pack
+        mock_cpm.export_content_pack.return_value = True
+        mock_cpm.content_packs_dir = Path("/path/to/content_packs")
+        
+        # Mock load_content_pack_by_filename
+        mock_cpm.load_content_pack_by_filename.return_value = True
+        
+        # Mock unload_content_pack
+        mock_cpm.unload_content_pack.return_value = True
+        
+        # Mock clear_all_loaded_packs
+        mock_cpm.clear_all_loaded_packs.return_value = True
+        
+        # Mock preview_content_pack
+        mock_cpm.preview_content_pack.return_value = {
+            "filename": "test_pack.json",
+            "exists": True,
+            "content_pack": {"metadata": {"name": "Test Pack"}},
+            "validation": {"is_valid": True, "errors": [], "warnings": []},
+            "preview": {
+                "metadata": {"name": "Test Pack"},
+                "database_preview": ["CREATE TABLE test (id INTEGER)"],
+                "state_preview": {"test_module": {"keys": ["key1"]}},
+                "prompts_preview": []
+            }
+        }
+        
+        # Mock remote content pack methods
+        mock_cpm.list_remote_content_packs.return_value = [
+            {
+                "filename": "remote_pack.json",
+                "metadata": {"name": "Remote Pack", "version": "1.0.0"},
+                "source": "remote",
+                "download_url": "https://example.com/remote_pack.json"
+            }
+        ]
+        
+        mock_cpm.get_remote_content_pack_info.return_value = {
+            "filename": "remote_pack.json",
+            "metadata": {"name": "Remote Pack", "version": "1.0.0"},
+            "source": "remote",
+            "download_url": "https://example.com/remote_pack.json"
+        }
+        
+        mock_cpm.search_remote_content_packs.return_value = [
+            {
+                "filename": "remote_pack.json",
+                "metadata": {"name": "Remote Pack", "version": "1.0.0"},
+                "source": "remote",
+                "download_url": "https://example.com/remote_pack.json"
+            }
+        ]
+        
+        mock_cpm.download_remote_content_pack.return_value = Path("/path/to/cache/remote_pack.json")
+        mock_cpm.install_remote_content_pack.return_value = True
+        
+        mock_cpm.get_remote_repository_info.return_value = {
+            "status": "available",
+            "repository_url": "https://example.com/repo",
+            "manifest_version": "1.0.0",
+            "statistics": {"total_packs": 10}
+        }
+        
+        mock_cpm.fetch_remote_manifest.return_value = {
+            "content_packs": [{"filename": "remote_pack.json"}]
+        }
+        
+        mock_cpm.clear_remote_cache.return_value = True
+        
+        return mock_cpm
+    
+    @pytest.fixture
+    def api_router_with_cpm(self, module_loader, mock_content_pack_manager):
+        """Create API router with content pack manager for testing."""
+        return create_api_routes(module_loader, mock_content_pack_manager)
+    
+    @pytest.fixture
+    def test_app_with_cpm(self, api_router_with_cpm):
+        """Create a test FastAPI app with the API router including content pack manager."""
+        from fastapi import FastAPI
+        app = FastAPI()
+        app.include_router(api_router_with_cpm)
+        return app
+    
+    @pytest.fixture
+    def client_with_cpm(self, test_app_with_cpm):
+        """Create a test client with content pack manager."""
+        return TestClient(test_app_with_cpm)
     
     @pytest.fixture
     def client(self, test_app):
