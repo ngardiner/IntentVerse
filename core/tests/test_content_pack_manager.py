@@ -11,6 +11,7 @@ from pathlib import Path
 import tempfile
 import httpx
 import respx
+from urllib.parse import urljoin
 
 from app.content_pack_manager import ContentPackManager
 from app.state_manager import StateManager
@@ -188,7 +189,8 @@ class TestRemoteContentPacks:
         mock_manifest = {"content_packs": [{"filename": pack_filename}]}
         
         respx.get(content_pack_manager.manifest_url).mock(return_value=httpx.Response(200, json=mock_manifest))
-        download_url = f"{content_pack_manager.remote_repo_url}/content-packs/{pack_filename}"
+        # Construct the download URL exactly as the application does to ensure the mock matches.
+        download_url = urljoin(content_pack_manager.remote_repo_url, f"content-packs/{pack_filename}")
         respx.get(download_url).mock(return_value=httpx.Response(200, json=pack_content))
 
         # ACT: Download the pack

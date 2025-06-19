@@ -114,3 +114,58 @@ async def test_memory_module_set_and_get_e2e():
         get_result = get_response.json()
         assert "result" in get_result
         assert get_result["result"] == test_value
+
+@pytest.mark.asyncio
+async def test_database_module_e2e():
+    """
+    Performs an end-to-end test of the Database module.
+    1. Creates a table using `database.execute_sql`.
+    2. Inserts data into the new table.
+    3. Queries the data back using `database.query`.
+    4. Verifies the returned data is correct.
+    """
+    table_name = "e2e_test_table"
+    async with httpx.AsyncClient(base_url=CORE_API_URL) as client:
+        # --- Step 1: Create a table ---
+        create_payload = {
+            "tool_name": "database.execute_sql",
+            "parameters": {
+                "sql_query": f"CREATE TABLE {table_name} (id INTEGER PRIMARY KEY, name TEXT, value REAL);"
+            }
+        }
+        print(f"E2E Test: Creating table '{table_name}'...")
+        create_response = await client.post("/api/v1/execute", json=create_payload)
+        assert create_response.status_code == 200, f"Failed to create table. Response: {create_response.text}"
+        assert create_response.json()["status"] == "success"
+
+        # --- Step 2: Insert data into the table ---
+        insert_payload = {
+            "tool_name": "database.execute_sql",
+            "parameters": {
+                "sql_query": f"INSERT INTO {table_name} (id, name, value) VALUES (1, 'e2e_product', 99.99);"
+            }
+        }
+        print(f"E2E Test: Inserting data into '{table_name}'...")
+        insert_response = await client.post("/api/v1/execute", json=insert_payload)
+        assert insert_response.status_code == 200, f"Failed to insert data. Response: {insert_response.text}"
+        assert insert_response.json()["status"] == "success"
+
+        # --- Step 3: Query the data back ---
+        query_payload = {
+            "tool_name": "database.query",
+            "parameters": {
+                "sql_query": f"SELECT * FROM {table_name} WHERE id = 1;"
+            }
+        }
+        print(f"E2E Test: Querying data from '{table_name}'...")
+        query_response = await client.post("/api/v1/execute", json=query_payload)
+        assert query_response.status_code == 200, f"Failed to query data. Response: {query_response.text}"
+        
+        query_result = query_response.json()
+        assert query_result["status"] == "success"
+        
+        # Verify the content of the result
+        data = query_result["result"]
+        assert isinstance(data, list)
+        assert len(data) == 1
+        assert data[0] == {"id": 1, "name": "e2e_product", "value": 99.99}
