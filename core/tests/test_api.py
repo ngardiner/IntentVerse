@@ -162,7 +162,7 @@ class TestAPIRoutes:
         response = client.post("/api/v1/execute", json=payload)
         
         assert response.status_code == 400
-        assert "Expected format 'module.method'" in response.json()["detail"]
+        assert "is required in the format 'module.method'" in response.json()["detail"]
     
     def test_execute_tool_nonexistent_tool(self, client, module_loader):
         """Test tool execution with non-existent tool."""

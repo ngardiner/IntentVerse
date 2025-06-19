@@ -161,14 +161,14 @@ class TestFilePathValidation:
         with pytest.raises(HTTPException) as exc_info:
             filesystem_tool.write_file("", "content")
         assert exc_info.value.status_code == 400
-        assert "Invalid file path" in exc_info.value.detail
+        assert "Path must be absolute and not empty" in exc_info.value.detail
     
     def test_write_file_root_path(self, filesystem_tool):
         """Tests writing to root path (should fail)."""
         with pytest.raises(HTTPException) as exc_info:
             filesystem_tool.write_file("/", "content")
         assert exc_info.value.status_code == 400
-        assert "Invalid file path" in exc_info.value.detail
+        assert "Cannot write to the root directory itself" in exc_info.value.detail
     
     def test_write_file_over_directory(self, filesystem_tool):
         """Tests writing a file over an existing directory."""
@@ -179,7 +179,7 @@ class TestFilePathValidation:
         with pytest.raises(HTTPException) as exc_info:
             filesystem_tool.write_file("/testdir", "content")
         assert exc_info.value.status_code == 400
-        assert "Cannot write to a directory" in exc_info.value.detail
+        assert "A directory already exists at path" in exc_info.value.detail
     
     def test_create_file_in_file_path(self, filesystem_tool):
         """Tests creating a file where a parent component is a file."""
