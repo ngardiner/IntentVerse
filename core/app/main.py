@@ -2,6 +2,7 @@ import logging
 from fastapi import FastAPI, APIRouter
 from typing import Dict, Any
 from contextlib import asynccontextmanager
+from fastapi.middleware.cors import CORSMiddleware
 
 from .state_manager import StateManager
 from .module_loader import ModuleLoader
@@ -33,6 +34,15 @@ app = FastAPI(
     description="Manages state, tools, and logic for the IntentVerse simulation.",
     version="0.1.0",
     lifespan=lifespan,
+)
+
+# Add CORS middleware to allow cross-origin requests from the web client
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],  # Web client URL
+    allow_credentials=True,
+    allow_methods=["*"],  # Allow all methods
+    allow_headers=["*"],  # Allow all headers
 )
 
 state_manager = StateManager()
