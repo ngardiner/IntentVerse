@@ -1,5 +1,3 @@
-// web/src/api/client.js
-
 import axios from 'axios';
 
 // The base URL for our Core Engine API.
@@ -95,6 +93,48 @@ export const validateContentPack = (filename) => {
   return apiClient.post('/api/v1/content-packs/validate', {
     filename
   });
+};
+
+// Remote Content Pack API functions
+export const getRemoteContentPacks = (forceRefresh = false) => {
+  return apiClient.get(`/api/v1/content-packs/remote?force_refresh=${forceRefresh}`);
+};
+
+export const getRemoteContentPackInfo = (filename) => {
+  return apiClient.get(`/api/v1/content-packs/remote/info/${filename}`);
+};
+
+export const searchRemoteContentPacks = (query = '', category = '', tags = []) => {
+  return apiClient.post('/api/v1/content-packs/remote/search', {
+    query,
+    category,
+    tags
+  });
+};
+
+export const downloadRemoteContentPack = (filename) => {
+  return apiClient.post('/api/v1/content-packs/remote/download', {
+    filename
+  });
+};
+
+export const installRemoteContentPack = (filename, loadImmediately = true) => {
+  return apiClient.post('/api/v1/content-packs/remote/install', {
+    filename,
+    load_immediately: loadImmediately
+  });
+};
+
+export const getRemoteRepositoryInfo = () => {
+  return apiClient.get('/api/v1/content-packs/remote/repository-info');
+};
+
+export const refreshRemoteCache = () => {
+  return apiClient.post('/api/v1/content-packs/remote/refresh-cache');
+};
+
+export const clearRemoteCache = () => {
+  return apiClient.post('/api/v1/content-packs/remote/clear-cache');
 };
 
 export default apiClient;

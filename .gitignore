@@ -1,5 +1,9 @@
+.service_pids
 *.md
 *.pyc
 venv/
 core/*venv/
+intentverse.db
+logs/*
 web/node_modules/*
+web/package-lock.json
