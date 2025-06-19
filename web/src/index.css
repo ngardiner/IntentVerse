@@ -203,8 +203,8 @@
   /* --- Content Page --- */
   .content-page-container {
     padding: 2rem;
-    max-width: 1200px;
-    margin: 0 auto;
+    width: 100%;
+    box-sizing: border-box;
   }
 
   .content-page-container h1 {
@@ -215,7 +215,8 @@
   .content-manager-wrapper {
     background-color: var(--surface-color);
     border-radius: 8px;
-    padding: 1rem;
+    padding: 1.5rem;
+    width: 100%;
   }
 
   /* --- Login Page --- */
@@ -551,11 +552,11 @@
   .content-pack-tabs {
     display: flex;
     border-bottom: 1px solid var(--border-color);
+    justify-content: flex-start;
   }
 
   .content-pack-tabs .tab {
-    flex: 1;
-    padding: 12px 20px;
+    padding: 12px 30px;
     background: none;
     border: none;
     cursor: pointer;
@@ -563,6 +564,7 @@
     color: var(--text-color-secondary);
     border-bottom: 3px solid transparent;
     transition: all 0.2s;
+    flex: 0 0 auto;
   }
 
   .content-pack-tabs .tab:hover {
@@ -588,7 +590,7 @@
 
   .pack-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
     gap: 20px;
   }
 
@@ -701,7 +703,7 @@
   }
 
   .export-form {
-    max-width: 600px;
+    width: 100%;
   }
 
   .export-form .form-group {
@@ -710,7 +712,7 @@
 
   .form-row {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr 1fr 1fr;
     gap: 16px;
   }
 
@@ -750,7 +752,9 @@
     cursor: pointer;
     font-size: 14px;
     font-weight: bold;
-    margin-top: 16px;
+    width: 100%;
+    height: 100%;
+    max-height: 42px;
   }
 
   .export-form button[type="submit"]:hover:not(:disabled) {
@@ -779,6 +783,71 @@
     background: rgba(220, 53, 69, 0.2);
     color: #dc3545;
     border: 1px solid #dc3545;
+  }
+
+  /* Remote Pack Styles */
+  .remote-packs-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+  }
+
+  .remote-controls {
+    display: flex;
+    gap: 10px;
+  }
+
+  .search-controls {
+    margin-bottom: 20px;
+    background-color: var(--background-color);
+    padding: 15px;
+    border-radius: 6px;
+  }
+
+  .search-row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .search-input {
+    flex: 1;
+    min-width: 200px;
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background-color: var(--surface-color);
+    color: var(--text-color);
+  }
+
+  .category-select {
+    width: 150px;
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background-color: var(--surface-color);
+    color: var(--text-color);
+  }
+
+  .search-button,
+  .clear-search-button,
+  .cache-button {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+  }
+
+  .search-button {
+    background-color: var(--primary-color);
+    color: white;
+  }
+
+  .clear-search-button {
+    background-color: var(--border-color);
+    color: var(--text-color);
   }
 
   /* Content Pack Action Styles */

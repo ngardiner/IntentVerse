@@ -637,38 +637,40 @@ const ContentPackManager = () => {
     <div className="export-form-container">
       <h3>Export Current State as Content Pack</h3>
       <form onSubmit={handleExport} className="export-form">
-        <div className="form-group">
-          <label htmlFor="filename">Filename:</label>
-          <input
-            type="text"
-            id="filename"
-            value={exportForm.filename}
-            onChange={(e) => setExportForm({...exportForm, filename: e.target.value})}
-            placeholder="my-content-pack.json"
-            required
-          />
-        </div>
+        <div className="form-row">
+          <div className="form-group">
+            <label htmlFor="filename">Filename:</label>
+            <input
+              type="text"
+              id="filename"
+              value={exportForm.filename}
+              onChange={(e) => setExportForm({...exportForm, filename: e.target.value})}
+              placeholder="my-content-pack.json"
+              required
+            />
+          </div>
 
-        <div className="form-group">
-          <label htmlFor="name">Pack Name:</label>
-          <input
-            type="text"
-            id="name"
-            value={exportForm.name}
-            onChange={(e) => setExportForm({...exportForm, name: e.target.value})}
-            placeholder="My Custom Content Pack"
-          />
-        </div>
+          <div className="form-group">
+            <label htmlFor="name">Pack Name:</label>
+            <input
+              type="text"
+              id="name"
+              value={exportForm.name}
+              onChange={(e) => setExportForm({...exportForm, name: e.target.value})}
+              placeholder="My Custom Content Pack"
+            />
+          </div>
 
-        <div className="form-group">
-          <label htmlFor="summary">Summary:</label>
-          <input
-            type="text"
-            id="summary"
-            value={exportForm.summary}
-            onChange={(e) => setExportForm({...exportForm, summary: e.target.value})}
-            placeholder="Brief description of this content pack"
-          />
+          <div className="form-group">
+            <label htmlFor="summary">Summary:</label>
+            <input
+              type="text"
+              id="summary"
+              value={exportForm.summary}
+              onChange={(e) => setExportForm({...exportForm, summary: e.target.value})}
+              placeholder="Brief description of this content pack"
+            />
+          </div>
         </div>
 
         <div className="form-group">
@@ -704,11 +706,15 @@ const ContentPackManager = () => {
               placeholder="your.email@example.com"
             />
           </div>
+          
+          <div className="form-group">
+            <label>&nbsp;</label>
+            <button type="submit" disabled={exportLoading || !exportForm.filename}>
+              {exportLoading ? 'Exporting...' : 'Export Content Pack'}
+            </button>
+          </div>
         </div>
 
-        <button type="submit" disabled={exportLoading || !exportForm.filename}>
-          {exportLoading ? 'Exporting...' : 'Export Content Pack'}
-        </button>
 
         {exportMessage && (
           <div className={`export-message ${exportMessage.startsWith('✓') ? 'success' : 'error'}`}>
