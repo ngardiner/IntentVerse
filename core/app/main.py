@@ -4,7 +4,7 @@ from typing import Dict, Any
 from contextlib import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
 
-from .state_manager import StateManager
+from .state_manager import state_manager
 from .module_loader import ModuleLoader
 from .api import create_api_routes
 from .auth import router as auth_router
@@ -45,7 +45,6 @@ app.add_middleware(
     allow_headers=["*"],  # Allow all headers
 )
 
-state_manager = StateManager()
 loader = ModuleLoader(state_manager)
 content_pack_manager = ContentPackManager(state_manager, loader)
 

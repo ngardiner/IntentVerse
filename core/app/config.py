@@ -7,7 +7,7 @@ class Config:
     # Remote Content Pack Repository Configuration
     REMOTE_REPO_URL: str = os.getenv(
         "INTENTVERSE_REMOTE_REPO_URL", 
-        "https://raw.githubusercontent.com/your-org/IntentVerse-Content/main/"
+        "https://raw.githubusercontent.com/ngardiner/IntentVerse-Content/main/"
     )
     
     # Cache configuration
