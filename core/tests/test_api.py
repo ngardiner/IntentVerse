@@ -88,14 +88,15 @@ class TestAPIRoutes:
         assert len(data["modules"]) == 1
         module_loader.get_schemas.assert_called_once()
     
-    def test_get_module_state_existing(self, client, state_manager):
-        """Test getting state for an existing module."""
-        state_manager.get.return_value = {"status": "ok", "data": "some_value"}
+def test_get_module_state_existing(self, client):
+    """Test getting state for an existing module."""
+    with patch('app.api.state_manager') as mock_state_manager:
+        mock_state_manager.get.return_value = {"status": "ok", "data": "some_value"}
         response = client.get("/api/v1/test_module/state")
 
         assert response.status_code == 200
         assert response.json() == {"status": "ok", "data": "some_value"}
-        state_manager.get.assert_called_once_with("test_module")
+        mock_state_manager.get.assert_called_once_with("test_module")
 
     def test_get_module_state_nonexistent(self, client, state_manager):
         """Test getting state for a non-existent module."""
