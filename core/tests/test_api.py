@@ -90,13 +90,13 @@ class TestAPIRoutes:
     
     def test_get_module_state_existing(self, client, state_manager):
         """Test getting state for an existing module."""
+        state_manager.get.return_value = {"status": "ok", "data": "some_value"}
         response = client.get("/api/v1/test_module/state")
-        
+
         assert response.status_code == 200
-        data = response.json()
-        assert data == {"test": "data"}
+        assert response.json() == {"status": "ok", "data": "some_value"}
         state_manager.get.assert_called_once_with("test_module")
-    
+
     def test_get_module_state_nonexistent(self, client, state_manager):
         """Test getting state for a non-existent module."""
         state_manager.get.return_value = None
