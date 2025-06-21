@@ -153,4 +153,11 @@ export const writeFile = (path, content) => {
   });
 };
 
+export const deleteFile = (path) => {
+  return apiClient.post('/api/v1/execute', {
+    tool_name: "filesystem.delete_file",
+    parameters: { path }
+  });
+};
+
 export default apiClient;

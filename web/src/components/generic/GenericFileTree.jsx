@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { getModuleState } from '../../api/client';
+import { getModuleState, deleteFile } from '../../api/client';
 import FilePopout from './FilePopout';
+import ConfirmationPopup from './ConfirmationPopup';
 
 // A small, recursive helper component to render each node in the tree.
-const TreeNode = ({ node, path = '/', onFileClick }) => {
+const TreeNode = ({ node, path = '/', onFileClick, onCreateFile, onDeleteFile }) => {
   if (!node) {
     return null;
   }
@@ -11,6 +12,7 @@ const TreeNode = ({ node, path = '/', onFileClick }) => {
   const isDirectory = node.type === 'directory';
   const icon = isDirectory ? '📁' : '📄';
   const currentPath = path === '/' ? `/${node.name}` : `${path}/${node.name}`;
+  const [isHovering, setIsHovering] = useState(false);
 
   const handleClick = () => {
     if (!isDirectory && onFileClick) {
@@ -18,14 +20,53 @@ const TreeNode = ({ node, path = '/', onFileClick }) => {
     }
   };
 
+  const handleCreateFile = (e) => {
+    e.stopPropagation();
+    if (onCreateFile) {
+      onCreateFile(currentPath);
+    }
+  };
+  
+  const handleDeleteFile = (e) => {
+    e.stopPropagation();
+    if (onDeleteFile) {
+      onDeleteFile(currentPath);
+    }
+  };
+
   return (
     <li className="treenode">
-      <span 
-        className={isDirectory ? 'directory-node' : 'file-node'} 
-        onClick={handleClick}
+      <div 
+        className={`tree-node-container ${isDirectory ? 'directory-node' : 'file-node'}`}
+        onMouseEnter={() => setIsHovering(true)}
+        onMouseLeave={() => setIsHovering(false)}
       >
-        {icon} {node.name}
-      </span>
+        <span onClick={handleClick}>
+          {icon} {node.name}
+        </span>
+        {isHovering && (
+          <div className={isDirectory ? "directory-actions" : "file-actions"}>
+            {isDirectory && (
+              <button 
+                className="create-file-btn" 
+                title="Create new file"
+                onClick={handleCreateFile}
+              >
+                +
+              </button>
+            )}
+            {!isDirectory && (
+              <button 
+                className="delete-file-btn" 
+                title="Delete file"
+                onClick={handleDeleteFile}
+              >
+                ×
+              </button>
+            )}
+          </div>
+        )}
+      </div>
       {/* If the node is a directory and has children, recursively render them */}
       {isDirectory && node.children && node.children.length > 0 && (
         <ul>
@@ -35,6 +76,8 @@ const TreeNode = ({ node, path = '/', onFileClick }) => {
               node={child} 
               path={currentPath}
               onFileClick={onFileClick}
+              onCreateFile={onCreateFile}
+              onDeleteFile={onDeleteFile}
             />
           ))}
         </ul>
@@ -49,6 +92,11 @@ const GenericFileTree = ({ title, data_source_api, sizeClass = '' }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedFilePath, setSelectedFilePath] = useState(null);
+  const [isCreatingFile, setIsCreatingFile] = useState(false);
+  const [newFileDirectory, setNewFileDirectory] = useState(null);
+  const [fileToDelete, setFileToDelete] = useState(null);
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
+  const [deleteStatus, setDeleteStatus] = useState(null);
 
   useEffect(() => {
     // A simple way to extract the module name (e.g., 'filesystem') from the API path
@@ -88,10 +136,52 @@ const GenericFileTree = ({ title, data_source_api, sizeClass = '' }) => {
 
   const handleFileClick = (filePath) => {
     setSelectedFilePath(filePath);
+    setIsCreatingFile(false);
+  };
+
+  const handleCreateFile = (directoryPath) => {
+    setNewFileDirectory(directoryPath);
+    setIsCreatingFile(true);
+    setSelectedFilePath(null);
+  };
+
+  const handleDeleteFile = (filePath) => {
+    setFileToDelete(filePath);
+    setShowDeleteConfirmation(true);
+  };
+
+  const confirmDeleteFile = async () => {
+    try {
+      setDeleteStatus('deleting');
+      const response = await deleteFile(fileToDelete);
+      if (response.data.status === 'success') {
+        setDeleteStatus('success');
+        // Close the confirmation after a short delay
+        setTimeout(() => {
+          setShowDeleteConfirmation(false);
+          setFileToDelete(null);
+          setDeleteStatus(null);
+        }, 1500);
+      } else {
+        throw new Error('Delete operation failed');
+      }
+    } catch (err) {
+      setDeleteStatus('error');
+      console.error('Error deleting file:', err);
+      // Keep the popup open to show the error
+    }
+  };
+
+  const cancelDeleteFile = () => {
+    setShowDeleteConfirmation(false);
+    setFileToDelete(null);
+    setDeleteStatus(null);
   };
 
   const handleClosePopout = () => {
     setSelectedFilePath(null);
+    setIsCreatingFile(false);
+    setNewFileDirectory(null);
   };
 
   const renderContent = () => {
@@ -109,6 +199,8 @@ const GenericFileTree = ({ title, data_source_api, sizeClass = '' }) => {
         <TreeNode 
           node={treeData} 
           onFileClick={handleFileClick}
+          onCreateFile={handleCreateFile}
+          onDeleteFile={handleDeleteFile}
         />
       </ul>
     );
@@ -124,6 +216,30 @@ const GenericFileTree = ({ title, data_source_api, sizeClass = '' }) => {
         <FilePopout 
           filePath={selectedFilePath} 
           onClose={handleClosePopout} 
+          isNewFile={false}
+        />
+      )}
+      {isCreatingFile && (
+        <FilePopout 
+          filePath={newFileDirectory} 
+          onClose={handleClosePopout} 
+          isNewFile={true}
+        />
+      )}
+      {showDeleteConfirmation && (
+        <ConfirmationPopup
+          message={
+            deleteStatus === 'deleting' ? 
+              "Deleting file..." : 
+            deleteStatus === 'success' ? 
+              "File deleted successfully!" : 
+            deleteStatus === 'error' ? 
+              "Error deleting file. Please try again." : 
+              `Are you sure you want to delete "${fileToDelete.split('/').pop()}"?`
+          }
+          onConfirm={confirmDeleteFile}
+          onCancel={cancelDeleteFile}
+          status={deleteStatus}
         />
       )}
     </div>
