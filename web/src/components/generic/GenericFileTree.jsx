@@ -1,23 +1,41 @@
 import React, { useState, useEffect } from 'react';
 import { getModuleState } from '../../api/client';
+import FilePopout from './FilePopout';
 
 // A small, recursive helper component to render each node in the tree.
-const TreeNode = ({ node }) => {
+const TreeNode = ({ node, path = '/', onFileClick }) => {
   if (!node) {
     return null;
   }
 
   const isDirectory = node.type === 'directory';
   const icon = isDirectory ? '📁' : '📄';
+  const currentPath = path === '/' ? `/${node.name}` : `${path}/${node.name}`;
+
+  const handleClick = () => {
+    if (!isDirectory && onFileClick) {
+      onFileClick(currentPath);
+    }
+  };
 
   return (
     <li className="treenode">
-      <span>{icon} {node.name}</span>
+      <span 
+        className={isDirectory ? 'directory-node' : 'file-node'} 
+        onClick={handleClick}
+      >
+        {icon} {node.name}
+      </span>
       {/* If the node is a directory and has children, recursively render them */}
       {isDirectory && node.children && node.children.length > 0 && (
         <ul>
           {node.children.map((child, index) => (
-            <TreeNode key={child.name + index} node={child} />
+            <TreeNode 
+              key={child.name + index} 
+              node={child} 
+              path={currentPath}
+              onFileClick={onFileClick}
+            />
           ))}
         </ul>
       )}
@@ -30,6 +48,7 @@ const GenericFileTree = ({ title, data_source_api, sizeClass = '' }) => {
   const [treeData, setTreeData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [selectedFilePath, setSelectedFilePath] = useState(null);
 
   useEffect(() => {
     // A simple way to extract the module name (e.g., 'filesystem') from the API path
@@ -67,6 +86,14 @@ const GenericFileTree = ({ title, data_source_api, sizeClass = '' }) => {
 
   }, [data_source_api, treeData]); // Re-run effect if the api path changes
 
+  const handleFileClick = (filePath) => {
+    setSelectedFilePath(filePath);
+  };
+
+  const handleClosePopout = () => {
+    setSelectedFilePath(null);
+  };
+
   const renderContent = () => {
     if (loading) {
       return <p>Loading file system...</p>;
@@ -79,7 +106,10 @@ const GenericFileTree = ({ title, data_source_api, sizeClass = '' }) => {
     }
     return (
       <ul className="file-tree-root">
-        <TreeNode node={treeData} />
+        <TreeNode 
+          node={treeData} 
+          onFileClick={handleFileClick}
+        />
       </ul>
     );
   };
@@ -90,6 +120,12 @@ const GenericFileTree = ({ title, data_source_api, sizeClass = '' }) => {
       <div className="module-content">
         {renderContent()}
       </div>
+      {selectedFilePath && (
+        <FilePopout 
+          filePath={selectedFilePath} 
+          onClose={handleClosePopout} 
+        />
+      )}
     </div>
   );
 };

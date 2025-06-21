@@ -617,6 +617,15 @@
     gap: 0.5rem;
   }
 
+  .file-node {
+    cursor: pointer;
+    transition: color 0.2s;
+  }
+
+  .file-node:hover {
+    color: var(--primary-color);
+  }
+
   /* Content Pack Manager Styles */
   .content-pack-manager {
     background: var(--surface-color);
@@ -1066,6 +1075,196 @@
     background: rgba(220, 53, 69, 0.2);
     color: #dc3545;
     border: 1px solid #dc3545;
+  }
+
+  /* File Popout Styles */
+  .file-popout-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+  }
+  
+  .file-popout-content {
+    background-color: var(--surface-color);
+    border-radius: 8px;
+    width: 80%;
+    max-width: 800px;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    animation: file-popout-fade-in 0.2s ease-out;
+  }
+  
+  @keyframes file-popout-fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  .file-popout-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border-color);
+  }
+  
+  .file-popout-header h3 {
+    margin: 0;
+    font-size: 18px;
+    color: var(--text-color);
+  }
+  
+  .file-popout-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+  
+  .file-popout-edit,
+  .file-popout-save,
+  .file-popout-cancel {
+    background: none;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 6px 12px;
+    color: var(--text-color);
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s;
+  }
+  
+  .file-popout-edit:hover {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    color: white;
+  }
+  
+  .file-popout-save {
+    background-color: #28a745;
+    border-color: #28a745;
+    color: white;
+  }
+  
+  .file-popout-save:hover {
+    background-color: #218838;
+  }
+  
+  .file-popout-cancel:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+  
+  .file-popout-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    color: var(--text-color-secondary);
+    cursor: pointer;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 10px;
+  }
+  
+  .file-popout-close:hover {
+    color: var(--text-color);
+  }
+  
+  .file-popout-body {
+    padding: 20px;
+    overflow-y: auto;
+    flex: 1;
+  }
+  
+  .file-loading,
+  .file-error {
+    padding: 20px;
+    text-align: center;
+  }
+  
+  .file-error {
+    color: #dc3545;
+  }
+  
+  .file-viewer {
+    width: 100%;
+  }
+  
+  .file-content {
+    font-family: 'Courier New', monospace;
+    background-color: var(--background-color);
+    padding: 15px;
+    border-radius: 4px;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+    margin: 0;
+    color: var(--text-color);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  
+  .file-editor {
+    width: 100%;
+  }
+  
+  .file-editor-textarea {
+    width: 100%;
+    min-height: 300px;
+    font-family: 'Courier New', monospace;
+    background-color: var(--background-color);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 15px;
+    font-size: 14px;
+    line-height: 1.5;
+    resize: vertical;
+  }
+  
+  .file-editor-textarea:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(106, 141, 255, 0.25);
+  }
+  
+  .save-status {
+    margin-top: 15px;
+    padding: 10px;
+    border-radius: 4px;
+    text-align: center;
+    font-weight: bold;
+  }
+  
+  .save-status.saving {
+    background-color: rgba(255, 193, 7, 0.2);
+    color: #ffc107;
+  }
+  
+  .save-status.success {
+    background-color: rgba(40, 167, 69, 0.2);
+    color: #28a745;
+  }
+  
+  .save-status.error {
+    background-color: rgba(220, 53, 69, 0.2);
+    color: #dc3545;
   }
 
   /* Modal Styles */

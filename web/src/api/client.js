@@ -137,4 +137,20 @@ export const clearRemoteCache = () => {
   return apiClient.post('/api/v1/content-packs/remote/clear-cache');
 };
 
+// --- Filesystem API Functions ---
+
+export const readFile = (path) => {
+  return apiClient.post('/api/v1/execute', {
+    tool_name: "filesystem.read_file",
+    parameters: { path }
+  });
+};
+
+export const writeFile = (path, content) => {
+  return apiClient.post('/api/v1/execute', {
+    tool_name: "filesystem.write_file",
+    parameters: { path, content }
+  });
+};
+
 export default apiClient;
