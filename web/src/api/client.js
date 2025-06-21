@@ -174,4 +174,15 @@ export const deleteDirectory = (path) => {
   });
 };
 
+// Email API Functions
+export const updateEmail = (emailId, updates) => {
+  return apiClient.post('/api/v1/execute', {
+    tool_name: "email.update_email",
+    parameters: {
+      email_id: emailId,
+      ...updates
+    }
+  });
+};
+
 export default apiClient;

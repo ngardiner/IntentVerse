@@ -167,3 +167,43 @@ class EmailTool(BaseTool):
 
         self.state_manager.get('email')['drafts'] = drafts
         return {"status": "Draft updated successfully", "email_id": email_id}
+        
+    def update_email(self, email_id: str, from_address: Optional[str] = None, to: Optional[List[str]] = None, cc: Optional[List[str]] = None, subject: Optional[str] = None, body: Optional[str] = None) -> Dict[str, str]:
+        """
+        Updates the fields of an existing email (inbox or sent items).
+        """
+        email_state = self.state_manager.get('email')
+        inbox = email_state.get('inbox', [])
+        sent_items = email_state.get('sent_items', [])
+        
+        # Check inbox first
+        for email in inbox:
+            if email["email_id"] == email_id:
+                if from_address is not None:
+                    email['from'] = from_address
+                if to is not None:
+                    email['to'] = to
+                if cc is not None:
+                    email['cc'] = cc
+                if subject is not None:
+                    email['subject'] = subject
+                if body is not None:
+                    email['body'] = body
+                return {"status": "Email updated successfully", "email_id": email_id}
+        
+        # Then check sent items
+        for email in sent_items:
+            if email["email_id"] == email_id:
+                if from_address is not None:
+                    email['from'] = from_address
+                if to is not None:
+                    email['to'] = to
+                if cc is not None:
+                    email['cc'] = cc
+                if subject is not None:
+                    email['subject'] = subject
+                if body is not None:
+                    email['body'] = body
+                return {"status": "Email updated successfully", "email_id": email_id}
+        
+        raise HTTPException(status_code=404, detail=f"Email with ID '{email_id}' not found.")
