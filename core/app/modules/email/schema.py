@@ -3,6 +3,7 @@
 UI_SCHEMA = {
   "module_id": "email",
   "display_name": "Email",
+  "size": "large",
   "components": [
     {
       "component_type": "table",

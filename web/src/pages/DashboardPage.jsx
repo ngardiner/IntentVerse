@@ -5,6 +5,7 @@ import { getUILayout } from '../api/client';
 import GenericFileTree from '../components/generic/GenericFileTree';
 import GenericTable from '../components/generic/GenericTable';
 import GenericKeyValue from '../components/generic/GenericKeyValue';
+import SwitchableView from '../components/generic/SwitchableView';
 
 const DashboardPage = () => {
   const [layout, setLayout] = useState([]);
@@ -46,8 +47,95 @@ const DashboardPage = () => {
       }
     };
 
-    // If the module has components array, render each component
+    // If the module has components array, check if we should use SwitchableView
     if (moduleSchema.components && Array.isArray(moduleSchema.components)) {
+      // Check for switchable_group component type
+      const switchableGroupComponent = moduleSchema.components.find(
+        component => component.component_type === 'switchable_group'
+      );
+      
+      if (switchableGroupComponent) {
+        // Process each switchable_group component
+        const regularComponents = moduleSchema.components.filter(
+          component => component.component_type !== 'switchable_group'
+        );
+        
+        // Render switchable groups and regular components
+        return [
+          // Render switchable groups
+          ...moduleSchema.components
+            .filter(component => component.component_type === 'switchable_group')
+            .map(component => {
+              const sizeClass = getSizeClass(component.size || 'small');
+              return (
+                <SwitchableView
+                  key={`${moduleSchema.module_id}-${component.title}`}
+                  title={component.title}
+                  module_id={moduleSchema.module_id || moduleSchema.name}
+                  data_source_api={component.views[0]?.data_source_api}
+                  views={component.views}
+                  sizeClass={sizeClass}
+                />
+              );
+            }),
+          
+          // Render regular components
+          ...regularComponents.map(component => {
+            const sizeClass = getSizeClass(component.size || moduleSchema.size);
+            const props = {
+              key: `${moduleSchema.module_id || moduleSchema.name}-${component.component_type}-${component.title}`,
+              title: component.title || moduleSchema.display_name,
+              ...component,
+              module_id: moduleSchema.module_id || moduleSchema.name,
+              sizeClass
+            };
+
+            switch (component.component_type) {
+              case 'file_tree':
+                return <GenericFileTree {...props} />;
+              case 'table':
+                return <GenericTable 
+                  {...props} 
+                  data_path={component.data_path}
+                  dynamic_columns={component.dynamic_columns}
+                  max_rows={component.max_rows}
+                />;
+              case 'key_value_viewer':
+              case 'key_value':
+                return <GenericKeyValue 
+                  {...props} 
+                  data_path={component.data_path}
+                  display_as={component.display_as}
+                  language={component.language}
+                />;
+              default:
+                return (
+                  <div key={props.key} className={`module-container ${sizeClass}`}>
+                    <h2>{props.title}</h2>
+                    <p className="error-message">Unknown component type: {component.component_type}</p>
+                  </div>
+                );
+            }
+          })
+        ];
+      }
+      
+      // Check if this is a module that should use SwitchableView for all components
+      if (moduleSchema.module_id === 'web_search' || moduleSchema.module_id === 'email' || moduleSchema.use_switchable_view) {
+        const sizeClass = getSizeClass(moduleSchema.size || 'large'); // Double the size
+        return (
+          <SwitchableView
+            key={moduleSchema.module_id || moduleSchema.name}
+            title={moduleSchema.display_name}
+            module_id={moduleSchema.module_id || moduleSchema.name}
+            data_source_api={moduleSchema.components[0]?.data_source_api}
+            views={moduleSchema.components}
+            sizeClass={sizeClass}
+          />
+        );
+      }
+      
+      // Otherwise, render each component separately
       return moduleSchema.components.map((component) => {
         const sizeClass = getSizeClass(component.size || moduleSchema.size);
         const props = {

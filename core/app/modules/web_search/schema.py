@@ -3,6 +3,7 @@ UI_SCHEMA = {
   "module_id": "web_search",
   "display_name": "Web Search",
   "description": "A mock web search tool that logs and displays search queries and results",
+  "size": "large",
   "components": [
     {
       "component_type": "table",

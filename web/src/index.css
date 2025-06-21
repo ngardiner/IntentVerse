@@ -1367,6 +1367,72 @@
     background-color: rgba(220, 53, 69, 0.2);
     color: #dc3545;
   }
+  
+  /* Switchable View Styles */
+  .switchable-view-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+
+  .view-selector {
+    position: relative;
+  }
+
+  .view-selector-button {
+    background: none;
+    border: none;
+    color: var(--text-color-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+  }
+
+  .view-selector-button:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .view-selector-icon {
+    font-size: 12px;
+    margin-left: 4px;
+  }
+
+  .view-selector-dropdown {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    background-color: var(--surface-color);
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    z-index: 10;
+    min-width: 150px;
+    overflow: hidden;
+  }
+
+  .view-option {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 8px 16px;
+    background: none;
+    border: none;
+    color: var(--text-color);
+    cursor: pointer;
+    transition: background-color 0.2s;
+  }
+
+  .view-option:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .view-option.active {
+    background-color: var(--primary-color);
+    color: white;
+  }
 
   /* Confirmation Popup Styles */
   .confirmation-popup-overlay {

@@ -160,4 +160,18 @@ export const deleteFile = (path) => {
   });
 };
 
+export const createDirectory = (path) => {
+  return apiClient.post('/api/v1/execute', {
+    tool_name: "filesystem.create_directory",
+    parameters: { path }
+  });
+};
+
+export const deleteDirectory = (path) => {
+  return apiClient.post('/api/v1/execute', {
+    tool_name: "filesystem.delete_directory",
+    parameters: { path }
+  });
+};
+
 export default apiClient;
