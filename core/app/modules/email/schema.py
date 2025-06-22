@@ -4,6 +4,7 @@ UI_SCHEMA = {
   "module_id": "email",
   "display_name": "Email",
   "size": "large",
+  "component_type": "switchable_group",
   "components": [
     {
       "component_type": "table",

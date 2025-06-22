@@ -33,12 +33,12 @@ const DashboardPage = ({ isEditing, onSaveLayout, onCancelEdit, currentDashboard
     fetchLayout();
   }, []); // The empty dependency array ensures this runs only once on mount
 
-  const renderComponent = (moduleSchema) => {
+  const renderComponent = (schemaItem) => {
     // This function acts as a factory, returning the correct
     // generic component based on the schema from the backend.
-    
-    // Determine the size class based on the module's size property
-    const getSizeClass = (size, moduleId) => {
+
+    // Determine the size class based on the schema item's size property
+    const getSizeClass = (size) => {
       switch (size) {
         case 'small': return 'size-small';
         case 'medium': return 'size-medium';
@@ -47,187 +47,59 @@ const DashboardPage = ({ isEditing, onSaveLayout, onCancelEdit, currentDashboard
         default: return ''; // Default size
       }
     };
-    
+
     // Get grid row style if specified
-    const getGridRowStyle = (component, moduleId) => {
-      // Special handling for database widgets to prevent overlap
-      // Default behavior
-      if (component.grid_row !== undefined) {
-        return { gridRow: `${component.grid_row}` };
+    const getGridRowStyle = (item) => {
+      if (item.grid_row !== undefined) {
+        return { gridRow: `${item.grid_row}` };
       }
       return {};
     };
 
-    // If the module has components array, check if we should use SwitchableView
-    if (moduleSchema.components && Array.isArray(moduleSchema.components)) {
-      // Check for switchable_group component type
-      const switchableGroupComponent = moduleSchema.components.find(
-        component => component.component_type === 'switchable_group'
-      );
-      
-      if (switchableGroupComponent) {
-        // Process each switchable_group component
-        const regularComponents = moduleSchema.components.filter(
-          component => component.component_type !== 'switchable_group'
-        );
-        
-        // Render switchable groups and regular components
-        return [
-          // Render switchable groups
-          ...moduleSchema.components
-            .filter(component => component.component_type === 'switchable_group')
-            .map(component => {
-              const sizeClass = getSizeClass(component.size || 'small', moduleSchema.module_id);
-              return (
-                <SwitchableView
-                  key={`${moduleSchema.module_id}-${component.title}`}
-                  title={component.title}
-                  module_id={moduleSchema.module_id || moduleSchema.name}
-                  data_source_api={component.views[0]?.data_source_api}
-                  views={component.views}
-                  sizeClass={sizeClass}
-                />
-              );
-            }),
-          
-          // Render regular components
-          ...regularComponents.map(component => {
-            const sizeClass = getSizeClass(component.size || moduleSchema.size, moduleSchema.module_id);
-            const props = {
-              key: `${moduleSchema.module_id || moduleSchema.name}-${component.component_type}-${component.title}`,
-              title: component.title || moduleSchema.display_name,
-              ...component,
-              module_id: moduleSchema.module_id || moduleSchema.name,
-              sizeClass
+    // --- Core Logic for Handling Module Schema Structure ---
+    // If this schemaItem has a 'components' array and is NOT a 'switchable_group' itself,
+    // then it means it's a module (like 'database') that contains multiple top-level components
+    // that need to be rendered separately on the dashboard.
+    if (schemaItem.components && Array.isArray(schemaItem.components) && schemaItem.component_type !== 'switchable_group') {
+        // Return an array of rendered components by recursively calling renderComponent for each sub-component.
+        // We pass the parent module_id to the sub-component's props for context, and add a unique key index.
+        return schemaItem.components.map((subComponent, index) => {
+            const subComponentWithParentContext = {
+                ...subComponent,
+                module_id: schemaItem.module_id, // Pass parent module_id
+                _unique_key_index: index // For unique React keys when mapping
             };
-
-            const gridRowStyle = getGridRowStyle(component, moduleSchema.module_id);
-            
-            switch (component.component_type) {
-              case 'file_tree':
-                return <div style={gridRowStyle}><GenericFileTree {...props} /></div>;
-              case 'table':
-                return (
-                  <div style={gridRowStyle}>
-                    <GenericTable 
-                      {...props} 
-                      data_path={component.data_path}
-                      dynamic_columns={component.dynamic_columns}
-                      max_rows={component.max_rows}
-                    />
-                  </div>
-                );
-              case 'key_value_viewer':
-              case 'key_value':
-                return (
-                  <div style={gridRowStyle}>
-                    <GenericKeyValue 
-                      {...props} 
-                      data_path={component.data_path}
-                      display_as={component.display_as}
-                      language={component.language}
-                    />
-                  </div>
-                );
-              default:
-                return (
-                  <div key={props.key} className={`module-container ${sizeClass}`} style={gridRowStyle}>
-                    <h2>{props.title}</h2>
-                    <p className="error-message">Unknown component type: {component.component_type}</p>
-                  </div>
-                );
-            }
-          })
-        ];
-      }
-      
-      // Check if this is a module that should use SwitchableView for all components
-      if (moduleSchema.module_id === 'web_search' || moduleSchema.module_id === 'email' || moduleSchema.use_switchable_view) {
-        const sizeClass = getSizeClass(moduleSchema.size || 'large', moduleSchema.module_id); // Double the size
-        return (
-          <SwitchableView
-            key={moduleSchema.module_id || moduleSchema.name}
-            title={moduleSchema.display_name}
-            module_id={moduleSchema.module_id || moduleSchema.name}
-            data_source_api={moduleSchema.components[0]?.data_source_api}
-            views={moduleSchema.components}
-            sizeClass={sizeClass}
-          />
-        );
-      }
-      
-      // Otherwise, render each component separately
-      return moduleSchema.components.map((component) => {
-        const sizeClass = getSizeClass(component.size || moduleSchema.size, moduleSchema.module_id);
-        const props = {
-          key: `${moduleSchema.module_id || moduleSchema.name}-${component.component_type}`,
-          title: component.title || moduleSchema.display_name,
-          ...component,
-          module_id: moduleSchema.module_id || moduleSchema.name,
-          sizeClass
-        };
-
-        const gridRowStyle = getGridRowStyle(component, moduleSchema.module_id);
-        
-        switch (component.component_type) {
-          case 'file_tree':
-            return <div style={gridRowStyle}><GenericFileTree {...props} /></div>;
-          case 'table':
-            return (
-              <div style={gridRowStyle}>
-                <GenericTable 
-                  {...props} 
-                  data_path={component.data_path}
-                  dynamic_columns={component.dynamic_columns}
-                  max_rows={component.max_rows}
-                />
-              </div>
-            );
-          case 'key_value_viewer':
-          case 'key_value':
-            return (
-              <div style={gridRowStyle}>
-                <GenericKeyValue 
-                  {...props} 
-                  data_path={component.data_path}
-                  display_as={component.display_as}
-                  language={component.language}
-                />
-              </div>
-            );
-          default:
-            return (
-              <div key={props.key} className={`module-container ${sizeClass}`} style={gridRowStyle}>
-                <h2>{props.title}</h2>
-                <p className="error-message">Unknown component type: {component.component_type}</p>
-              </div>
-            );
-        }
-      });
+            return renderComponent(subComponentWithParentContext);
+        });
     }
-    
-    // Fallback for modules without components array
-    const sizeClass = getSizeClass(moduleSchema.size, moduleSchema.module_id);
+
+    // Otherwise, render a single component based on its component_type.
+    // This covers:
+    // 1. Modules with a single top-level component_type (e.g., File System, Memory after schema updates).
+    // 2. Individual sub-components within a 'components' array that were passed recursively (e.g., the individual switchable_group items for Database).
+    const sizeClass = getSizeClass(schemaItem.size);
     const props = {
-      key: moduleSchema.module_id || moduleSchema.name,
-      title: moduleSchema.display_name,
-      ...moduleSchema,
+      // Key generation: Use module_id for key if available, otherwise a generated key for nested components
+      key: schemaItem.module_id || `${schemaItem.title || 'untitled'}-${schemaItem.component_type || 'unknown'}-${schemaItem._unique_key_index || 0}`,
+      title: schemaItem.title || schemaItem.display_name,
+      ...schemaItem, // Pass all properties of the current schema item
+      module_id: schemaItem.module_id || schemaItem.name, // Ensure module_id is passed, falls back to name
       sizeClass
     };
 
-    const gridRowStyle = getGridRowStyle(moduleSchema, moduleSchema.module_id);
-    
-    switch (moduleSchema.component_type) {
+    const gridRowStyle = getGridRowStyle(schemaItem);
+
+    switch (schemaItem.component_type) {
       case 'file_tree':
         return <div style={gridRowStyle}><GenericFileTree {...props} /></div>;
       case 'table':
         return (
           <div style={gridRowStyle}>
-            <GenericTable 
-              {...props} 
-              data_path={moduleSchema.data_path}
-              dynamic_columns={moduleSchema.dynamic_columns}
-              max_rows={moduleSchema.max_rows}
+            <GenericTable
+              {...props}
+              data_path={schemaItem.data_path}
+              dynamic_columns={schemaItem.dynamic_columns}
+              max_rows={schemaItem.max_rows}
             />
           </div>
         );
@@ -235,19 +107,30 @@ const DashboardPage = ({ isEditing, onSaveLayout, onCancelEdit, currentDashboard
       case 'key_value':
         return (
           <div style={gridRowStyle}>
-            <GenericKeyValue 
-              {...props} 
-              data_path={moduleSchema.data_path}
-              display_as={moduleSchema.display_as}
-              language={moduleSchema.language}
+            <GenericKeyValue
+              {...props}
+              data_path={schemaItem.data_path}
+              display_as={schemaItem.display_as}
+              language={schemaItem.language}
             />
           </div>
         );
+      case 'switchable_group':
+        return (
+          <SwitchableView
+            key={props.key}
+            title={props.title}
+            module_id={props.module_id}
+            data_source_api={(schemaItem.views && schemaItem.views[0]?.data_source_api) || (schemaItem.components && schemaItem.components[0]?.data_source_api)} // RE-ADDED AND MADE ROBUST
+            views={schemaItem.views || schemaItem.components} // Use 'views' if explicitly defined, fallback to 'components' array
+            sizeClass={sizeClass}
+          />
+        );
       default:
         return (
-          <div key={moduleSchema.module_id || moduleSchema.name} className={`module-container ${sizeClass}`} style={gridRowStyle}>
-            <h2>{moduleSchema.display_name}</h2>
-            <p className="error-message">Unknown component type: {moduleSchema.component_type}</p>
+          <div key={props.key} className={`module-container ${sizeClass}`} style={gridRowStyle}>
+            <h2>{props.title}</h2>
+            <p className="error-message">Unknown component type: {schemaItem.component_type}</p>
           </div>
         );
     }
@@ -264,9 +147,9 @@ const DashboardPage = ({ isEditing, onSaveLayout, onCancelEdit, currentDashboard
   return (
     <div className="dashboard-container">
       {/* Modules Grid with Layout Manager */}
-      <DashboardLayoutManager 
-        isEditing={isEditing} 
-        onSaveLayout={onSaveLayout} 
+      <DashboardLayoutManager
+        isEditing={isEditing}
+        onSaveLayout={onSaveLayout}
         onCancelEdit={onCancelEdit}
         currentDashboard={currentDashboard}
       >

@@ -4,6 +4,7 @@ UI_SCHEMA = {
   "display_name": "Web Search",
   "description": "A mock web search tool that logs and displays search queries and results",
   "size": "large",
+  "component_type": "switchable_group",
   "components": [
     {
       "component_type": "table",
