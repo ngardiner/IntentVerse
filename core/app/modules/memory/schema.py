@@ -3,11 +3,13 @@
 UI_SCHEMA = {
   "module_id": "memory",
   "display_name": "Memory",
+  "size": "small",
   "components": [
     {
       "component_type": "key_value_viewer",
       "title": "Model's Scratchpad",
-      "data_source_api": "/api/v1/memory/state"
+      "data_source_api": "/api/v1/memory/state",
+      "size": "small"
     }
   ]
 }

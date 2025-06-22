@@ -3,11 +3,13 @@
 UI_SCHEMA = {
   "module_id": "filesystem",
   "display_name": "File System",
+  "size": "small",
   "components": [
     {
       "component_type": "file_tree",
       "title": "Virtual File System",
-      "data_source_api": "/api/v1/filesystem/state"
+      "data_source_api": "/api/v1/filesystem/state",
+      "size": "small"
     }
   ]
 }
