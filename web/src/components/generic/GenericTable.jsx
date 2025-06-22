@@ -30,7 +30,12 @@ const GenericTable = ({
         return;
       }
       try {
-        if (!data.length) setLoading(true); // Only show initial load spinner
+        // Only show loading spinner on initial load, not during refreshes
+        if (!data.length && loading) {
+          // Keep the loading state to avoid flickering
+        } else if (!data.length) {
+          setLoading(true);
+        }
 
         // Fetch data from the API
         const response = await getModuleState(moduleName);
@@ -108,9 +113,21 @@ const GenericTable = ({
       }
     };
 
+    // Create a debounced version of fetchState to reduce flickering
+    const debouncedFetchState = () => {
+      // Use setTimeout to debounce the fetch
+      const timeoutId = setTimeout(() => {
+        fetchState();
+      }, 100); // Small delay to batch potential multiple updates
+      
+      // Return a cleanup function that cancels the timeout if component unmounts
+      return () => clearTimeout(timeoutId);
+    };
+
     fetchState(); // Initial fetch
     
-    const intervalId = setInterval(fetchState, 3000);
+    // Use a longer interval to reduce flickering (5 seconds instead of 3)
+    const intervalId = setInterval(debouncedFetchState, 5000);
 
     return () => clearInterval(intervalId);
 
@@ -180,9 +197,15 @@ const GenericTable = ({
     // Determine if we should use dynamic columns or predefined columns
     const usesDynamicColumns = dynamic_columns && dynamicHeaders.length > 0;
     
+    // Use a stable key for the table to prevent unnecessary re-renders
+    const tableKey = `table-${module_id}`;
+    
     return (
       <div className="table-container">
-        <table className={`generic-table ${isDatabaseModule ? 'database-table' : ''}`}>
+        <table 
+          className={`generic-table ${isDatabaseModule ? 'database-table' : ''}`}
+          key={tableKey}
+        >
           <thead>
             <tr>
               {usesDynamicColumns ? 
@@ -217,7 +240,10 @@ const GenericTable = ({
   };
 
   return (
-    <div className={`module-container ${sizeClass}`}>
+    <div 
+      className={`module-container ${sizeClass}`} 
+      data-module-id={module_id}
+    >
       <h2>{title}</h2>
       <div className="module-content">
         {renderContent()}

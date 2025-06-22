@@ -33,8 +33,12 @@ const SwitchableView = ({
         return;
       }
       try {
-        // Don't show loading spinner on background polls
-        if (!moduleState) setLoading(true);
+        // Only show loading spinner on initial load, not during refreshes
+        if (!moduleState && loading) {
+          // Keep the loading state to avoid flickering
+        } else if (!moduleState) {
+          setLoading(true);
+        }
 
         const response = await getModuleState(moduleName);
         setModuleState(response.data);
@@ -47,10 +51,21 @@ const SwitchableView = ({
       }
     };
 
+    // Create a debounced version of fetchState to reduce flickering
+    const debouncedFetchState = () => {
+      // Use setTimeout to debounce the fetch
+      const timeoutId = setTimeout(() => {
+        fetchState();
+      }, 100); // Small delay to batch potential multiple updates
+      
+      // Return a cleanup function that cancels the timeout if component unmounts
+      return () => clearTimeout(timeoutId);
+    };
+
     fetchState(); // Initial fetch
     
-    // Set up an interval to poll for updates every 3 seconds
-    const intervalId = setInterval(fetchState, 3000);
+    // Use a longer interval to reduce flickering (5 seconds instead of 3)
+    const intervalId = setInterval(debouncedFetchState, 5000);
 
     // Cleanup function to prevent memory leaks
     return () => clearInterval(intervalId);
@@ -85,6 +100,8 @@ const SwitchableView = ({
       data_source_api,
       // Don't pass title as we're handling it in this component
       title: undefined,
+      // Add a key to prevent unnecessary re-renders
+      key: `${module_id}-view-${activeViewIndex}`
     };
 
     // Add row click handler for email module
@@ -109,7 +126,10 @@ const SwitchableView = ({
   const activeTitle = activeView?.title || title;
 
   return (
-    <div className={`module-container ${sizeClass}`}>
+    <div 
+      className={`module-container ${sizeClass}`} 
+      data-module-id={module_id}
+    >
       <div className="switchable-view-header">
         <h2>{activeTitle}</h2>
         {views && views.length > 1 && (

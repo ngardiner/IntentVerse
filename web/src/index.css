@@ -35,6 +35,18 @@
     border-bottom: 1px solid var(--border-color);
   }
   
+  .app-header-left {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+  
+  .app-header-right {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+  
   .app-header h1 {
     margin: 0;
     font-size: 1.5rem;
@@ -54,6 +66,71 @@
   
   .app-header button:hover {
     background-color: #5a7dff;
+  }
+  
+  /* Dashboard Selector Styles */
+  .dashboard-selector {
+    position: relative;
+    display: inline-block;
+  }
+  
+  .dashboard-selector-button {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.25rem 0.5rem;
+    background-color: transparent;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+  }
+  
+  .dashboard-selector-button:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+  
+  .dashboard-selector-label {
+    font-weight: 500;
+    color: var(--text-color);
+  }
+  
+  .dashboard-selector-icon {
+    font-size: 10px;
+    color: var(--text-color-secondary);
+  }
+  
+  .dashboard-selector-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    margin-top: 0.5rem;
+    background-color: var(--surface-color);
+    border-radius: 4px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    z-index: 10;
+    min-width: 120px;
+    overflow: hidden;
+  }
+  
+  .dashboard-option {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 8px 16px;
+    background: none;
+    border: none;
+    color: var(--text-color);
+    cursor: pointer;
+    transition: background-color 0.2s;
+  }
+  
+  .dashboard-option:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+  
+  .dashboard-option.active {
+    background-color: var(--primary-color);
+    color: white;
   }
 
   /* --- User Menu and Dropdown --- */
@@ -292,6 +369,8 @@
   .modules-grid {
     display: grid;
     grid-template-columns: repeat(12, 1fr);
+    grid-auto-rows: auto;
+    grid-auto-flow: row;
     gap: 1.5rem;
   }
   
@@ -303,6 +382,7 @@
     display: flex;
     flex-direction: column;
     grid-column: span 4; /* Default size: 1/3 of the grid (4 columns out of 12) */
+    transition: all 0.2s ease-in-out; /* Add smooth transition for any changes */
   }
   
   .module-container.size-small {
@@ -328,11 +408,22 @@
     margin-bottom: 1rem;
     font-size: 1.2rem;
   }
-  
+
   .module-content {
     flex-grow: 1;
+    transition: opacity 0.2s ease-in-out; /* Smooth transition for content changes */
     max-height: 400px;
     overflow-y: auto;
+  }
+  
+  /* Add fade-in animation for content to reduce flickering */
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  
+  .table-container, .key-value-list, .file-tree-root {
+    animation: fadeIn 0.3s ease-in-out;
   }
   
   /* Email specific styles */
@@ -1544,6 +1635,272 @@
   .email-status.success {
     background-color: rgba(40, 167, 69, 0.2);
     color: #28a745;
+  }
+  
+  /* Timeline Page Styles */
+  .timeline-container {
+    padding: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  
+  .placeholder-message {
+    margin-bottom: 2rem;
+    color: var(--text-color-secondary);
+    font-style: italic;
+  }
+  
+  .timeline-placeholder {
+    position: relative;
+    padding: 2rem 0;
+  }
+  
+  .timeline-placeholder-line {
+    position: absolute;
+    left: 20px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background-color: var(--primary-color);
+  }
+  
+  .timeline-placeholder-events {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+  }
+  
+  .timeline-placeholder-event {
+    display: flex;
+    align-items: flex-start;
+    margin-left: 20px;
+  }
+  
+  .timeline-placeholder-dot {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background-color: var(--primary-color);
+    margin-right: 1.5rem;
+    margin-left: -8px;
+    flex-shrink: 0;
+  }
+  
+  .timeline-placeholder-content {
+    background-color: var(--surface-color);
+    border-radius: 8px;
+    padding: 1rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    flex-grow: 1;
+  }
+  
+  .timeline-placeholder-content h3 {
+    margin: 0 0 0.5rem 0;
+    color: var(--text-color);
+  }
+  
+  .timeline-placeholder-content p {
+    margin: 0;
+    color: var(--text-color-secondary);
+    font-size: 0.9rem;
+  }
+  
+  /* Edit Button Styles */
+  .edit-button {
+    background: none;
+    border: none;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--text-color-secondary);
+    transition: all 0.2s;
+  }
+  
+  .edit-button:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: var(--text-color);
+  }
+  
+  .edit-button.active {
+    background-color: var(--primary-color);
+    color: white;
+  }
+  
+  /* Dashboard Layout Manager Styles */
+  .layout-edit-controls {
+    background-color: var(--surface-color);
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border: 2px solid var(--primary-color);
+  }
+  
+  .layout-edit-message {
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .layout-edit-message span {
+    font-weight: bold;
+    color: var(--primary-color);
+  }
+  
+  .layout-edit-instructions {
+    margin: 0.5rem 0 0;
+    color: var(--text-color-secondary);
+    font-size: 0.9rem;
+  }
+  
+  .layout-edit-actions {
+    display: flex;
+    gap: 1rem;
+  }
+  
+  .layout-save-button,
+  .layout-cancel-button {
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.2s;
+  }
+  
+  .layout-save-button {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+  }
+  
+  .layout-save-button:hover {
+    background-color: #5a7dff;
+  }
+  
+  .layout-cancel-button {
+    background: none;
+    border: 1px solid var(--border-color);
+    color: var(--text-color);
+  }
+  
+  .layout-cancel-button:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+  
+  .modules-grid.editing {
+    position: relative;
+    min-height: 400px;
+  }
+  
+  .module-wrapper {
+    position: relative;
+    width: 100%;
+    height: 100%;
+  }
+  
+  .module-wrapper.editing {
+    cursor: move;
+    border: 1px dashed transparent;
+    transition: border-color 0.2s;
+    z-index: 2; /* Ensure it's above drop zones */
+  }
+  
+  .module-wrapper.editing:hover {
+    border-color: var(--primary-color);
+  }
+  
+  /* Make small widgets more responsive to hover and dragging */
+  .module-wrapper.editing .module-container.size-small {
+    cursor: move;
+    border: 1px solid var(--border-color);
+  }
+  
+  /* Highlight small widgets on hover */
+  .module-wrapper.editing:hover .module-container.size-small {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(106, 141, 255, 0.3);
+  }
+  
+  .module-wrapper.dragging {
+    opacity: 0.7;
+  }
+  
+  .module-drag-handle {
+    position: absolute;
+    top: 0;
+    left: 0;
+    padding: 0.25rem;
+    color: var(--primary-color);
+    cursor: move;
+    font-size: 1.2rem;
+    line-height: 1;
+    z-index: 3; /* Ensure it's above everything else */
+    background-color: rgba(42, 42, 42, 0.7); /* Semi-transparent background */
+    border-radius: 4px;
+  }
+  
+  /* Make the drag handle more visible on small widgets */
+  .module-container.size-small .module-drag-handle {
+    padding: 0.35rem;
+    font-size: 1.4rem;
+    background-color: rgba(106, 141, 255, 0.5);
+    color: white;
+    border: 1px solid white;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    top: 5px;
+    left: 5px;
+  }
+  
+  .drop-zones-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    grid-auto-rows: minmax(100px, auto);
+    pointer-events: none;
+    gap: 1.5rem;
+  }
+  
+  .drop-zone {
+    border: 1px dashed rgba(106, 141, 255, 0.3);
+    pointer-events: auto;
+    transition: background-color 0.2s;
+    /* Width is now set inline for more control */
+    height: 100%;
+    justify-self: start; /* Align to the start of the grid cell */
+    z-index: 1; /* Ensure it's below modules but above the grid */
+  }
+  
+  .drop-zone.drag-over {
+    background-color: rgba(106, 141, 255, 0.2);
+    border-color: var(--primary-color);
+  }
+  
+  /* Make drop zones more visible in edit mode */
+  .modules-grid.editing .drop-zone {
+    border-color: rgba(106, 141, 255, 0.5);
+  }
+  
+  /* Special styling for drop zones that can accept small widgets */
+  .drop-zone.small-widget-zone {
+    border-color: rgba(106, 141, 255, 0.7);
+    background-color: rgba(106, 141, 255, 0.05);
+  }
+  
+  .drop-zone.small-widget-zone.drag-over {
+    background-color: rgba(106, 141, 255, 0.3);
   }
 
   /* Confirmation Popup Styles */

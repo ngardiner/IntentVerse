@@ -87,7 +87,7 @@ const TreeNode = ({ node, path = '/', onFileClick, onCreateFile, onDeleteFile })
 };
 
 
-const GenericFileTree = ({ title, data_source_api, sizeClass = '' }) => {
+const GenericFileTree = ({ title, data_source_api, sizeClass = '', module_id = '' }) => {
   const [treeData, setTreeData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -207,7 +207,7 @@ const GenericFileTree = ({ title, data_source_api, sizeClass = '' }) => {
   };
 
   return (
-    <div className={`module-container ${sizeClass}`}>
+    <div className={`module-container ${sizeClass}`} data-module-id={module_id}>
       <h2>{title}</h2>
       <div className="module-content">
         {renderContent()}

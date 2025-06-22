@@ -24,7 +24,12 @@ const GenericKeyValue = ({
         return;
       }
       try {
-        if (Object.keys(data).length === 0) setLoading(true);
+        // Only show loading spinner on initial load, not during refreshes
+        if (Object.keys(data).length === 0 && loading) {
+          // Keep the loading state to avoid flickering
+        } else if (Object.keys(data).length === 0) {
+          setLoading(true);
+        }
 
         const response = await getModuleState(moduleName);
         
@@ -52,9 +57,21 @@ const GenericKeyValue = ({
       }
     };
 
+    // Create a debounced version of fetchState to reduce flickering
+    const debouncedFetchState = () => {
+      // Use setTimeout to debounce the fetch
+      const timeoutId = setTimeout(() => {
+        fetchState();
+      }, 100); // Small delay to batch potential multiple updates
+      
+      // Return a cleanup function that cancels the timeout if component unmounts
+      return () => clearTimeout(timeoutId);
+    };
+
     fetchState(); // Initial fetch
     
-    const intervalId = setInterval(fetchState, 3000);
+    // Use a longer interval to reduce flickering (5 seconds instead of 3)
+    const intervalId = setInterval(debouncedFetchState, 5000);
 
     return () => clearInterval(intervalId);
 
@@ -89,8 +106,12 @@ const GenericKeyValue = ({
     if (entries.length === 0) {
       return <p>No items to display.</p>;
     }
+    
+    // Use a stable key for the list to prevent unnecessary re-renders
+    const listKey = `kv-list-${module_id}`;
+    
     return (
-      <dl className="key-value-list">
+      <dl className="key-value-list" key={listKey}>
         {entries.map(([key, value]) => (
           <div key={key} className="kv-pair">
             <dt>{key}</dt>
@@ -117,7 +138,10 @@ const GenericKeyValue = ({
   };
 
   return (
-    <div className={`module-container ${sizeClass}`}>
+    <div 
+      className={`module-container ${sizeClass}`} 
+      data-module-id={module_id}
+    >
       <h2>{title}</h2>
       <div className="module-content">
         {renderContent()}
