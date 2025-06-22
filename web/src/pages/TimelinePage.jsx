@@ -8,6 +8,8 @@ const TimelinePage = ({ isEditing, onSaveLayout, onCancelEdit, currentDashboard 
   const [error, setError] = useState(null);
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [selectedEventType, setSelectedEventType] = useState(null);
+  const [tooltipEvent, setTooltipEvent] = useState(null);
+  const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
 
   useEffect(() => {
     const fetchEvents = async () => {
@@ -48,16 +50,32 @@ const TimelinePage = ({ isEditing, onSaveLayout, onCancelEdit, currentDashboard 
   const eventTypes = [...new Set(events.map(event => event.event_type))];
 
   // Filter events based on selection
-  const filteredEvents = selectedEventType 
-    ? events.filter(event => event.event_type === selectedEventType)
-    : events;
+  const filteredEvents = selectedEvent
+    ? events.filter(event => event.id === selectedEvent)
+    : selectedEventType 
+      ? events.filter(event => event.event_type === selectedEventType)
+      : events;
 
   const handleEventClick = (event) => {
-    setSelectedEvent(event.id === selectedEvent ? null : event.id);
+    // If the event is already selected, deselect it
+    // Otherwise, select it and clear any event type filter
+    if (event.id === selectedEvent) {
+      setSelectedEvent(null);
+    } else {
+      setSelectedEvent(event.id);
+      setSelectedEventType(null); // Clear event type filter when selecting a specific event
+    }
   };
 
   const handleEventTypeClick = (eventType) => {
-    setSelectedEventType(eventType === selectedEventType ? null : eventType);
+    // If the event type is already selected, deselect it
+    // Otherwise, select it and clear any specific event selection
+    if (eventType === selectedEventType) {
+      setSelectedEventType(null);
+    } else {
+      setSelectedEventType(eventType);
+      setSelectedEvent(null); // Clear selected event when filtering by event type
+    }
   };
 
   // Format timestamp to a readable format
@@ -70,6 +88,54 @@ const TimelinePage = ({ isEditing, onSaveLayout, onCancelEdit, currentDashboard 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
     return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+  };
+  
+  // Handle tooltip display
+  const handleMouseEnter = (event, e) => {
+    setTooltipEvent(event);
+    updateTooltipPosition(e);
+  };
+  
+  const handleMouseLeave = () => {
+    setTooltipEvent(null);
+  };
+  
+  const handleMouseMove = (e) => {
+    if (tooltipEvent) {
+      updateTooltipPosition(e);
+    }
+  };
+  
+  const updateTooltipPosition = (e) => {
+    // Get viewport dimensions
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    
+    // Calculate tooltip dimensions (approximate)
+    const tooltipWidth = 350;
+    const tooltipHeight = 150;
+    
+    // Calculate initial position (slightly above and to the right of cursor)
+    let x = e.clientX + 10;
+    let y = e.clientY - 10;
+    
+    // Adjust if tooltip would go off right edge
+    if (x + tooltipWidth > viewportWidth) {
+      x = e.clientX - tooltipWidth - 10;
+    }
+    
+    // Adjust if tooltip would go off bottom edge
+    if (y + tooltipHeight > viewportHeight) {
+      y = e.clientY - tooltipHeight - 10;
+    }
+    
+    // Adjust if tooltip would go off top edge
+    if (y < 0) {
+      y = 10;
+    }
+    
+    // Set the position
+    setTooltipPosition({ x, y });
   };
 
   return (
@@ -108,7 +174,15 @@ const TimelinePage = ({ isEditing, onSaveLayout, onCancelEdit, currentDashboard 
                       className="event-type clear-filter"
                       onClick={() => setSelectedEventType(null)}
                     >
-                      Clear Filter
+                      Clear Type Filter
+                    </div>
+                  )}
+                  {selectedEvent && (
+                    <div 
+                      className="event-type clear-filter"
+                      onClick={() => setSelectedEvent(null)}
+                    >
+                      Clear Event Selection
                     </div>
                   )}
                 </div>
@@ -122,7 +196,9 @@ const TimelinePage = ({ isEditing, onSaveLayout, onCancelEdit, currentDashboard 
                             key={event.id}
                             className={`timeline-date-event ${event.event_type} ${selectedEvent === event.id ? 'selected' : ''}`}
                             onClick={() => handleEventClick(event)}
-                            title={event.description}
+                            onMouseEnter={(e) => handleMouseEnter(event, e)}
+                            onMouseLeave={handleMouseLeave}
+                            onMouseMove={handleMouseMove}
                           />
                         ))}
                       </div>
@@ -133,6 +209,11 @@ const TimelinePage = ({ isEditing, onSaveLayout, onCancelEdit, currentDashboard 
 
               {/* Vertical Timeline */}
               <div className="vertical-timeline">
+                {selectedEvent && (
+                  <div className="selected-event-indicator">
+                    Showing only the selected event. <button onClick={() => setSelectedEvent(null)}>Show All</button>
+                  </div>
+                )}
                 <div className="timeline-line"></div>
                 <div className="timeline-events">
                   {filteredEvents.map(event => (
@@ -170,6 +251,31 @@ const TimelinePage = ({ isEditing, onSaveLayout, onCancelEdit, currentDashboard 
           )}
         </div>
       </DashboardLayoutManager>
+      
+      {/* Custom Tooltip */}
+      {tooltipEvent && (
+        <div 
+          className="custom-tooltip"
+          style={{
+            left: `${tooltipPosition.x}px`,
+            top: `${tooltipPosition.y}px`
+          }}
+        >
+          <div className="tooltip-header">
+            <span className={`tooltip-dot ${tooltipEvent.event_type}`}></span>
+            <h4>{tooltipEvent.title}</h4>
+          </div>
+          <p>{tooltipEvent.description}</p>
+          <div className="tooltip-footer">
+            <span className="tooltip-time">
+              {new Date(tooltipEvent.timestamp).toLocaleDateString([], {month: 'short', day: 'numeric', year: 'numeric'})} at {formatTimestamp(tooltipEvent.timestamp)}
+            </span>
+            {tooltipEvent.status && (
+              <span className={`tooltip-status ${tooltipEvent.status}`}>{tooltipEvent.status}</span>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
