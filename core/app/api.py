@@ -5,6 +5,7 @@ from typing import Dict, Any, List, Union, get_origin, get_args # Import get_ori
 
 from .module_loader import ModuleLoader
 from .state_manager import state_manager
+from .modules.timeline.tool import log_tool_execution, log_system_event, log_error
 
 def create_api_routes(module_loader: ModuleLoader, content_pack_manager=None) -> APIRouter:
     """
@@ -139,13 +140,31 @@ def create_api_routes(module_loader: ModuleLoader, content_pack_manager=None) ->
             result = method_to_call(**parameters)
             
             logging.info(f"Executed tool '{tool_full_name}' with parameters: {parameters}")
+            
+            # Log the tool execution to the timeline
+            log_tool_execution(tool_full_name, parameters, {"status": "success", "result": result})
+            
             return {"status": "success", "result": result}
         except HTTPException as e:
+            # Log the error to the timeline
+            log_error(
+                f"HTTP Error in tool '{tool_full_name}'", 
+                f"Status code {e.status_code}: {e.detail}",
+                {"status_code": e.status_code, "detail": e.detail}
+            )
             # Re-raise HTTP exceptions from the tool logic (e.g., file not found)
             raise e
         except Exception as e:
             # Catch any other unexpected errors from the tool execution
             logging.error(f"ERROR executing tool '{tool_full_name}': {e}", exc_info=True)
+            
+            # Log the error to the timeline
+            log_error(
+                f"Error executing tool '{tool_full_name}'", 
+                str(e),
+                {"parameters": parameters, "error_type": type(e).__name__}
+            )
+            
             raise HTTPException(status_code=500, detail=f"An error occurred while executing tool '{tool_full_name}': {str(e)}")
 
     # --- Content Pack Management Endpoints ---

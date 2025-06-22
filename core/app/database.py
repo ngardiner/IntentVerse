@@ -1,4 +1,4 @@
-from sqlmodel import create_engine, SQLModel
+from sqlmodel import create_engine, SQLModel, Session
 
 # The path to our SQLite database file.
 # It will be created in the root of the 'core' directory.

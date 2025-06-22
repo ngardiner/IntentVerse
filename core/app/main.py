@@ -11,6 +11,7 @@ from .auth import router as auth_router
 from .database import create_db_and_tables
 from .content_pack_manager import ContentPackManager
 from .logging_config import setup_logging
+from .modules.timeline.tool import router as timeline_router
 
 # Apply the JSON logging configuration at the earliest point
 setup_logging()
@@ -24,9 +25,29 @@ async def lifespan(app: FastAPI):
     loader.load_modules()
     # Load default content pack after modules are loaded
     content_pack_manager.load_default_content_pack()
+    
+    # Log system startup event
+    from .modules.timeline.tool import log_system_event
+    log_system_event(
+        title="Core Service Started",
+        description="The IntentVerse Core Engine has been started and is ready to accept connections."
+    )
+    logging.info("Logged system startup event")
+    
     yield
     # This code runs on server shutdown
     logging.info("--- IntentVerse Core Engine Shutting Down ---")
+    
+    # Log system shutdown event
+    try:
+        from .modules.timeline.tool import log_system_event
+        log_system_event(
+            title="Core Service Stopped",
+            description="The IntentVerse Core Engine has been stopped."
+        )
+        logging.info("Logged system shutdown event")
+    except Exception as e:
+        logging.error(f"Failed to log shutdown event: {e}")
 
 # --- Application Initialization ---
 app = FastAPI(
@@ -52,6 +73,7 @@ content_pack_manager = ContentPackManager(state_manager, loader)
 api_router = create_api_routes(loader, content_pack_manager)
 app.include_router(api_router)
 app.include_router(auth_router)
+app.include_router(timeline_router)
 
 # Create a new, separate router for debug endpoints
 debug_router = APIRouter()

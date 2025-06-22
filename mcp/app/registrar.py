@@ -166,3 +166,21 @@ class ToolRegistrar:
             server.add_tool(FunctionTool.from_function(dynamic_proxy, name=tool_name))
 
             logging.info(f"  - Registered proxy for tool: '{tool_name}' with signature {dynamic_proxy.__signature__}")
+            
+            # Only log tool registration for non-timeline tools to avoid circular dependencies
+            if not tool_name.startswith("timeline."):
+                try:
+                    await self.core_client.execute_tool({
+                        "tool_name": "timeline.log_system_event",
+                        "parameters": {
+                            "title": f"Tool Registered: {tool_name}",
+                            "description": f"The tool '{tool_name}' has been registered with the MCP Interface.",
+                            "details": {
+                                "tool_name": tool_name,
+                                "description": tool_def.get("description", "No description available.")
+                            }
+                        }
+                    })
+                except Exception as e:
+                    # This is expected to fail for the first few tools before timeline is registered
+                    logging.debug(f"Could not log tool registration event: {e}")

@@ -185,4 +185,9 @@ export const updateEmail = (emailId, updates) => {
   });
 };
 
+// Timeline API Functions
+export const getTimelineEvents = (filters = {}) => {
+  return apiClient.get('/api/v1/timeline/events', { params: filters });
+};
+
 export default apiClient;

@@ -49,12 +49,65 @@ class CoreClient:
             A dictionary containing the result of the tool execution.
         """
         try:
-            logging.info(f"CoreClient: Executing tool with payload: {payload}")
+            # Skip logging timeline events to avoid infinite recursion
+            if payload.get("tool_name", "").startswith("timeline."):
+                logging.debug(f"CoreClient: Executing timeline tool: {payload['tool_name']}")
+            else:
+                logging.info(f"CoreClient: Executing tool with payload: {payload}")
+                
+                # Log the tool execution to the timeline
+                try:
+                    await self.client.post("/api/v1/execute", json={
+                        "tool_name": "timeline.log_tool_execution",
+                        "parameters": {
+                            "tool_name": payload["tool_name"],
+                            "parameters": payload.get("parameters", {}),
+                            "result": {"status": "pending"}
+                        }
+                    })
+                except Exception as e:
+                    logging.error(f"Failed to log tool execution to timeline: {e}")
+                
             response = await self.client.post("/api/v1/execute", json=payload)
             response.raise_for_status()
-            return response.json()
+            result = response.json()
+            
+            # Log the tool execution result to the timeline if it's not a timeline tool
+            if not payload.get("tool_name", "").startswith("timeline."):
+                try:
+                    await self.client.post("/api/v1/execute", json={
+                        "tool_name": "timeline.log_tool_execution",
+                        "parameters": {
+                            "tool_name": payload["tool_name"],
+                            "parameters": payload.get("parameters", {}),
+                            "result": result
+                        }
+                    })
+                except Exception as e:
+                    logging.error(f"Failed to log tool execution result to timeline: {e}")
+            
+            return result
         except httpx.RequestError as e:
             logging.error(f"An error occurred while executing tool: {e}")
+            
+            # Log the error to the timeline if it's not a timeline tool
+            if not payload.get("tool_name", "").startswith("timeline."):
+                try:
+                    await self.client.post("/api/v1/execute", json={
+                        "tool_name": "timeline.log_error",
+                        "parameters": {
+                            "title": f"Error executing tool: {payload.get('tool_name')}",
+                            "description": str(e),
+                            "details": {
+                                "tool_name": payload.get("tool_name"),
+                                "parameters": payload.get("parameters", {}),
+                                "error": str(e)
+                            }
+                        }
+                    })
+                except Exception as log_error:
+                    logging.error(f"Failed to log error to timeline: {log_error}")
+            
             return {"status": "error", "result": str(e)}
 
     async def close(self):
