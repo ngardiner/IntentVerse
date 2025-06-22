@@ -248,16 +248,10 @@ const DashboardLayoutManager = ({
           // Get the position for this module from the current layout
           const position = currentLayout[moduleId] || {};
           
-          // Get the module ID to check if it's a small widget
-          const isSmallWidget = moduleId === 'filesystem' || moduleId === 'memory';
-          
-          // Use the original size class, but force small widgets to be size-small
-          const effectiveSizeClass = isSmallWidget ? 'size-small' : (child.props?.sizeClass || '');
-          
           // Create grid style for positioning
           const gridStyle = {
             gridRow: position.row ? `${position.row}` : 'auto',
-            gridColumn: position.col ? `${position.col} / span ${getSizeSpan(effectiveSizeClass)}` : 'auto'
+            gridColumn: position.col ? `${position.col} / span ${getSizeSpan(sizeClass)}` : 'auto'
           };
           
           // If in edit mode, add drag and drop handlers
