@@ -72,33 +72,47 @@ const DashboardLayoutManager = ({
 
   // Load the saved layout from localStorage when the component mounts or dashboard changes
   useEffect(() => {
-    const savedLayout = localStorage.getItem(`dashboard-layout-${currentDashboard}`);
-    if (savedLayout) {
+    // Always generate the layout based on current children first.
+    // This gives us a complete default for every widget.
+    const generatedLayout = generateInitialLayout();
+
+    const savedLayoutJSON = localStorage.getItem(`dashboard-layout-${currentDashboard}`);
+
+    if (savedLayoutJSON) {
       try {
-        const parsedLayout = JSON.parse(savedLayout);
-        setCurrentLayout(parsedLayout);
+        const savedLayout = JSON.parse(savedLayoutJSON);
+
+        // Create a new layout that is guaranteed to be complete.
+        // Start with the complete generated layout.
+        // Then, overwrite with any valid positions from the saved layout.
+        const mergedLayout = { ...generatedLayout };
+        Object.keys(mergedLayout).forEach(moduleId => {
+          if (savedLayout[moduleId] && savedLayout[moduleId].row && savedLayout[moduleId].col) {
+            mergedLayout[moduleId] = savedLayout[moduleId];
+          }
+        });
+
+        setCurrentLayout(mergedLayout);
         if (!isEditing) {
-          setOriginalLayout(parsedLayout);
+          setOriginalLayout(mergedLayout);
         }
       } catch (e) {
-        console.error("Error parsing saved layout:", e);
-        // Fall back to generated layout
-        const initialLayout = generateInitialLayout();
-        setCurrentLayout(initialLayout);
+        console.error("Error parsing saved layout, falling back to default:", e);
+        // If parsing fails, just use the fresh generated layout.
+        setCurrentLayout(generatedLayout);
         if (!isEditing) {
-          setOriginalLayout(initialLayout);
+          setOriginalLayout(generatedLayout);
         }
       }
     } else {
-      // No saved layout, generate an initial one
-      const initialLayout = generateInitialLayout();
-      setCurrentLayout(initialLayout);
+      // If no saved layout exists, use the fresh generated layout.
+      setCurrentLayout(generatedLayout);
       if (!isEditing) {
-        setOriginalLayout(initialLayout);
+        setOriginalLayout(generatedLayout);
       }
     }
   }, [currentDashboard, isEditing, children]);
-  
+
   // When entering edit mode, store the original layout
   useEffect(() => {
     if (isEditing) {

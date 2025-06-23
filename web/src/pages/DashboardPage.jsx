@@ -61,16 +61,17 @@ const DashboardPage = ({ isEditing, onSaveLayout, onCancelEdit, currentDashboard
     // then it means it's a module (like 'database') that contains multiple top-level components
     // that need to be rendered separately on the dashboard.
     if (schemaItem.components && Array.isArray(schemaItem.components) && schemaItem.component_type !== 'switchable_group') {
-        // Return an array of rendered components by recursively calling renderComponent for each sub-component.
-        // We pass the parent module_id to the sub-component's props for context, and add a unique key index.
-        return schemaItem.components.map((subComponent, index) => {
-            const subComponentWithParentContext = {
-                ...subComponent,
-                module_id: schemaItem.module_id, // Pass parent module_id
-                _unique_key_index: index // For unique React keys when mapping
-            };
-            return renderComponent(subComponentWithParentContext);
-        });
+      // Return an array of rendered components by recursively calling renderComponent for each sub-component.
+      // We pass the parent module_id to the sub-component's props for context, and add a unique key index.
+      return schemaItem.components.map((subComponent, index) => {
+        const uniqueModuleId = `${schemaItem.module_id}-${index}`;
+        const subComponentWithParentContext = {
+            ...subComponent,
+            module_id: uniqueModuleId, // Use the new unique ID
+            _unique_key_index: index // For unique React keys when mapping
+        };
+        return renderComponent(subComponentWithParentContext);
+      });
     }
 
     // Otherwise, render a single component based on its component_type.
@@ -91,29 +92,25 @@ const DashboardPage = ({ isEditing, onSaveLayout, onCancelEdit, currentDashboard
 
     switch (schemaItem.component_type) {
       case 'file_tree':
-        return <div style={gridRowStyle}><GenericFileTree {...props} /></div>;
+        return <GenericFileTree {...props} />;
       case 'table':
         return (
-          <div style={gridRowStyle}>
-            <GenericTable
-              {...props}
-              data_path={schemaItem.data_path}
-              dynamic_columns={schemaItem.dynamic_columns}
-              max_rows={schemaItem.max_rows}
-            />
-          </div>
+          <GenericTable
+            {...props}
+            data_path={schemaItem.data_path}
+            dynamic_columns={schemaItem.dynamic_columns}
+            max_rows={schemaItem.max_rows}
+          />
         );
       case 'key_value_viewer':
       case 'key_value':
         return (
-          <div style={gridRowStyle}>
-            <GenericKeyValue
-              {...props}
-              data_path={schemaItem.data_path}
-              display_as={schemaItem.display_as}
-              language={schemaItem.language}
-            />
-          </div>
+          <GenericKeyValue
+            {...props}
+            data_path={schemaItem.data_path}
+            display_as={schemaItem.display_as}
+            language={schemaItem.language}
+          />
         );
       case 'switchable_group':
         return (
