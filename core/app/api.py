@@ -1,11 +1,15 @@
 import logging
 import inspect
-from fastapi import APIRouter, Path, HTTPException, Depends
-from typing import Dict, Any, List, Union, get_origin, get_args # Import get_origin, get_args
+from fastapi import APIRouter, Path, HTTPException, Depends, Request
+from typing import Dict, Any, List, Union, get_origin, get_args, Annotated # Import get_origin, get_args
+from sqlmodel import Session
 
 from .module_loader import ModuleLoader
 from .state_manager import state_manager
 from .modules.timeline.tool import log_tool_execution, log_system_event, log_error
+from .auth import get_current_user, log_audit_event, get_client_info
+from .models import User
+from .database import get_session
 
 def create_api_routes(module_loader: ModuleLoader, content_pack_manager=None) -> APIRouter:
     """
@@ -13,11 +17,21 @@ def create_api_routes(module_loader: ModuleLoader, content_pack_manager=None) ->
     to the loaded modules.
     """
     router = APIRouter(prefix="/api/v1")
+    
+    def require_admin(current_user: User):
+        """Helper function to check if user is admin"""
+        if not current_user.is_admin:
+            raise HTTPException(
+                status_code=403,
+                detail="Only administrators can perform this action"
+            )
 
     # --- UI Endpoints ---
 
     @router.get("/ui/layout")
-    def get_ui_layout() -> Dict[str, Any]:
+    def get_ui_layout(
+        current_user: Annotated[User, Depends(get_current_user)]
+    ) -> Dict[str, Any]:
         """
         Returns the full UI schema for all loaded modules.
         The frontend uses this to dynamically build its layout.
@@ -25,7 +39,10 @@ def create_api_routes(module_loader: ModuleLoader, content_pack_manager=None) ->
         return {"modules": list(module_loader.get_schemas().values())}
 
     @router.get("/{module_name}/state")
-    def get_module_state(module_name: str = Path(..., title="The name of the module")) -> Dict[str, Any]:
+    def get_module_state(
+        current_user: Annotated[User, Depends(get_current_user)],
+        module_name: str = Path(..., title="The name of the module")
+    ) -> Dict[str, Any]:
         """
         Returns the current state for a specific module.
         Used by UI components to fetch their data.
@@ -38,7 +55,9 @@ def create_api_routes(module_loader: ModuleLoader, content_pack_manager=None) ->
     # --- MCP Endpoints ---
 
     @router.get("/tools/manifest")
-    def get_tools_manifest() -> List[Dict[str, Any]]:
+    def get_tools_manifest(
+        current_user: Annotated[User, Depends(get_current_user)]
+    ) -> List[Dict[str, Any]]:
         """
         Inspects all loaded tool classes and returns a simplified manifest.
         The MCP Interface uses this to dynamically reconstruct function signatures.
@@ -106,25 +125,66 @@ def create_api_routes(module_loader: ModuleLoader, content_pack_manager=None) ->
         return manifest
     
     @router.post("/execute")
-    def execute_tool(payload: Dict[str, Any]) -> Dict[str, Any]:
+    def execute_tool(
+        payload: Dict[str, Any],
+        current_user: Annotated[User, Depends(get_current_user)],
+        session: Annotated[Session, Depends(get_session)],
+        request: Request
+    ) -> Dict[str, Any]:
         """
         The main endpoint for executing a tool command from the MCP interface.
         The MCP interface will call this endpoint.
         """
+        ip_address, user_agent = get_client_info(request)
         tool_full_name = payload.get("tool_name")
         parameters = payload.get("parameters", {})
 
         if not tool_full_name or '.' not in tool_full_name:
+            log_audit_event(
+                session=session,
+                user_id=current_user.id,
+                username=current_user.username,
+                action="execute_tool_failed",
+                details={"reason": "invalid_tool_name_format", "provided_tool_name": tool_full_name},
+                ip_address=ip_address,
+                user_agent=user_agent,
+                status="failure",
+                error_message="`tool_name` is required in the format 'module.method'."
+            )
             raise HTTPException(status_code=400, detail="`tool_name` is required in the format 'module.method'.")
         
         try:
             module_name, method_name = tool_full_name.split('.', 1)
         except ValueError:
-             raise HTTPException(status_code=400, detail="`tool_name` is invalid. Expected format 'module.method'.")
+            log_audit_event(
+                session=session,
+                user_id=current_user.id,
+                username=current_user.username,
+                action="execute_tool_failed",
+                details={"reason": "invalid_tool_name_format", "provided_tool_name": tool_full_name},
+                ip_address=ip_address,
+                user_agent=user_agent,
+                status="failure",
+                error_message="`tool_name` is invalid. Expected format 'module.method'."
+            )
+            raise HTTPException(status_code=400, detail="`tool_name` is invalid. Expected format 'module.method'.")
 
         tool_instance = module_loader.get_tool(module_name)
 
         if not tool_instance or not hasattr(tool_instance, method_name):
+            log_audit_event(
+                session=session,
+                user_id=current_user.id,
+                username=current_user.username,
+                action="execute_tool_failed",
+                resource_type="tool",
+                resource_name=tool_full_name,
+                details={"reason": "tool_not_found", "module_name": module_name, "method_name": method_name},
+                ip_address=ip_address,
+                user_agent=user_agent,
+                status="failure",
+                error_message=f"Tool '{tool_full_name}' not found."
+            )
             raise HTTPException(status_code=404, detail=f"Tool '{tool_full_name}' not found.")
 
         try:
@@ -134,18 +194,60 @@ def create_api_routes(module_loader: ModuleLoader, content_pack_manager=None) ->
             sig = inspect.signature(method_to_call)
             for param in sig.parameters.values():
                 if param.name != 'self' and param.default == inspect.Parameter.empty and param.name not in parameters:
-                     raise HTTPException(status_code=422, detail=f"Missing required parameter for '{tool_full_name}': {param.name}")
+                    log_audit_event(
+                        session=session,
+                        user_id=current_user.id,
+                        username=current_user.username,
+                        action="execute_tool_failed",
+                        resource_type="tool",
+                        resource_name=tool_full_name,
+                        details={"reason": "missing_required_parameter", "missing_parameter": param.name, "parameters": parameters},
+                        ip_address=ip_address,
+                        user_agent=user_agent,
+                        status="failure",
+                        error_message=f"Missing required parameter for '{tool_full_name}': {param.name}"
+                    )
+                    raise HTTPException(status_code=422, detail=f"Missing required parameter for '{tool_full_name}': {param.name}")
 
             # Call the tool method with the provided parameters
             result = method_to_call(**parameters)
             
             logging.info(f"Executed tool '{tool_full_name}' with parameters: {parameters}")
             
+            # Log successful tool execution to audit log
+            log_audit_event(
+                session=session,
+                user_id=current_user.id,
+                username=current_user.username,
+                action="execute_tool",
+                resource_type="tool",
+                resource_name=tool_full_name,
+                details={"parameters": parameters, "result_status": "success"},
+                ip_address=ip_address,
+                user_agent=user_agent,
+                status="success"
+            )
+            
             # Log the tool execution to the timeline
             log_tool_execution(tool_full_name, parameters, {"status": "success", "result": result})
             
             return {"status": "success", "result": result}
         except HTTPException as e:
+            # Log the error to audit log
+            log_audit_event(
+                session=session,
+                user_id=current_user.id,
+                username=current_user.username,
+                action="execute_tool_failed",
+                resource_type="tool",
+                resource_name=tool_full_name,
+                details={"parameters": parameters, "status_code": e.status_code, "error_detail": e.detail},
+                ip_address=ip_address,
+                user_agent=user_agent,
+                status="failure",
+                error_message=f"HTTP Error: {e.detail}"
+            )
+            
             # Log the error to the timeline
             log_error(
                 f"HTTP Error in tool '{tool_full_name}'", 
@@ -157,6 +259,21 @@ def create_api_routes(module_loader: ModuleLoader, content_pack_manager=None) ->
         except Exception as e:
             # Catch any other unexpected errors from the tool execution
             logging.error(f"ERROR executing tool '{tool_full_name}': {e}", exc_info=True)
+            
+            # Log the error to audit log
+            log_audit_event(
+                session=session,
+                user_id=current_user.id,
+                username=current_user.username,
+                action="execute_tool_failed",
+                resource_type="tool",
+                resource_name=tool_full_name,
+                details={"parameters": parameters, "error_type": type(e).__name__, "error_message": str(e)},
+                ip_address=ip_address,
+                user_agent=user_agent,
+                status="error",
+                error_message=str(e)
+            )
             
             # Log the error to the timeline
             log_error(
@@ -171,24 +288,32 @@ def create_api_routes(module_loader: ModuleLoader, content_pack_manager=None) ->
     
     if content_pack_manager:
         @router.get("/content-packs/available")
-        def list_available_content_packs() -> List[Dict[str, Any]]:
+        def list_available_content_packs(
+            current_user: Annotated[User, Depends(get_current_user)]
+        ) -> List[Dict[str, Any]]:
             """
             Returns a list of all available content packs in the content_packs directory.
             """
             return content_pack_manager.list_available_content_packs()
         
         @router.get("/content-packs/loaded")
-        def get_loaded_content_packs() -> List[Dict[str, Any]]:
+        def get_loaded_content_packs(
+            current_user: Annotated[User, Depends(get_current_user)]
+        ) -> List[Dict[str, Any]]:
             """
             Returns information about currently loaded content packs.
             """
             return content_pack_manager.get_loaded_packs_info()
         
         @router.post("/content-packs/export")
-        def export_content_pack(request: Dict[str, Any]) -> Dict[str, Any]:
+        def export_content_pack(
+            request: Dict[str, Any],
+            current_user: Annotated[User, Depends(get_current_user)]
+        ) -> Dict[str, Any]:
             """
             Export current system state as a content pack.
             """
+            require_admin(current_user)
             from pathlib import Path
             
             filename = request.get("filename", "exported_content_pack.json")
@@ -212,10 +337,14 @@ def create_api_routes(module_loader: ModuleLoader, content_pack_manager=None) ->
                 raise HTTPException(status_code=500, detail="Failed to export content pack")
         
         @router.post("/content-packs/load")
-        def load_content_pack(request: Dict[str, Any]) -> Dict[str, Any]:
+        def load_content_pack(
+            request: Dict[str, Any],
+            current_user: Annotated[User, Depends(get_current_user)]
+        ) -> Dict[str, Any]:
             """
             Load a content pack by filename.
             """
+            require_admin(current_user)
             filename = request.get("filename")
             if not filename:
                 raise HTTPException(status_code=400, detail="Filename is required")
@@ -231,12 +360,16 @@ def create_api_routes(module_loader: ModuleLoader, content_pack_manager=None) ->
                 raise HTTPException(status_code=500, detail=f"Failed to load content pack '{filename}'")
         
         @router.post("/content-packs/unload")
-        def unload_content_pack(request: Dict[str, Any]) -> Dict[str, Any]:
+        def unload_content_pack(
+            request: Dict[str, Any],
+            current_user: Annotated[User, Depends(get_current_user)]
+        ) -> Dict[str, Any]:
             """
             Unload a content pack by filename or name.
             Note: This only removes it from the loaded packs tracking.
             State and database changes are not reverted.
             """
+            require_admin(current_user)
             identifier = request.get("identifier")
             if not identifier:
                 raise HTTPException(status_code=400, detail="Pack identifier (filename or name) is required")
@@ -252,11 +385,14 @@ def create_api_routes(module_loader: ModuleLoader, content_pack_manager=None) ->
                 raise HTTPException(status_code=404, detail=f"Content pack '{identifier}' not found in loaded packs")
         
         @router.post("/content-packs/clear-all")
-        def clear_all_loaded_packs() -> Dict[str, Any]:
+        def clear_all_loaded_packs(
+            current_user: Annotated[User, Depends(get_current_user)]
+        ) -> Dict[str, Any]:
             """
             Clear all loaded content packs from tracking.
             Note: This does not revert state or database changes.
             """
+            require_admin(current_user)
             success = content_pack_manager.clear_all_loaded_packs()
             
             if success:
@@ -268,7 +404,10 @@ def create_api_routes(module_loader: ModuleLoader, content_pack_manager=None) ->
                 raise HTTPException(status_code=500, detail="Failed to clear loaded content packs")
         
         @router.get("/content-packs/preview/{filename}")
-        def preview_content_pack(filename: str) -> Dict[str, Any]:
+        def preview_content_pack(
+            filename: str,
+            current_user: Annotated[User, Depends(get_current_user)]
+        ) -> Dict[str, Any]:
             """
             Preview a content pack without loading it, including validation results.
             """
@@ -280,7 +419,10 @@ def create_api_routes(module_loader: ModuleLoader, content_pack_manager=None) ->
             return preview_result
         
         @router.post("/content-packs/validate")
-        def validate_content_pack(request: Dict[str, Any]) -> Dict[str, Any]:
+        def validate_content_pack(
+            request: Dict[str, Any],
+            current_user: Annotated[User, Depends(get_current_user)]
+        ) -> Dict[str, Any]:
             """
             Validate a content pack by filename and return detailed validation results.
             """
@@ -301,14 +443,20 @@ def create_api_routes(module_loader: ModuleLoader, content_pack_manager=None) ->
         # --- Remote Content Pack Endpoints ---
         
         @router.get("/content-packs/remote")
-        def list_remote_content_packs(force_refresh: bool = False) -> List[Dict[str, Any]]:
+        def list_remote_content_packs(
+            current_user: Annotated[User, Depends(get_current_user)],
+            force_refresh: bool = False
+        ) -> List[Dict[str, Any]]:
             """
             Returns a list of all available remote content packs.
             """
             return content_pack_manager.list_remote_content_packs(force_refresh)
         
         @router.get("/content-packs/remote/info/{filename}")
-        def get_remote_content_pack_info(filename: str) -> Dict[str, Any]:
+        def get_remote_content_pack_info(
+            filename: str,
+            current_user: Annotated[User, Depends(get_current_user)]
+        ) -> Dict[str, Any]:
             """
             Get detailed information about a specific remote content pack.
             """
@@ -318,7 +466,10 @@ def create_api_routes(module_loader: ModuleLoader, content_pack_manager=None) ->
             return pack_info
         
         @router.post("/content-packs/remote/search")
-        def search_remote_content_packs(request: Dict[str, Any]) -> List[Dict[str, Any]]:
+        def search_remote_content_packs(
+            request: Dict[str, Any],
+            current_user: Annotated[User, Depends(get_current_user)]
+        ) -> List[Dict[str, Any]]:
             """
             Search remote content packs by query, category, or tags.
             """
@@ -329,10 +480,14 @@ def create_api_routes(module_loader: ModuleLoader, content_pack_manager=None) ->
             return content_pack_manager.search_remote_content_packs(query, category, tags)
         
         @router.post("/content-packs/remote/download")
-        def download_remote_content_pack(request: Dict[str, Any]) -> Dict[str, Any]:
+        def download_remote_content_pack(
+            request: Dict[str, Any],
+            current_user: Annotated[User, Depends(get_current_user)]
+        ) -> Dict[str, Any]:
             """
             Download a remote content pack to local cache.
             """
+            require_admin(current_user)
             filename = request.get("filename")
             if not filename:
                 raise HTTPException(status_code=400, detail="Filename is required")
@@ -349,10 +504,14 @@ def create_api_routes(module_loader: ModuleLoader, content_pack_manager=None) ->
                 raise HTTPException(status_code=500, detail=f"Failed to download content pack '{filename}'")
         
         @router.post("/content-packs/remote/install")
-        def install_remote_content_pack(request: Dict[str, Any]) -> Dict[str, Any]:
+        def install_remote_content_pack(
+            request: Dict[str, Any],
+            current_user: Annotated[User, Depends(get_current_user)]
+        ) -> Dict[str, Any]:
             """
             Download and install a remote content pack.
             """
+            require_admin(current_user)
             filename = request.get("filename")
             load_immediately = request.get("load_immediately", True)
             
@@ -371,17 +530,22 @@ def create_api_routes(module_loader: ModuleLoader, content_pack_manager=None) ->
                 raise HTTPException(status_code=500, detail=f"Failed to install content pack '{filename}'")
         
         @router.get("/content-packs/remote/repository-info")
-        def get_remote_repository_info() -> Dict[str, Any]:
+        def get_remote_repository_info(
+            current_user: Annotated[User, Depends(get_current_user)]
+        ) -> Dict[str, Any]:
             """
             Get information about the remote repository including statistics.
             """
             return content_pack_manager.get_remote_repository_info()
         
         @router.post("/content-packs/remote/refresh-cache")
-        def refresh_remote_cache() -> Dict[str, Any]:
+        def refresh_remote_cache(
+            current_user: Annotated[User, Depends(get_current_user)]
+        ) -> Dict[str, Any]:
             """
             Force refresh the remote manifest cache.
             """
+            require_admin(current_user)
             manifest = content_pack_manager.fetch_remote_manifest(force_refresh=True)
             if manifest:
                 return {
@@ -393,10 +557,13 @@ def create_api_routes(module_loader: ModuleLoader, content_pack_manager=None) ->
                 raise HTTPException(status_code=500, detail="Failed to refresh remote cache")
         
         @router.post("/content-packs/remote/clear-cache")
-        def clear_remote_cache() -> Dict[str, Any]:
+        def clear_remote_cache(
+            current_user: Annotated[User, Depends(get_current_user)]
+        ) -> Dict[str, Any]:
             """
             Clear the remote content pack cache.
             """
+            require_admin(current_user)
             success = content_pack_manager.clear_remote_cache()
             if success:
                 return {
