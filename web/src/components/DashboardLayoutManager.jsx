@@ -251,7 +251,7 @@ const DashboardLayoutManager = ({
           // Create grid style for positioning
           const gridStyle = {
             gridRow: position.row ? `${position.row}` : 'auto',
-            gridColumn: position.col ? `${position.col} / span ${getSizeSpan(sizeClass)}` : 'auto'
+            gridColumn: position.col ? `${position.col} / span ${getSizeSpan(child.props?.sizeClass)}` : 'auto'
           };
           
           // If in edit mode, add drag and drop handlers
