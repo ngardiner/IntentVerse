@@ -5,6 +5,11 @@ import time
 
 # The URL of our core service, as seen from within the Docker network
 CORE_API_URL = os.environ.get("CORE_API_URL", "http://core:8000")
+SERVICE_API_KEY = os.environ.get("SERVICE_API_KEY", "test-service-key-12345")
+
+def get_service_headers():
+    """Get headers with service API key for authentication."""
+    return {"X-API-Key": SERVICE_API_KEY}
 
 @pytest.mark.e2e
 def test_write_and_read_end_to_end():
@@ -22,7 +27,7 @@ def test_write_and_read_end_to_end():
             "content": "End-to-end test was successful!"
         }
     }
-    client = httpx.Client(base_url=CORE_API_URL)
+    client = httpx.Client(base_url=CORE_API_URL, headers=get_service_headers())
 
     # ACT (Step 1): Send the request to execute the write_file tool
     print("E2E Test: Executing write_file tool...")
@@ -60,7 +65,7 @@ async def test_execute_non_existent_tool_returns_404():
     }
     
     # Act: Make the POST request using an async client.
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(headers=get_service_headers()) as client:
         response = await client.post(f"{CORE_API_URL}/api/v1/execute", json=payload)
 
     # Assert: Check for a 404 status code and a specific error message.
@@ -80,7 +85,7 @@ async def test_memory_module_set_and_get_e2e():
     test_key = "e2e_test_key_456"
     test_value = "This is a value stored for an async E2E run."
 
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(headers=get_service_headers()) as client:
         # --- Step 1: Set a value using the 'set_memory' tool ---
         set_payload = {
             "tool_name": "memory.set_memory",

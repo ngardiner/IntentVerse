@@ -196,9 +196,9 @@ class TestAPIRoutes:
         """Create a test client."""
         return TestClient(test_app)
     
-    def test_get_ui_layout(self, client, module_loader):
+    def test_get_ui_layout(self, service_client, module_loader):
         """Test the UI layout endpoint."""
-        response = client.get("/api/v1/ui/layout")
+        response = service_client.get("/api/v1/ui/layout")
         
         assert response.status_code == 200
         data = response.json()
@@ -206,28 +206,28 @@ class TestAPIRoutes:
         assert len(data["modules"]) == 1
         module_loader.get_schemas.assert_called_once()
     
-    def test_get_module_state_existing(self, client):
+    def test_get_module_state_existing(self, service_client):
         """Test getting state for an existing module."""
         with patch('app.api.state_manager') as mock_state_manager:
             mock_state_manager.get.return_value = {"status": "ok", "data": "some_value"}
-            response = client.get("/api/v1/test_module/state")
+            response = service_client.get("/api/v1/test_module/state")
 
             assert response.status_code == 200
             assert response.json() == {"status": "ok", "data": "some_value"}
             mock_state_manager.get.assert_called_once_with("test_module")
 
-    def test_get_module_state_nonexistent(self, client, state_manager):
+    def test_get_module_state_nonexistent(self, service_client, state_manager):
         """Test getting state for a non-existent module."""
         state_manager.get.return_value = None
         
-        response = client.get("/api/v1/nonexistent/state")
+        response = service_client.get("/api/v1/nonexistent/state")
         
         assert response.status_code == 404
         assert "No state found for module: nonexistent" in response.json()["detail"]
     
-    def test_get_tools_manifest(self, client, module_loader):
+    def test_get_tools_manifest(self, service_client, module_loader):
         """Test the tools manifest endpoint."""
-        response = client.get("/api/v1/tools/manifest")
+        response = service_client.get("/api/v1/tools/manifest")
         
         assert response.status_code == 200
         data = response.json()
@@ -248,42 +248,42 @@ class TestAPIRoutes:
         assert simple_method_manifest["parameters"][0]["name"] == "param1"
         assert simple_method_manifest["parameters"][0]["required"] is True
     
-    def test_execute_tool_success(self, client):
+    def test_execute_tool_success(self, service_client):
         """Test successful tool execution."""
         payload = {
             "tool_name": "test_module.simple_method",
             "parameters": {"param1": "test_value"}
         }
         
-        response = client.post("/api/v1/execute", json=payload)
+        response = service_client.post("/api/v1/execute", json=payload)
         
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "success"
         assert data["result"] == "Result: test_value"
     
-    def test_execute_tool_missing_tool_name(self, client):
+    def test_execute_tool_missing_tool_name(self, service_client):
         """Test tool execution without tool_name."""
         payload = {"parameters": {"param1": "test_value"}}
         
-        response = client.post("/api/v1/execute", json=payload)
+        response = service_client.post("/api/v1/execute", json=payload)
         
         assert response.status_code == 400
         assert "`tool_name` is required" in response.json()["detail"]
     
-    def test_execute_tool_invalid_tool_name_format(self, client):
+    def test_execute_tool_invalid_tool_name_format(self, service_client):
         """Test tool execution with invalid tool_name format."""
         payload = {
             "tool_name": "invalid_format",
             "parameters": {"param1": "test_value"}
         }
         
-        response = client.post("/api/v1/execute", json=payload)
+        response = service_client.post("/api/v1/execute", json=payload)
         
         assert response.status_code == 400
         assert "is required in the format 'module.method'" in response.json()["detail"]
     
-    def test_execute_tool_nonexistent_tool(self, client, module_loader):
+    def test_execute_tool_nonexistent_tool(self, service_client, module_loader):
         """Test tool execution with non-existent tool."""
         module_loader.get_tool.return_value = None
         
@@ -292,44 +292,44 @@ class TestAPIRoutes:
             "parameters": {"param1": "test_value"}
         }
         
-        response = client.post("/api/v1/execute", json=payload)
+        response = service_client.post("/api/v1/execute", json=payload)
         
         assert response.status_code == 404
         assert "Tool 'nonexistent.method' not found" in response.json()["detail"]
     
-    def test_execute_tool_nonexistent_method(self, client):
+    def test_execute_tool_nonexistent_method(self, service_client):
         """Test tool execution with non-existent method."""
         payload = {
             "tool_name": "test_module.nonexistent_method",
             "parameters": {"param1": "test_value"}
         }
         
-        response = client.post("/api/v1/execute", json=payload)
+        response = service_client.post("/api/v1/execute", json=payload)
         
         assert response.status_code == 404
         assert "Tool 'test_module.nonexistent_method' not found" in response.json()["detail"]
     
-    def test_execute_tool_missing_required_parameter(self, client):
+    def test_execute_tool_missing_required_parameter(self, service_client):
         """Test tool execution with missing required parameter."""
         payload = {
             "tool_name": "test_module.simple_method",
             "parameters": {}  # Missing required param1
         }
         
-        response = client.post("/api/v1/execute", json=payload)
+        response = service_client.post("/api/v1/execute", json=payload)
         
         assert response.status_code == 422
         assert "Missing required parameter" in response.json()["detail"]
         assert "param1" in response.json()["detail"]
     
-    def test_execute_tool_with_optional_parameters(self, client):
+    def test_execute_tool_with_optional_parameters(self, service_client):
         """Test tool execution with optional parameters."""
         payload = {
             "tool_name": "test_module.method_with_optional",
             "parameters": {"required": "test_value"}
         }
         
-        response = client.post("/api/v1/execute", json=payload)
+        response = service_client.post("/api/v1/execute", json=payload)
         
         assert response.status_code == 200
         data = response.json()
@@ -337,14 +337,14 @@ class TestAPIRoutes:
         assert data["result"]["required"] == "test_value"
         assert data["result"]["optional"] == "default"
     
-    def test_execute_tool_with_all_parameters(self, client):
+    def test_execute_tool_with_all_parameters(self, service_client):
         """Test tool execution with all parameters provided."""
         payload = {
             "tool_name": "test_module.method_with_optional",
             "parameters": {"required": "test_value", "optional": "custom_value"}
         }
         
-        response = client.post("/api/v1/execute", json=payload)
+        response = service_client.post("/api/v1/execute", json=payload)
         
         assert response.status_code == 200
         data = response.json()
@@ -352,7 +352,7 @@ class TestAPIRoutes:
         assert data["result"]["required"] == "test_value"
         assert data["result"]["optional"] == "custom_value"
     
-    def test_execute_tool_method_raises_http_exception(self, client, module_loader):
+    def test_execute_tool_method_raises_http_exception(self, service_client, module_loader):
         """Test tool execution when method raises HTTPException."""
         mock_tool = Mock()
         mock_method = Mock(side_effect=HTTPException(status_code=400, detail="Tool error"))
@@ -375,12 +375,12 @@ class TestAPIRoutes:
                         "parameters": {"param1": "test_value"}
                     }
                     
-                    response = client.post("/api/v1/execute", json=payload)
+                    response = service_client.post("/api/v1/execute", json=payload)
         
         assert response.status_code == 400
         assert "Tool error" in response.json()["detail"]
     
-    def test_execute_tool_method_raises_generic_exception(self, client, module_loader):
+    def test_execute_tool_method_raises_generic_exception(self, service_client, module_loader):
         """Test tool execution when method raises a generic exception."""
         mock_tool = Mock()
         mock_method = Mock(side_effect=ValueError("Generic error"))
@@ -403,7 +403,7 @@ class TestAPIRoutes:
                         "parameters": {"param1": "test_value"}
                     }
                     
-                    response = client.post("/api/v1/execute", json=payload)
+                    response = service_client.post("/api/v1/execute", json=payload)
         
         assert response.status_code == 500
         assert "An error occurred while executing tool" in response.json()["detail"]
