@@ -241,7 +241,7 @@ const GenericTable = ({
 
   return (
     <div 
-      className={`module-container ${sizeClass}`} 
+      className={`module-container`} 
       data-module-id={module_id}
     >
       <h2>{title}</h2>

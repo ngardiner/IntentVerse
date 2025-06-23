@@ -207,7 +207,7 @@ const GenericFileTree = ({ title, data_source_api, sizeClass = '', module_id = '
   };
 
   return (
-    <div className={`module-container ${sizeClass}`} data-module-id={module_id}>
+    <div className={`module-container`} data-module-id={module_id}>
       <h2>{title}</h2>
       <div className="module-content">
         {renderContent()}
