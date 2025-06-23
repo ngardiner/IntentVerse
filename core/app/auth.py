@@ -299,53 +299,59 @@ def login_for_access_token(
     """
     Authenticates a user and returns a JWT access token.
     """
-    ip_address, user_agent = get_client_info(request)
-    
-    user = session.exec(select(User).where(User.username == form_data.username)).first()
-    
-    if not user or not verify_password(form_data.password, user.hashed_password):
-        # Log failed login attempt
+    try:
+        ip_address, user_agent = get_client_info(request)
+
+        user = session.exec(select(User).where(User.username == form_data.username)).first()
+
+        if not user or not verify_password(form_data.password, user.hashed_password):
+            # Log failed login attempt
+            log_audit_event(
+                session=session,
+                user_id=user.id if user else None,
+                username=form_data.username,
+                action="login_failed",
+                details={"reason": "invalid_credentials"},
+                ip_address=ip_address,
+                user_agent=user_agent,
+                status="failure",
+                error_message="Incorrect username or password"
+            )
+
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Incorrect username or password",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        # Update last login time
+        user.last_login = datetime.utcnow()
+        session.add(user)
+        session.commit()
+
+        # Log successful login
         log_audit_event(
             session=session,
-            user_id=user.id if user else None,
-            username=form_data.username,
-            action="login_failed",
-            details={"reason": "invalid_credentials"},
+            user_id=user.id,
+            username=user.username,
+            action="login_success",
+            details={"user_agent": user_agent},
             ip_address=ip_address,
             user_agent=user_agent,
-            status="failure",
-            error_message="Incorrect username or password"
+            status="success"
         )
-        
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    
-    # Update last login time
-    user.last_login = datetime.utcnow()
-    session.add(user)
-    session.commit()
-    
-    # Log successful login
-    log_audit_event(
-        session=session,
-        user_id=user.id,
-        username=user.username,
-        action="login_success",
-        details={"user_agent": user_agent},
-        ip_address=ip_address,
-        user_agent=user_agent,
-        status="success"
-    )
-        
-    access_token = create_access_token(
-        data={"sub": user.username}
-    )
-    
-    return {"access_token": access_token, "token_type": "bearer"}
 
+        access_token = create_access_token(
+            data={"sub": user.username}
+        )
+
+        return {"access_token": access_token, "token_type": "bearer"}
+    except Exception as e:
+        logging.exception("An unhandled exception occurred during login!")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An internal server error occurred. Check core.log for details.",
+        )
 
 @router.get("/users/me", response_model=UserWithGroups, tags=["Users"])
 def read_users_me(
@@ -355,16 +361,14 @@ def read_users_me(
     """
     A protected endpoint that returns the currently authenticated user's details.
     """
-    # Get the user's groups
-    user_groups = session.exec(
-        select(UserGroup)
-        .join(UserGroupLink)
-        .where(UserGroupLink.user_id == current_user.id)
-    ).all()
+    # Create a dictionary from the user model
+    user_data = current_user.model_dump()
     
-    # Convert to UserWithGroups
-    user_with_groups = UserWithGroups.from_orm(current_user)
-    user_with_groups.groups = [group.name for group in user_groups]
+    # Manually create the list of group names
+    user_data['groups'] = [group.name for group in current_user.groups]
+    
+    # Create the final response model from the corrected dictionary
+    user_with_groups = UserWithGroups.model_validate(user_data)
     
     return user_with_groups
 
