@@ -1,5 +1,5 @@
 import React, { useState, createContext, useContext, useEffect } from 'react';
-import { login as apiLogin } from './api/client';
+import { login as apiLogin, getCurrentUser } from './api/client';
 import DashboardPage from './pages/DashboardPage';
 import TimelinePage from './pages/TimelinePage';
 import LoginPage from './pages/LoginPage';
@@ -38,7 +38,10 @@ const AuthProvider = ({ children }) => {
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    // Note: We can't easily log the logout on the backend since we're removing the token
+    // The backend will see this as an unauthorized request
+    // In a production system, you might want to call a logout endpoint first
     setAuthToken(null);
   };
   
@@ -64,6 +67,7 @@ function App() {
   const [currentDashboard, setCurrentDashboard] = useState('state');
   const [isEditingLayout, setIsEditingLayout] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
   const dropdownRef = React.useRef(null);
   const userIconRef = React.useRef(null);
 
@@ -98,6 +102,21 @@ function App() {
       document.removeEventListener('keydown', handleKeyDown);
     };
   }, [dropdownOpen]);
+
+  // Load current user info when authenticated
+  useEffect(() => {
+    if (isAuthenticated && !currentUser) {
+      getCurrentUser()
+        .then(response => {
+          setCurrentUser(response.data);
+        })
+        .catch(error => {
+          console.error('Failed to get current user:', error);
+        });
+    } else if (!isAuthenticated) {
+      setCurrentUser(null);
+    }
+  }, [isAuthenticated, currentUser]);
 
   const toggleDropdown = () => {
     setDropdownOpen(!dropdownOpen);
@@ -206,15 +225,17 @@ function App() {
                     </svg>
                     <span>Content</span>
                   </div>
-                  <div className="dropdown-item" onClick={() => handleMenuItemClick('users')}>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="menu-icon">
-                      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                      <circle cx="9" cy="7" r="4"></circle>
-                      <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                      <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-                    </svg>
-                    <span>Users</span>
-                  </div>
+                  {currentUser?.is_admin && (
+                    <div className="dropdown-item" onClick={() => handleMenuItemClick('users')}>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="menu-icon">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="9" cy="7" r="4"></circle>
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                      </svg>
+                      <span>Users</span>
+                    </div>
+                  )}
                   <div className="dropdown-item" onClick={() => handleMenuItemClick('settings')}>
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="menu-icon">
                       <circle cx="12" cy="12" r="3"></circle>

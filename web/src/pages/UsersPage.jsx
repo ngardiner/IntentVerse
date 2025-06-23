@@ -10,13 +10,17 @@ import {
   deleteGroup,
   addUserToGroup,
   removeUserFromGroup,
-  getCurrentUser
+  getCurrentUser,
+  getAuditLogs,
+  getAuditLogStats
 } from '../api/client';
 
 const UsersPage = () => {
   const [activeTab, setActiveTab] = useState('users');
   const [users, setUsers] = useState([]);
   const [groups, setGroups] = useState([]);
+  const [auditLogs, setAuditLogs] = useState([]);
+  const [auditStats, setAuditStats] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -35,6 +39,14 @@ const UsersPage = () => {
     name: '',
     description: ''
   });
+  const [auditFilters, setAuditFilters] = useState({
+    action: '',
+    username: '',
+    resource_type: '',
+    status: '',
+    start_date: '',
+    end_date: ''
+  });
 
   useEffect(() => {
     loadData();
@@ -51,11 +63,36 @@ const UsersPage = () => {
       setUsers(usersResponse.data);
       setGroups(groupsResponse.data);
       setCurrentUser(currentUserResponse.data);
+      
+      // Check if current user is admin
+      if (!currentUserResponse.data.is_admin) {
+        setError('Access denied: Only administrators can access user management.');
+        return;
+      }
+      
+      // Load audit logs and stats if on audit tab
+      if (activeTab === 'audit') {
+        await loadAuditData();
+      }
+      
       setError(null);
     } catch (err) {
       setError('Failed to load data: ' + (err.response?.data?.detail || err.message));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadAuditData = async () => {
+    try {
+      const [auditLogsResponse, auditStatsResponse] = await Promise.all([
+        getAuditLogs({ limit: 100, ...auditFilters }),
+        getAuditLogStats()
+      ]);
+      setAuditLogs(auditLogsResponse.data);
+      setAuditStats(auditStatsResponse.data);
+    } catch (err) {
+      setError('Failed to load audit data: ' + (err.response?.data?.detail || err.message));
     }
   };
 
@@ -166,8 +203,39 @@ const UsersPage = () => {
     setShowGroupModal(true);
   };
 
+  const handleTabChange = async (tab) => {
+    setActiveTab(tab);
+    if (tab === 'audit') {
+      setLoading(true);
+      await loadAuditData();
+      setLoading(false);
+    }
+  };
+
+  const handleAuditFilterChange = (field, value) => {
+    setAuditFilters(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const applyAuditFilters = async () => {
+    setLoading(true);
+    await loadAuditData();
+    setLoading(false);
+  };
+
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString() + ' ' + new Date(dateString).toLocaleTimeString();
+  };
+
+  const getStatusBadgeClass = (status) => {
+    switch (status) {
+      case 'success': return 'badge-success';
+      case 'failure': return 'badge-danger';
+      case 'error': return 'badge-danger';
+      default: return 'badge-secondary';
+    }
   };
 
   if (loading) {
@@ -195,15 +263,21 @@ const UsersPage = () => {
       <div className="tabs">
         <button 
           className={`tab ${activeTab === 'users' ? 'active' : ''}`}
-          onClick={() => setActiveTab('users')}
+          onClick={() => handleTabChange('users')}
         >
           Users ({users.length})
         </button>
         <button 
           className={`tab ${activeTab === 'groups' ? 'active' : ''}`}
-          onClick={() => setActiveTab('groups')}
+          onClick={() => handleTabChange('groups')}
         >
           Groups ({groups.length})
+        </button>
+        <button 
+          className={`tab ${activeTab === 'audit' ? 'active' : ''}`}
+          onClick={() => handleTabChange('audit')}
+        >
+          Audit Logs
         </button>
       </div>
 
@@ -334,6 +408,150 @@ const UsersPage = () => {
                           Delete
                         </button>
                       </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'audit' && (
+        <div className="tab-content">
+          <div className="section-header">
+            <h2>Audit Logs</h2>
+            <button className="btn btn-secondary" onClick={applyAuditFilters}>
+              Refresh
+            </button>
+          </div>
+
+          {/* Audit Statistics */}
+          {auditStats && (
+            <div className="audit-stats">
+              <div className="stats-grid">
+                <div className="stat-card">
+                  <h3>Total Logs</h3>
+                  <p className="stat-number">{auditStats.total_logs}</p>
+                </div>
+                <div className="stat-card">
+                  <h3>Success</h3>
+                  <p className="stat-number success">{auditStats.status_breakdown.success}</p>
+                </div>
+                <div className="stat-card">
+                  <h3>Failures</h3>
+                  <p className="stat-number failure">{auditStats.status_breakdown.failure}</p>
+                </div>
+                <div className="stat-card">
+                  <h3>Errors</h3>
+                  <p className="stat-number error">{auditStats.status_breakdown.error}</p>
+                </div>
+                <div className="stat-card">
+                  <h3>Recent Activity (24h)</h3>
+                  <p className="stat-number">{auditStats.recent_activity_24h}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Audit Filters */}
+          <div className="audit-filters">
+            <div className="filter-row">
+              <div className="filter-group">
+                <label>Action</label>
+                <input
+                  type="text"
+                  value={auditFilters.action}
+                  onChange={(e) => handleAuditFilterChange('action', e.target.value)}
+                  placeholder="Filter by action..."
+                />
+              </div>
+              <div className="filter-group">
+                <label>Username</label>
+                <input
+                  type="text"
+                  value={auditFilters.username}
+                  onChange={(e) => handleAuditFilterChange('username', e.target.value)}
+                  placeholder="Filter by username..."
+                />
+              </div>
+              <div className="filter-group">
+                <label>Resource Type</label>
+                <select
+                  value={auditFilters.resource_type}
+                  onChange={(e) => handleAuditFilterChange('resource_type', e.target.value)}
+                >
+                  <option value="">All Types</option>
+                  <option value="user">User</option>
+                  <option value="group">Group</option>
+                  <option value="tool">Tool</option>
+                  <option value="content_pack">Content Pack</option>
+                </select>
+              </div>
+              <div className="filter-group">
+                <label>Status</label>
+                <select
+                  value={auditFilters.status}
+                  onChange={(e) => handleAuditFilterChange('status', e.target.value)}
+                >
+                  <option value="">All Statuses</option>
+                  <option value="success">Success</option>
+                  <option value="failure">Failure</option>
+                  <option value="error">Error</option>
+                </select>
+              </div>
+              <div className="filter-group">
+                <button className="btn btn-primary" onClick={applyAuditFilters}>
+                  Apply Filters
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Audit Logs Table */}
+          <div className="table-container">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Timestamp</th>
+                  <th>User</th>
+                  <th>Action</th>
+                  <th>Resource</th>
+                  <th>Status</th>
+                  <th>IP Address</th>
+                  <th>Details</th>
+                </tr>
+              </thead>
+              <tbody>
+                {auditLogs.map(log => (
+                  <tr key={log.id}>
+                    <td>{formatDate(log.timestamp)}</td>
+                    <td>{log.username}</td>
+                    <td>{log.action}</td>
+                    <td>
+                      {log.resource_type && (
+                        <span>
+                          {log.resource_type}
+                          {log.resource_name && `: ${log.resource_name}`}
+                        </span>
+                      )}
+                    </td>
+                    <td>
+                      <span className={`badge ${getStatusBadgeClass(log.status)}`}>
+                        {log.status}
+                      </span>
+                    </td>
+                    <td>{log.ip_address || '-'}</td>
+                    <td>
+                      {log.error_message && (
+                        <span className="error-text">{log.error_message}</span>
+                      )}
+                      {log.details && Object.keys(log.details).length > 0 && (
+                        <details className="audit-details">
+                          <summary>View Details</summary>
+                          <pre>{JSON.stringify(log.details, null, 2)}</pre>
+                        </details>
+                      )}
                     </td>
                   </tr>
                 ))}

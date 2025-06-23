@@ -1,13 +1,14 @@
 import logging
-from fastapi import FastAPI, APIRouter
-from typing import Dict, Any
+from fastapi import FastAPI, APIRouter, Depends
+from typing import Dict, Any, Annotated
 from contextlib import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
 
 from .state_manager import state_manager
 from .module_loader import ModuleLoader
 from .api import create_api_routes
-from .auth import router as auth_router
+from .auth import router as auth_router, get_current_user
+from .models import User
 from .database import create_db_and_tables
 from .init_db import init_db
 from .content_pack_manager import ContentPackManager
@@ -82,10 +83,13 @@ app.include_router(timeline_router)
 debug_router = APIRouter()
 
 @debug_router.get("/debug/module-loader-state", tags=["Debug"])
-def get_module_loader_state():
+def get_module_loader_state(
+    current_user: Annotated[User, Depends(get_current_user)]
+):
     """
     Returns a snapshot of the ModuleLoader's state for debugging purposes.
     This allows us to see from the outside what the server sees on the inside.
+    Only available to authenticated users.
     """
     return {
         "modules_path_calculated": str(loader.modules_path),

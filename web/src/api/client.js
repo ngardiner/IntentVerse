@@ -32,6 +32,25 @@ apiClient.interceptors.request.use(
   }
 );
 
+// --- Axios Response Interceptor ---
+// This intercepts responses and handles authentication errors
+apiClient.interceptors.response.use(
+  (response) => {
+    // Return successful responses as-is
+    return response;
+  },
+  (error) => {
+    // Handle 401 Unauthorized errors by clearing the token
+    if (error.response && error.response.status === 401) {
+      localStorage.removeItem('authToken');
+      // Reload the page to trigger the login flow
+      window.location.reload();
+    }
+    
+    return Promise.reject(error);
+  }
+);
+
 
 // --- API Functions ---
 // We export functions that our React components can use to talk to the API.
@@ -248,6 +267,27 @@ export const addUserToGroup = (userId, groupId) => {
 
 export const removeUserFromGroup = (userId, groupId) => {
   return apiClient.delete(`/users/${userId}/groups/${groupId}`);
+};
+
+// --- Audit Log API Functions ---
+
+export const getAuditLogs = (params = {}) => {
+  const queryParams = new URLSearchParams();
+  
+  if (params.skip) queryParams.append('skip', params.skip);
+  if (params.limit) queryParams.append('limit', params.limit);
+  if (params.action) queryParams.append('action', params.action);
+  if (params.username) queryParams.append('username', params.username);
+  if (params.resource_type) queryParams.append('resource_type', params.resource_type);
+  if (params.status) queryParams.append('status', params.status);
+  if (params.start_date) queryParams.append('start_date', params.start_date);
+  if (params.end_date) queryParams.append('end_date', params.end_date);
+  
+  return apiClient.get(`/audit-logs/?${queryParams.toString()}`);
+};
+
+export const getAuditLogStats = () => {
+  return apiClient.get('/audit-logs/stats');
 };
 
 export default apiClient;

@@ -1,7 +1,7 @@
 import uuid
 import logging
 from datetime import datetime
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Annotated
 from fastapi import APIRouter, Depends, HTTPException
 
 from ...state_manager import state_manager
@@ -84,6 +84,7 @@ def add_event(
 # API endpoint to get all events
 @router.get("/events")
 async def get_timeline_events(
+    current_user: Annotated[User, Depends(get_current_user)],
     event_type: Optional[str] = None,
     limit: int = 100
 ) -> List[Dict[str, Any]]:
