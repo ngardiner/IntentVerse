@@ -9,6 +9,7 @@ from .module_loader import ModuleLoader
 from .api import create_api_routes
 from .auth import router as auth_router
 from .database import create_db_and_tables
+from .init_db import init_db
 from .content_pack_manager import ContentPackManager
 from .logging_config import setup_logging
 from .modules.timeline.tool import router as timeline_router
@@ -21,6 +22,8 @@ async def lifespan(app: FastAPI):
     # This code runs on server startup
     logging.info("--- IntentVerse Core Engine Starting Up ---")
     create_db_and_tables()
+    # Initialize the database with default data (admin user and groups)
+    init_db()
     # Discover and load all modules from the 'modules' directory
     loader.load_modules()
     # Load default content pack after modules are loaded

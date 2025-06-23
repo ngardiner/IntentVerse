@@ -37,11 +37,15 @@ apiClient.interceptors.request.use(
 // We export functions that our React components can use to talk to the API.
 
 export const login = (credentials) => {
-  // This is a placeholder for the auth endpoint we'll build
-  // return apiClient.post('/auth/login', credentials);
-  console.log("Logging in with:", credentials);
-  // For now, let's just return a fake token for testing
-  return Promise.resolve({ data: { access_token: "fake-jwt-token" } });
+  const formData = new URLSearchParams();
+  formData.append('username', credentials.username);
+  formData.append('password', credentials.password);
+  
+  return apiClient.post('/auth/login', formData, {
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded'
+    }
+  });
 };
 
 export const getUILayout = () => {
@@ -188,6 +192,62 @@ export const updateEmail = (emailId, updates) => {
 // Timeline API Functions
 export const getTimelineEvents = (filters = {}) => {
   return apiClient.get('/api/v1/timeline/events', { params: filters });
+};
+
+// --- User Management API Functions ---
+
+export const getCurrentUser = () => {
+  return apiClient.get('/users/me');
+};
+
+export const getUsers = (skip = 0, limit = 100) => {
+  return apiClient.get(`/users/?skip=${skip}&limit=${limit}`);
+};
+
+export const getUser = (userId) => {
+  return apiClient.get(`/users/${userId}`);
+};
+
+export const createUser = (userData) => {
+  return apiClient.post('/users/', userData);
+};
+
+export const updateUser = (userId, userData) => {
+  return apiClient.put(`/users/${userId}`, userData);
+};
+
+export const deleteUser = (userId) => {
+  return apiClient.delete(`/users/${userId}`);
+};
+
+// --- Group Management API Functions ---
+
+export const getGroups = (skip = 0, limit = 100) => {
+  return apiClient.get(`/groups/?skip=${skip}&limit=${limit}`);
+};
+
+export const getGroup = (groupId) => {
+  return apiClient.get(`/groups/${groupId}`);
+};
+
+export const createGroup = (groupData) => {
+  return apiClient.post('/groups/', groupData);
+};
+
+export const updateGroup = (groupId, groupData) => {
+  return apiClient.put(`/groups/${groupId}`, groupData);
+};
+
+export const deleteGroup = (groupId) => {
+  return apiClient.delete(`/groups/${groupId}`);
+};
+
+export const addUserToGroup = (userId, groupId) => {
+  return apiClient.post(`/users/${userId}/groups/${groupId}`);
+};
+
+export const removeUserFromGroup = (userId, groupId) => {
+  return apiClient.delete(`/users/${userId}/groups/${groupId}`);
 };
 
 export default apiClient;

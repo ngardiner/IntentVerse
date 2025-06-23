@@ -5,6 +5,7 @@ import TimelinePage from './pages/TimelinePage';
 import LoginPage from './pages/LoginPage';
 import SettingsPage from './pages/SettingsPage';
 import ContentPage from './pages/ContentPage';
+import UsersPage from './pages/UsersPage';
 import DashboardSelector from './components/DashboardSelector';
 import EditButton from './components/EditButton';
 
@@ -113,6 +114,9 @@ function App() {
     } else if (action === 'content') {
       setCurrentPage('content');
       setIsEditingLayout(false);
+    } else if (action === 'users') {
+      setCurrentPage('users');
+      setIsEditingLayout(false);
     } else if (action === 'dashboard') {
       setCurrentPage('dashboard');
     }
@@ -136,6 +140,8 @@ function App() {
         return <SettingsPage />;
       case 'content':
         return <ContentPage />;
+      case 'users':
+        return <UsersPage />;
       case 'dashboard':
       default:
         // Render different dashboards based on currentDashboard state
@@ -199,6 +205,15 @@ function App() {
                       <polyline points="10 9 9 9 8 9"></polyline>
                     </svg>
                     <span>Content</span>
+                  </div>
+                  <div className="dropdown-item" onClick={() => handleMenuItemClick('users')}>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="menu-icon">
+                      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                      <circle cx="9" cy="7" r="4"></circle>
+                      <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                      <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                    </svg>
+                    <span>Users</span>
                   </div>
                   <div className="dropdown-item" onClick={() => handleMenuItemClick('settings')}>
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="menu-icon">
