@@ -9,6 +9,7 @@ services:
       - ./core:/app
     environment:
       - PYTHONPATH=/app
+      - SERVICE_API_KEY=dev-service-key-12345
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/"]
       interval: 10s
@@ -27,6 +28,7 @@ services:
       - ./mcp:/app
     environment:
       - PYTHONPATH=/app
+      - SERVICE_API_KEY=dev-service-key-12345
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8001/"]
       interval: 10s
@@ -68,6 +70,7 @@ services:
       - ./core:/app
     environment:
       - PYTHONPATH=/app
+      - SERVICE_API_KEY=dev-service-key-12345
     command: ["python", "-m", "pytest"]
     depends_on:
       core:

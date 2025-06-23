@@ -7,7 +7,7 @@ from sqlmodel import Session
 from .module_loader import ModuleLoader
 from .state_manager import state_manager
 from .modules.timeline.tool import log_tool_execution, log_system_event, log_error
-from .auth import get_current_user, log_audit_event, get_client_info
+from .auth import get_current_user, get_current_user_or_service, log_audit_event, get_client_info
 from .models import User
 from .database import get_session
 
@@ -56,7 +56,7 @@ def create_api_routes(module_loader: ModuleLoader, content_pack_manager=None) ->
 
     @router.get("/tools/manifest")
     def get_tools_manifest(
-        current_user: Annotated[User, Depends(get_current_user)]
+        current_user_or_service: Annotated[Union[User, str], Depends(get_current_user_or_service)]
     ) -> List[Dict[str, Any]]:
         """
         Inspects all loaded tool classes and returns a simplified manifest.
@@ -127,7 +127,7 @@ def create_api_routes(module_loader: ModuleLoader, content_pack_manager=None) ->
     @router.post("/execute")
     def execute_tool(
         payload: Dict[str, Any],
-        current_user: Annotated[User, Depends(get_current_user)],
+        current_user_or_service: Annotated[Union[User, str], Depends(get_current_user_or_service)],
         session: Annotated[Session, Depends(get_session)],
         request: Request
     ) -> Dict[str, Any]:
@@ -138,12 +138,20 @@ def create_api_routes(module_loader: ModuleLoader, content_pack_manager=None) ->
         ip_address, user_agent = get_client_info(request)
         tool_full_name = payload.get("tool_name")
         parameters = payload.get("parameters", {})
+        
+        # Determine user info for audit logging
+        if isinstance(current_user_or_service, str):  # Service authentication
+            user_id = None
+            username = "service"
+        else:  # User authentication
+            user_id = current_user_or_service.id
+            username = current_user_or_service.username
 
         if not tool_full_name or '.' not in tool_full_name:
             log_audit_event(
                 session=session,
-                user_id=current_user.id,
-                username=current_user.username,
+                user_id=user_id,
+                username=username,
                 action="execute_tool_failed",
                 details={"reason": "invalid_tool_name_format", "provided_tool_name": tool_full_name},
                 ip_address=ip_address,
@@ -158,8 +166,8 @@ def create_api_routes(module_loader: ModuleLoader, content_pack_manager=None) ->
         except ValueError:
             log_audit_event(
                 session=session,
-                user_id=current_user.id,
-                username=current_user.username,
+                user_id=user_id,
+                username=username,
                 action="execute_tool_failed",
                 details={"reason": "invalid_tool_name_format", "provided_tool_name": tool_full_name},
                 ip_address=ip_address,
@@ -174,8 +182,8 @@ def create_api_routes(module_loader: ModuleLoader, content_pack_manager=None) ->
         if not tool_instance or not hasattr(tool_instance, method_name):
             log_audit_event(
                 session=session,
-                user_id=current_user.id,
-                username=current_user.username,
+                user_id=user_id,
+                username=username,
                 action="execute_tool_failed",
                 resource_type="tool",
                 resource_name=tool_full_name,
@@ -196,8 +204,8 @@ def create_api_routes(module_loader: ModuleLoader, content_pack_manager=None) ->
                 if param.name != 'self' and param.default == inspect.Parameter.empty and param.name not in parameters:
                     log_audit_event(
                         session=session,
-                        user_id=current_user.id,
-                        username=current_user.username,
+                        user_id=user_id,
+                        username=username,
                         action="execute_tool_failed",
                         resource_type="tool",
                         resource_name=tool_full_name,
@@ -217,8 +225,8 @@ def create_api_routes(module_loader: ModuleLoader, content_pack_manager=None) ->
             # Log successful tool execution to audit log
             log_audit_event(
                 session=session,
-                user_id=current_user.id,
-                username=current_user.username,
+                user_id=user_id,
+                username=username,
                 action="execute_tool",
                 resource_type="tool",
                 resource_name=tool_full_name,
@@ -236,8 +244,8 @@ def create_api_routes(module_loader: ModuleLoader, content_pack_manager=None) ->
             # Log the error to audit log
             log_audit_event(
                 session=session,
-                user_id=current_user.id,
-                username=current_user.username,
+                user_id=user_id,
+                username=username,
                 action="execute_tool_failed",
                 resource_type="tool",
                 resource_name=tool_full_name,
@@ -263,8 +271,8 @@ def create_api_routes(module_loader: ModuleLoader, content_pack_manager=None) ->
             # Log the error to audit log
             log_audit_event(
                 session=session,
-                user_id=current_user.id,
-                username=current_user.username,
+                user_id=user_id,
+                username=username,
                 action="execute_tool_failed",
                 resource_type="tool",
                 resource_name=tool_full_name,

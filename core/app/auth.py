@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm, APIKeyHeader
 from sqlmodel import Session, select, SQLModel
-from typing import Annotated, List, Optional, Dict, Any
+from typing import Annotated, List, Optional, Dict, Any, Union
 from datetime import datetime
 import logging
+import os
 
 from .database import get_session
 from .models import User, UserGroup, UserGroupLink, AuditLog
@@ -15,7 +16,13 @@ router = APIRouter()
 
 # This defines the security scheme. FastAPI will use this to generate docs
 # and it provides a dependency to get the token from the Authorization header.
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login", auto_error=False)
+
+# API Key for service-to-service communication
+api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
+
+# Service API key for internal communication (should be set as environment variable)
+SERVICE_API_KEY = os.getenv("SERVICE_API_KEY", "dev-service-key-12345")
 
 # --- Audit Logging Functions ---
 
@@ -76,7 +83,7 @@ def get_client_info(request: Request) -> tuple[Optional[str], Optional[str]]:
 # --- Dependency for Getting Current User ---
 
 def get_current_user(
-    token: Annotated[str, Depends(oauth2_scheme)],
+    token: Annotated[Optional[str], Depends(oauth2_scheme)],
     session: Annotated[Session, Depends(get_session)]
 ) -> User:
     """
@@ -89,6 +96,9 @@ def get_current_user(
         headers={"WWW-Authenticate": "Bearer"},
     )
     
+    if not token:
+        raise credentials_exception
+    
     username = decode_access_token(token)
     if username is None:
         raise credentials_exception
@@ -98,6 +108,34 @@ def get_current_user(
         raise credentials_exception
     
     return user
+
+def get_current_user_or_service(
+    session: Annotated[Session, Depends(get_session)],
+    token: Annotated[Optional[str], Depends(oauth2_scheme)] = None,
+    api_key: Annotated[Optional[str], Depends(api_key_header)] = None
+) -> Union[User, str]:
+    """
+    Dependency that allows both JWT token and API key authentication.
+    Returns a User object for JWT auth, or "service" string for API key auth.
+    """
+    # Check API key first (for service-to-service communication)
+    if api_key and api_key == SERVICE_API_KEY:
+        return "service"
+    
+    # Fall back to JWT token authentication
+    if token:
+        username = decode_access_token(token)
+        if username:
+            user = session.exec(select(User).where(User.username == username)).first()
+            if user:
+                return user
+    
+    # If neither authentication method works, raise an exception
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
 
 
 # --- Data Schemas for API ---
