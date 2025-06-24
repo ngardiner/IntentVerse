@@ -70,7 +70,7 @@ class TestTimelineCore:
         """Test adding a basic event."""
         mock_state_manager.get.return_value = {"events": []}
         
-        with patch('uuid.uuid4') as mock_uuid, \
+        with patch('app.modules.timeline.tool.uuid.uuid4') as mock_uuid, \
              patch('app.modules.timeline.tool.datetime') as mock_datetime:
             
             mock_uuid.return_value = Mock()
@@ -101,7 +101,7 @@ class TestTimelineCore:
         """Test adding an event with details and status."""
         mock_state_manager.get.return_value = {"events": []}
         
-        with patch('uuid.uuid4') as mock_uuid, \
+        with patch('app.modules.timeline.tool.uuid.uuid4') as mock_uuid, \
              patch('app.modules.timeline.tool.datetime') as mock_datetime:
             
             mock_uuid.return_value = Mock()
@@ -146,7 +146,7 @@ class TestTimelineCore:
         
         mock_state_manager.get.return_value = {"events": existing_events}
         
-        with patch('uuid.uuid4') as mock_uuid, \
+        with patch('app.modules.timeline.tool.uuid.uuid4') as mock_uuid, \
              patch('app.modules.timeline.tool.datetime') as mock_datetime:
             
             mock_uuid.return_value = Mock()
@@ -173,7 +173,7 @@ class TestTimelineCore:
         """Test logging a successful tool execution."""
         mock_state_manager.get.return_value = {"events": []}
         
-        with patch('uuid.uuid4') as mock_uuid, \
+        with patch('app.modules.timeline.tool.uuid.uuid4') as mock_uuid, \
              patch('app.modules.timeline.tool.datetime') as mock_datetime:
             
             mock_uuid.return_value = Mock()
@@ -201,7 +201,7 @@ class TestTimelineCore:
         """Test logging a pending tool execution."""
         mock_state_manager.get.return_value = {"events": []}
         
-        with patch('uuid.uuid4') as mock_uuid, \
+        with patch('app.modules.timeline.tool.uuid.uuid4') as mock_uuid, \
              patch('app.modules.timeline.tool.datetime') as mock_datetime:
             
             mock_uuid.return_value = Mock()
@@ -233,7 +233,7 @@ class TestTimelineCore:
         """Test logging a system event."""
         mock_state_manager.get.return_value = {"events": []}
         
-        with patch('uuid.uuid4') as mock_uuid, \
+        with patch('app.modules.timeline.tool.uuid.uuid4') as mock_uuid, \
              patch('app.modules.timeline.tool.datetime') as mock_datetime:
             
             mock_uuid.return_value = Mock()
@@ -258,7 +258,7 @@ class TestTimelineCore:
         """Test logging an error event."""
         mock_state_manager.get.return_value = {"events": []}
         
-        with patch('uuid.uuid4') as mock_uuid, \
+        with patch('app.modules.timeline.tool.uuid.uuid4') as mock_uuid, \
              patch('app.modules.timeline.tool.datetime') as mock_datetime:
             
             mock_uuid.return_value = Mock()
@@ -455,12 +455,12 @@ class TestTimelineSampleData:
     @pytest.fixture(autouse=True)
     def setup_state_manager(self, mock_state_manager):
         """Setup state manager mock for all tests."""
-        with patch('app.modules.timeline.sample_data.state_manager', mock_state_manager):
+        with patch('app.modules.timeline.tool.state_manager', mock_state_manager):
             yield mock_state_manager
     
     def test_generate_sample_events_default_count(self, mock_state_manager):
         """Test generating sample events with default count."""
-        with patch('uuid.uuid4') as mock_uuid, \
+        with patch('app.modules.timeline.tool.uuid.uuid4') as mock_uuid, \
              patch('app.modules.timeline.sample_data.datetime') as mock_datetime, \
              patch('random.randint') as mock_randint, \
              patch('random.choice') as mock_choice, \
@@ -483,7 +483,7 @@ class TestTimelineSampleData:
     
     def test_generate_sample_events_custom_count(self, mock_state_manager):
         """Test generating sample events with custom count."""
-        with patch('uuid.uuid4') as mock_uuid, \
+        with patch('app.modules.timeline.tool.uuid.uuid4') as mock_uuid, \
              patch('app.modules.timeline.sample_data.datetime') as mock_datetime, \
              patch('random.randint') as mock_randint, \
              patch('random.choice') as mock_choice, \
@@ -506,7 +506,7 @@ class TestTimelineSampleData:
     
     def test_generate_sample_events_tool_execution_type(self, mock_state_manager):
         """Test generating tool_execution type events."""
-        with patch('uuid.uuid4') as mock_uuid, \
+        with patch('app.modules.timeline.tool.uuid.uuid4') as mock_uuid, \
              patch('app.modules.timeline.sample_data.datetime') as mock_datetime, \
              patch('random.randint') as mock_randint, \
              patch('random.choice') as mock_choice, \
