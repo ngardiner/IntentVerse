@@ -18,7 +18,7 @@ jobs:
         run: docker compose build
 
       - name: Run all tests
-        run: docker compose --profile tests up --build --exit-code-from tests
+        run: docker compose --profile tests up --build  --abort-on-container-exit
 
   # This is the new job we are adding
   gitleaks-scan:
