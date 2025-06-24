@@ -1,13 +1,13 @@
 import logging
 from fastapi import FastAPI, APIRouter, Depends
-from typing import Dict, Any, Annotated
+from typing import Dict, Any, Annotated, Union
 from contextlib import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
 
 from .state_manager import state_manager
 from .module_loader import ModuleLoader
 from .api import create_api_routes
-from .auth import router as auth_router, get_current_user
+from .auth import router as auth_router, get_current_user, get_current_user_or_service
 from .models import User
 from .database import create_db_and_tables
 from .init_db import init_db
@@ -84,7 +84,7 @@ debug_router = APIRouter()
 
 @debug_router.get("/debug/module-loader-state", tags=["Debug"])
 def get_module_loader_state(
-    current_user: Annotated[User, Depends(get_current_user)]
+    current_user_or_service: Annotated[Union[User, str], Depends(get_current_user_or_service)]
 ):
     """
     Returns a snapshot of the ModuleLoader's state for debugging purposes.

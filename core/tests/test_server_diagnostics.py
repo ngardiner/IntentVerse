@@ -5,6 +5,11 @@ import pytest
 # The base URL for the core API, which the test client will target.
 # It uses the service name 'core' from docker-compose, which Docker's internal DNS resolves.
 CORE_API_URL = os.environ.get("CORE_API_URL", "http://core:8000")
+SERVICE_API_KEY = os.environ.get("SERVICE_API_KEY", "test-service-key-12345")
+
+def get_service_headers():
+    """Get headers with service API key for authentication."""
+    return {"X-API-Key": SERVICE_API_KEY}
 
 @pytest.mark.e2e
 def test_server_module_loader_diagnostics():
@@ -12,7 +17,7 @@ def test_server_module_loader_diagnostics():
     Connects to the running core service and calls the debug endpoint
     to check the state of the ModuleLoader.
     """
-    client = httpx.Client(base_url=CORE_API_URL)
+    client = httpx.Client(base_url=CORE_API_URL, headers=get_service_headers())
     
     print("\n--- Running Server Diagnostics Test ---")
     

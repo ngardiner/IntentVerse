@@ -130,7 +130,7 @@ async def test_database_module_e2e():
     4. Verifies the returned data is correct.
     """
     table_name = "e2e_test_table"
-    async with httpx.AsyncClient(base_url=CORE_API_URL) as client:
+    async with httpx.AsyncClient(base_url=CORE_API_URL, headers=get_service_headers()) as client:
         # --- Step 1: Create a table ---
         create_payload = {
             "tool_name": "database.execute_sql",
