@@ -1,11 +1,11 @@
 import uuid
 import logging
 from datetime import datetime
-from typing import Dict, Any, List, Optional, Annotated
+from typing import Dict, Any, List, Optional, Annotated, Union
 from fastapi import APIRouter, Depends, HTTPException
 
 from ...state_manager import state_manager
-from ...auth import get_current_user
+from ...auth import get_current_user_or_service
 from ...models import User
 
 # Create a router for the timeline endpoints
@@ -84,7 +84,7 @@ def add_event(
 # API endpoint to get all events
 @router.get("/events")
 async def get_timeline_events(
-    current_user: Annotated[User, Depends(get_current_user)],
+    current_user_or_service: Annotated[Union[User, str], Depends(get_current_user_or_service)],
     event_type: Optional[str] = None,
     limit: int = 100
 ) -> List[Dict[str, Any]]:
@@ -92,7 +92,7 @@ async def get_timeline_events(
     Get timeline events, optionally filtered by event_type.
     
     Args:
-        current_user: The authenticated user
+        current_user_or_service: The authenticated user or service
         event_type: Optional filter for event type
         limit: Maximum number of events to return
         
