@@ -26,7 +26,7 @@ async def lifespan(app: FastAPI):
     # Initialize the database with default data (admin user and groups)
     init_db()
     # Discover and load all modules from the 'modules' directory
-    loader.load_modules()
+    module_loader.load_modules()
     # Load default content pack after modules are loaded
     content_pack_manager.load_default_content_pack()
     
@@ -70,11 +70,11 @@ app.add_middleware(
     allow_headers=["*"],  # Allow all headers
 )
 
-loader = ModuleLoader(state_manager)
-content_pack_manager = ContentPackManager(state_manager, loader)
+module_loader = ModuleLoader(state_manager)
+content_pack_manager = ContentPackManager(state_manager, module_loader)
 
 # Create the main API routes, passing the loader and content pack manager to them.
-api_router = create_api_routes(loader, content_pack_manager)
+api_router = create_api_routes(module_loader, content_pack_manager)
 app.include_router(api_router)
 app.include_router(auth_router)
 app.include_router(timeline_router)
@@ -92,10 +92,10 @@ def get_module_loader_state(
     Only available to authenticated users.
     """
     return {
-        "modules_path_calculated": str(loader.modules_path),
-        "modules_path_exists": loader.modules_path.exists(),
-        "loading_errors": loader.errors,
-        "loaded_modules": list(loader.modules.keys())
+        "modules_path_calculated": str(module_loader.modules_path),
+        "modules_path_exists": module_loader.modules_path.exists(),
+        "loading_errors": module_loader.errors,
+        "loaded_modules": list(module_loader.modules.keys())
     }
 
 app.include_router(debug_router, prefix="/api/v1")

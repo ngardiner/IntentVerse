@@ -144,8 +144,12 @@ class TestAPIRoutes:
     
     def test_get_ui_layout(self, service_client):
         """Test the UI layout endpoint."""
-        with patch('app.main.module_loader') as mock_module_loader:
-            mock_module_loader.get_schemas.return_value = {
+        # Import the actual module_loader instance from main
+        from app.main import module_loader
+        
+        # Patch the method on the actual instance
+        with patch.object(module_loader, 'get_schemas') as mock_get_schemas:
+            mock_get_schemas.return_value = {
                 "test_module": {
                     "name": "test_module",
                     "description": "Test module"
@@ -157,7 +161,7 @@ class TestAPIRoutes:
             data = response.json()
             assert "modules" in data
             assert len(data["modules"]) == 1
-            mock_module_loader.get_schemas.assert_called_once()
+            mock_get_schemas.assert_called_once()
     
     def test_get_module_state_existing(self, service_client):
         """Test getting state for an existing module."""
@@ -181,9 +185,13 @@ class TestAPIRoutes:
     
     def test_get_tools_manifest(self, service_client):
         """Test the tools manifest endpoint."""
-        with patch('app.main.module_loader') as mock_module_loader:
+        # Import the actual module_loader instance from main
+        from app.main import module_loader
+        
+        # Patch the method on the actual instance
+        with patch.object(module_loader, 'get_all_tools') as mock_get_all_tools:
             mock_tool = MockTool(Mock())
-            mock_module_loader.get_all_tools.return_value = {"test_module": mock_tool}
+            mock_get_all_tools.return_value = {"test_module": mock_tool}
             
             response = service_client.get("/api/v1/tools/manifest")
             
@@ -208,9 +216,13 @@ class TestAPIRoutes:
     
     def test_execute_tool_success(self, service_client):
         """Test successful tool execution."""
-        with patch('app.main.module_loader') as mock_module_loader:
+        # Import the actual module_loader instance from main
+        from app.main import module_loader
+        
+        # Patch the method on the actual instance
+        with patch.object(module_loader, 'get_tool') as mock_get_tool:
             mock_tool = MockTool(Mock())
-            mock_module_loader.get_tool.return_value = mock_tool
+            mock_get_tool.return_value = mock_tool
             
             payload = {
                 "tool_name": "test_module.simple_method",
@@ -247,8 +259,12 @@ class TestAPIRoutes:
     
     def test_execute_tool_nonexistent_tool(self, service_client):
         """Test tool execution with non-existent tool."""
-        with patch('app.main.module_loader') as mock_module_loader:
-            mock_module_loader.get_tool.return_value = None
+        # Import the actual module_loader instance from main
+        from app.main import module_loader
+        
+        # Patch the method on the actual instance
+        with patch.object(module_loader, 'get_tool') as mock_get_tool:
+            mock_get_tool.return_value = None
             
             payload = {
                 "tool_name": "nonexistent.method",
@@ -278,9 +294,13 @@ class TestAPIRoutes:
     
     def test_execute_tool_missing_required_parameter(self, service_client):
         """Test tool execution with missing required parameter."""
-        with patch('app.main.module_loader') as mock_module_loader:
+        # Import the actual module_loader instance from main
+        from app.main import module_loader
+        
+        # Patch the method on the actual instance
+        with patch.object(module_loader, 'get_tool') as mock_get_tool:
             mock_tool = MockTool(Mock())
-            mock_module_loader.get_tool.return_value = mock_tool
+            mock_get_tool.return_value = mock_tool
             
             payload = {
                 "tool_name": "test_module.simple_method",
@@ -295,9 +315,13 @@ class TestAPIRoutes:
     
     def test_execute_tool_with_optional_parameters(self, service_client):
         """Test tool execution with optional parameters."""
-        with patch('app.main.module_loader') as mock_module_loader:
+        # Import the actual module_loader instance from main
+        from app.main import module_loader
+        
+        # Patch the method on the actual instance
+        with patch.object(module_loader, 'get_tool') as mock_get_tool:
             mock_tool = MockTool(Mock())
-            mock_module_loader.get_tool.return_value = mock_tool
+            mock_get_tool.return_value = mock_tool
             
             payload = {
                 "tool_name": "test_module.method_with_optional",
@@ -314,9 +338,13 @@ class TestAPIRoutes:
     
     def test_execute_tool_with_all_parameters(self, service_client):
         """Test tool execution with all parameters provided."""
-        with patch('app.main.module_loader') as mock_module_loader:
+        # Import the actual module_loader instance from main
+        from app.main import module_loader
+        
+        # Patch the method on the actual instance
+        with patch.object(module_loader, 'get_tool') as mock_get_tool:
             mock_tool = MockTool(Mock())
-            mock_module_loader.get_tool.return_value = mock_tool
+            mock_get_tool.return_value = mock_tool
             
             payload = {
                 "tool_name": "test_module.method_with_optional",
@@ -333,58 +361,46 @@ class TestAPIRoutes:
     
     def test_execute_tool_method_raises_http_exception(self, service_client):
         """Test tool execution when method raises HTTPException."""
-        with patch('app.main.module_loader') as mock_module_loader:
-            mock_tool = Mock()
-            mock_method = Mock(side_effect=HTTPException(status_code=400, detail="Tool error"))
-            mock_tool.simple_method = mock_method
+        # Import the actual module_loader instance from main
+        from app.main import module_loader
+        
+        # Patch the method on the actual instance
+        with patch.object(module_loader, 'get_tool') as mock_get_tool:
+            # Create a mock tool that raises HTTPException
+            mock_tool = MockTool(Mock())
+            # Override the simple_method to raise HTTPException
+            mock_tool.simple_method = Mock(side_effect=HTTPException(status_code=400, detail="Tool error"))
+            mock_get_tool.return_value = mock_tool
             
-            # Mock the signature inspection
-            mock_sig = Mock()
-            mock_param = Mock()
-            mock_param.name = "param1"
-            mock_param.default = inspect.Parameter.empty
-            mock_sig.parameters.values.return_value = [mock_param]
+            payload = {
+                "tool_name": "test_module.simple_method",
+                "parameters": {"param1": "test_value"}
+            }
             
-            mock_module_loader.get_tool.return_value = mock_tool
-            
-            with patch('app.api.inspect.signature', return_value=mock_sig):
-                with patch('app.api.hasattr', return_value=True):
-                    with patch('app.api.getattr', return_value=mock_method):
-                        payload = {
-                            "tool_name": "test_module.simple_method",
-                            "parameters": {"param1": "test_value"}
-                        }
-                        
-                        response = service_client.post("/api/v1/execute", json=payload)
+            response = service_client.post("/api/v1/execute", json=payload)
             
             assert response.status_code == 400
             assert "Tool error" in response.json()["detail"]
     
     def test_execute_tool_method_raises_generic_exception(self, service_client):
         """Test tool execution when method raises a generic exception."""
-        with patch('app.main.module_loader') as mock_module_loader:
-            mock_tool = Mock()
-            mock_method = Mock(side_effect=ValueError("Generic error"))
-            mock_tool.simple_method = mock_method
+        # Import the actual module_loader instance from main
+        from app.main import module_loader
+        
+        # Patch the method on the actual instance
+        with patch.object(module_loader, 'get_tool') as mock_get_tool:
+            # Create a mock tool that raises ValueError
+            mock_tool = MockTool(Mock())
+            # Override the simple_method to raise ValueError
+            mock_tool.simple_method = Mock(side_effect=ValueError("Generic error"))
+            mock_get_tool.return_value = mock_tool
             
-            # Mock the signature inspection
-            mock_sig = Mock()
-            mock_param = Mock()
-            mock_param.name = "param1"
-            mock_param.default = inspect.Parameter.empty
-            mock_sig.parameters.values.return_value = [mock_param]
+            payload = {
+                "tool_name": "test_module.simple_method",
+                "parameters": {"param1": "test_value"}
+            }
             
-            mock_module_loader.get_tool.return_value = mock_tool
-            
-            with patch('app.api.inspect.signature', return_value=mock_sig):
-                with patch('app.api.hasattr', return_value=True):
-                    with patch('app.api.getattr', return_value=mock_method):
-                        payload = {
-                            "tool_name": "test_module.simple_method",
-                            "parameters": {"param1": "test_value"}
-                        }
-                        
-                        response = service_client.post("/api/v1/execute", json=payload)
+            response = service_client.post("/api/v1/execute", json=payload)
             
             assert response.status_code == 500
             assert "An error occurred while executing tool" in response.json()["detail"]

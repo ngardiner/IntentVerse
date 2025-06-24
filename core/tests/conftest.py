@@ -4,6 +4,10 @@ from sqlmodel import create_engine, Session, SQLModel
 from pathlib import Path
 import os
 
+# Set the test service API key BEFORE importing any app modules
+TEST_SERVICE_API_KEY = "test-service-key-12345"
+os.environ["SERVICE_API_KEY"] = TEST_SERVICE_API_KEY
+
 # Adjust imports to match the new structure
 from app.main import app
 from app.database import get_session
@@ -32,8 +36,6 @@ TEST_USER_DATA = {
     "full_name": "Test User",
     "is_admin": True
 }
-
-TEST_SERVICE_API_KEY = "test-service-key-12345"
 
 def create_test_user(session: Session) -> User:
     """Create a test user in the database."""
@@ -87,9 +89,6 @@ def client_fixture():
     This fixture now correctly handles the application lifespan,
     ensuring the database and modules are initialized before tests run.
     """
-    # Set the test service API key
-    os.environ["SERVICE_API_KEY"] = TEST_SERVICE_API_KEY
-    
     # This context manager will run the startup events before yielding
     with TestClient(app) as client:
         # Manually create tables for the in-memory/test database
