@@ -8,6 +8,7 @@ from .module_loader import ModuleLoader
 from .state_manager import state_manager
 from .modules.timeline.tool import log_tool_execution, log_system_event, log_error
 from .auth import get_current_user, get_current_user_or_service, log_audit_event, get_client_info
+from .rbac import require_permission, require_permission_or_service
 from .models import User
 from .database import get_session
 
