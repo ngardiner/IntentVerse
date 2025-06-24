@@ -3,6 +3,7 @@ from sqlmodel import Field, SQLModel, Relationship, Column
 from sqlalchemy import JSON
 from datetime import datetime
 
+# Link tables for many-to-many relationships
 class UserGroupLink(SQLModel, table=True):
     """
     Link table for many-to-many relationship between User and UserGroup.
@@ -13,6 +14,68 @@ class UserGroupLink(SQLModel, table=True):
     group_id: Optional[int] = Field(
         default=None, foreign_key="usergroup.id", primary_key=True
     )
+
+class RolePermissionLink(SQLModel, table=True):
+    """
+    Link table for many-to-many relationship between Role and Permission.
+    """
+    role_id: Optional[int] = Field(
+        default=None, foreign_key="role.id", primary_key=True
+    )
+    permission_id: Optional[int] = Field(
+        default=None, foreign_key="permission.id", primary_key=True
+    )
+
+class UserRoleLink(SQLModel, table=True):
+    """
+    Link table for many-to-many relationship between User and Role.
+    """
+    user_id: Optional[int] = Field(
+        default=None, foreign_key="user.id", primary_key=True
+    )
+    role_id: Optional[int] = Field(
+        default=None, foreign_key="role.id", primary_key=True
+    )
+
+class GroupRoleLink(SQLModel, table=True):
+    """
+    Link table for many-to-many relationship between UserGroup and Role.
+    """
+    group_id: Optional[int] = Field(
+        default=None, foreign_key="usergroup.id", primary_key=True
+    )
+    role_id: Optional[int] = Field(
+        default=None, foreign_key="role.id", primary_key=True
+    )
+
+class Permission(SQLModel, table=True):
+    """
+    Represents a permission in the RBAC system.
+    """
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str = Field(index=True, unique=True)  # e.g., "users.create", "filesystem.read", "admin.all"
+    description: Optional[str] = None
+    resource_type: Optional[str] = Field(default=None, index=True)  # e.g., "user", "filesystem", "database"
+    action: Optional[str] = Field(default=None, index=True)  # e.g., "create", "read", "write", "delete"
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    
+    # Relationships
+    roles: List["Role"] = Relationship(back_populates="permissions", link_model=RolePermissionLink)
+
+class Role(SQLModel, table=True):
+    """
+    Represents a role in the RBAC system.
+    """
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str = Field(index=True, unique=True)  # e.g., "admin", "user", "filesystem_manager"
+    description: Optional[str] = None
+    is_system_role: bool = Field(default=False)  # System roles cannot be deleted
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    
+    # Relationships
+    permissions: List[Permission] = Relationship(back_populates="roles", link_model=RolePermissionLink)
+    users: List["User"] = Relationship(back_populates="roles", link_model=UserRoleLink)
+    groups: List["UserGroup"] = Relationship(back_populates="roles", link_model=GroupRoleLink)
 
 class UserGroup(SQLModel, table=True):
     """
@@ -25,6 +88,7 @@ class UserGroup(SQLModel, table=True):
     
     # Relationships
     users: List["User"] = Relationship(back_populates="groups", link_model=UserGroupLink)
+    roles: List[Role] = Relationship(back_populates="groups", link_model=GroupRoleLink)
 
 class User(SQLModel, table=True):
     """
@@ -36,12 +100,13 @@ class User(SQLModel, table=True):
     full_name: Optional[str] = None
     hashed_password: str
     is_active: bool = Field(default=True)
-    is_admin: bool = Field(default=False)
+    is_admin: bool = Field(default=False)  # Keep for backward compatibility
     created_at: datetime = Field(default_factory=datetime.utcnow)
     last_login: Optional[datetime] = None
     
     # Relationships
     groups: List[UserGroup] = Relationship(back_populates="users", link_model=UserGroupLink)
+    roles: List[Role] = Relationship(back_populates="users", link_model=UserRoleLink)
 
 class AuditLog(SQLModel, table=True):
     """

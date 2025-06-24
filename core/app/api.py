@@ -31,7 +31,7 @@ def create_api_routes(module_loader: ModuleLoader, content_pack_manager=None) ->
 
     @router.get("/ui/layout")
     def get_ui_layout(
-        current_user: Annotated[User, Depends(gget_current_user_or_service)]
+        current_user: Annotated[User, Depends(get_current_user_or_service)]
     ) -> Dict[str, Any]:
         """
         Returns the full UI schema for all loaded modules.
@@ -41,7 +41,7 @@ def create_api_routes(module_loader: ModuleLoader, content_pack_manager=None) ->
 
     @router.get("/{module_name}/state")
     def get_module_state(
-        current_user: Annotated[User, Depends(get_current_user_or_service],
+        current_user: Annotated[User, Depends(get_current_user_or_service)],
         module_name: str = Path(..., title="The name of the module")
     ) -> Dict[str, Any]:
         """
@@ -178,6 +178,76 @@ def create_api_routes(module_loader: ModuleLoader, content_pack_manager=None) ->
             )
             raise HTTPException(status_code=400, detail="`tool_name` is invalid. Expected format 'module.method'.")
 
+        # Check permissions for tool execution (only for user authentication, not service)
+        if isinstance(current_user_or_service, User):
+            from .rbac import PermissionChecker
+            checker = PermissionChecker(session)
+            
+            # Map module names to required permissions
+            module_permissions = {
+                "filesystem": "filesystem.read",  # Default to read, specific methods may require write/delete
+                "database": "database.read",      # Default to read, specific methods may require write/execute
+                "email": "email.read",            # Default to read, send methods require email.send
+                "web_search": "web_search.search",
+                "memory": "memory.read",          # Default to read, write methods require memory.write
+                "timeline": "timeline.read",      # Default to read, write methods require timeline.write
+                "content_packs": "content_packs.read"  # Default to read, other methods require specific permissions
+            }
+            
+            # Check for more specific permissions based on method name
+            if module_name == "filesystem":
+                if method_name in ["write_file", "create_directory"]:
+                    required_permission = "filesystem.write"
+                elif method_name in ["delete_file", "delete_directory"]:
+                    required_permission = "filesystem.delete"
+                else:
+                    required_permission = "filesystem.read"
+            elif module_name == "database":
+                if method_name in ["execute_query", "execute_script"]:
+                    required_permission = "database.execute"
+                elif method_name in ["insert_data", "update_data", "delete_data"]:
+                    required_permission = "database.write"
+                else:
+                    required_permission = "database.read"
+            elif module_name == "email":
+                if method_name in ["send_email"]:
+                    required_permission = "email.send"
+                else:
+                    required_permission = "email.read"
+            elif module_name == "memory":
+                if method_name in ["store", "update", "delete"]:
+                    required_permission = "memory.write"
+                else:
+                    required_permission = "memory.read"
+            elif module_name == "timeline":
+                if method_name in ["add_event", "log_event"]:
+                    required_permission = "timeline.write"
+                else:
+                    required_permission = "timeline.read"
+            else:
+                # Use default permission for the module
+                required_permission = module_permissions.get(module_name, f"{module_name}.*")
+            
+            # Check if user has the required permission
+            if not checker.has_permission(current_user_or_service, required_permission):
+                log_audit_event(
+                    session=session,
+                    user_id=user_id,
+                    username=username,
+                    action="execute_tool_failed",
+                    resource_type="tool",
+                    resource_name=tool_full_name,
+                    details={"reason": "insufficient_permissions", "required_permission": required_permission},
+                    ip_address=ip_address,
+                    user_agent=user_agent,
+                    status="failure",
+                    error_message=f"Insufficient permissions. Required: {required_permission}"
+                )
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"Insufficient permissions to execute '{tool_full_name}'. Required: {required_permission}"
+                )
+
         tool_instance = module_loader.get_tool(module_name)
 
         if not tool_instance or not hasattr(tool_instance, method_name):
@@ -298,7 +368,7 @@ def create_api_routes(module_loader: ModuleLoader, content_pack_manager=None) ->
     if content_pack_manager:
         @router.get("/content-packs/available")
         def list_available_content_packs(
-            current_user: Annotated[User, Depends(get_current_user_or_service)]
+            current_user: Annotated[User, Depends(require_permission_or_service("content_packs.read"))]
         ) -> List[Dict[str, Any]]:
             """
             Returns a list of all available content packs in the content_packs directory.
@@ -307,7 +377,7 @@ def create_api_routes(module_loader: ModuleLoader, content_pack_manager=None) ->
         
         @router.get("/content-packs/loaded")
         def get_loaded_content_packs(
-            current_user: Annotated[User, Depends(gget_current_user_or_service)]
+            current_user: Annotated[User, Depends(require_permission_or_service("content_packs.read"))]
         ) -> List[Dict[str, Any]]:
             """
             Returns information about currently loaded content packs.
@@ -317,12 +387,11 @@ def create_api_routes(module_loader: ModuleLoader, content_pack_manager=None) ->
         @router.post("/content-packs/export")
         def export_content_pack(
             request: Dict[str, Any],
-            current_user: Annotated[User, Depends(get_current_user_or_service)]
+            current_user: Annotated[User, Depends(require_permission_or_service("content_packs.create"))]
         ) -> Dict[str, Any]:
             """
             Export current system state as a content pack.
             """
-            require_admin(current_user)
             from pathlib import Path
             
             filename = request.get("filename", "exported_content_pack.json")
@@ -348,12 +417,11 @@ def create_api_routes(module_loader: ModuleLoader, content_pack_manager=None) ->
         @router.post("/content-packs/load")
         def load_content_pack(
             request: Dict[str, Any],
-            current_user: Annotated[User, Depends(get_current_user_or_service)]
+            current_user: Annotated[User, Depends(require_permission_or_service("content_packs.install"))]
         ) -> Dict[str, Any]:
             """
             Load a content pack by filename.
             """
-            require_admin(current_user)
             filename = request.get("filename")
             if not filename:
                 raise HTTPException(status_code=400, detail="Filename is required")
@@ -371,14 +439,13 @@ def create_api_routes(module_loader: ModuleLoader, content_pack_manager=None) ->
         @router.post("/content-packs/unload")
         def unload_content_pack(
             request: Dict[str, Any],
-            current_user: Annotated[User, Depends(get_current_user_or_service)]
+            current_user: Annotated[User, Depends(require_permission_or_service("content_packs.delete"))]
         ) -> Dict[str, Any]:
             """
             Unload a content pack by filename or name.
             Note: This only removes it from the loaded packs tracking.
             State and database changes are not reverted.
             """
-            require_admin(current_user)
             identifier = request.get("identifier")
             if not identifier:
                 raise HTTPException(status_code=400, detail="Pack identifier (filename or name) is required")
@@ -395,13 +462,12 @@ def create_api_routes(module_loader: ModuleLoader, content_pack_manager=None) ->
         
         @router.post("/content-packs/clear-all")
         def clear_all_loaded_packs(
-            current_user: Annotated[User, Depends(get_current_user_or_service)]
+            current_user: Annotated[User, Depends(require_permission_or_service("content_packs.delete"))]
         ) -> Dict[str, Any]:
             """
             Clear all loaded content packs from tracking.
             Note: This does not revert state or database changes.
             """
-            require_admin(current_user)
             success = content_pack_manager.clear_all_loaded_packs()
             
             if success:
@@ -415,7 +481,7 @@ def create_api_routes(module_loader: ModuleLoader, content_pack_manager=None) ->
         @router.get("/content-packs/preview/{filename}")
         def preview_content_pack(
             filename: str,
-            current_user: Annotated[User, Depends(get_current_user_or_service)]
+            current_user: Annotated[User, Depends(require_permission_or_service("content_packs.read"))]
         ) -> Dict[str, Any]:
             """
             Preview a content pack without loading it, including validation results.
@@ -430,7 +496,7 @@ def create_api_routes(module_loader: ModuleLoader, content_pack_manager=None) ->
         @router.post("/content-packs/validate")
         def validate_content_pack(
             request: Dict[str, Any],
-            current_user: Annotated[User, Depends(get_current_user_or_service)]
+            current_user: Annotated[User, Depends(require_permission_or_service("content_packs.read"))]
         ) -> Dict[str, Any]:
             """
             Validate a content pack by filename and return detailed validation results.
@@ -453,7 +519,7 @@ def create_api_routes(module_loader: ModuleLoader, content_pack_manager=None) ->
         
         @router.get("/content-packs/remote")
         def list_remote_content_packs(
-            current_user: Annotated[User, Depends(gget_current_user_or_service)],
+            current_user: Annotated[User, Depends(require_permission_or_service("content_packs.read"))],
             force_refresh: bool = False
         ) -> List[Dict[str, Any]]:
             """
@@ -464,7 +530,7 @@ def create_api_routes(module_loader: ModuleLoader, content_pack_manager=None) ->
         @router.get("/content-packs/remote/info/{filename}")
         def get_remote_content_pack_info(
             filename: str,
-            current_user: Annotated[User, Depends(gget_current_user_or_service)]
+            current_user: Annotated[User, Depends(require_permission_or_service("content_packs.read"))]
         ) -> Dict[str, Any]:
             """
             Get detailed information about a specific remote content pack.
@@ -477,7 +543,7 @@ def create_api_routes(module_loader: ModuleLoader, content_pack_manager=None) ->
         @router.post("/content-packs/remote/search")
         def search_remote_content_packs(
             request: Dict[str, Any],
-            current_user: Annotated[User, Depends(get_current_user_or_service)]
+            current_user: Annotated[User, Depends(require_permission_or_service("content_packs.read"))]
         ) -> List[Dict[str, Any]]:
             """
             Search remote content packs by query, category, or tags.
@@ -491,12 +557,11 @@ def create_api_routes(module_loader: ModuleLoader, content_pack_manager=None) ->
         @router.post("/content-packs/remote/download")
         def download_remote_content_pack(
             request: Dict[str, Any],
-            current_user: Annotated[User, Depends(get_current_user)]
+            current_user: Annotated[User, Depends(require_permission_or_service("content_packs.install"))]
         ) -> Dict[str, Any]:
             """
             Download a remote content pack to local cache.
             """
-            require_admin(current_user)
             filename = request.get("filename")
             if not filename:
                 raise HTTPException(status_code=400, detail="Filename is required")
@@ -515,12 +580,11 @@ def create_api_routes(module_loader: ModuleLoader, content_pack_manager=None) ->
         @router.post("/content-packs/remote/install")
         def install_remote_content_pack(
             request: Dict[str, Any],
-            current_user: Annotated[User, Depends(get_current_user_or_service)]
+            current_user: Annotated[User, Depends(require_permission_or_service("content_packs.install"))]
         ) -> Dict[str, Any]:
             """
             Download and install a remote content pack.
             """
-            require_admin(current_user)
             filename = request.get("filename")
             load_immediately = request.get("load_immediately", True)
             
@@ -540,7 +604,7 @@ def create_api_routes(module_loader: ModuleLoader, content_pack_manager=None) ->
         
         @router.get("/content-packs/remote/repository-info")
         def get_remote_repository_info(
-            current_user: Annotated[User, Depends(get_current_user_or_service)]
+            current_user: Annotated[User, Depends(require_permission_or_service("content_packs.read"))]
         ) -> Dict[str, Any]:
             """
             Get information about the remote repository including statistics.
@@ -549,12 +613,11 @@ def create_api_routes(module_loader: ModuleLoader, content_pack_manager=None) ->
         
         @router.post("/content-packs/remote/refresh-cache")
         def refresh_remote_cache(
-            current_user: Annotated[User, Depends(get_current_user_or_service)]
+            current_user: Annotated[User, Depends(require_permission_or_service("content_packs.update"))]
         ) -> Dict[str, Any]:
             """
             Force refresh the remote manifest cache.
             """
-            require_admin(current_user)
             manifest = content_pack_manager.fetch_remote_manifest(force_refresh=True)
             if manifest:
                 return {
@@ -567,12 +630,11 @@ def create_api_routes(module_loader: ModuleLoader, content_pack_manager=None) ->
         
         @router.post("/content-packs/remote/clear-cache")
         def clear_remote_cache(
-            current_user: Annotated[User, Depends(gget_current_user_or_service)]
+            current_user: Annotated[User, Depends(require_permission_or_service("content_packs.delete"))]
         ) -> Dict[str, Any]:
             """
             Clear the remote content pack cache.
             """
-            require_admin(current_user)
             success = content_pack_manager.clear_remote_cache()
             if success:
                 return {

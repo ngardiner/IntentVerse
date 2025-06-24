@@ -1,6 +1,6 @@
 """
 Initialize the database with default data.
-This script creates the default admin user if it doesn't exist.
+This script creates the default admin user if it doesn't exist and sets up RBAC.
 """
 
 import logging
@@ -9,6 +9,7 @@ from sqlmodel import Session, select
 from .database import engine
 from .models import User, UserGroup, UserGroupLink
 from .security import get_password_hash
+from .rbac import initialize_rbac_system
 
 def init_default_admin():
     """
@@ -58,6 +59,15 @@ def init_default_admin():
 
 def init_db():
     """
-    Initialize the database with default data.
+    Initialize the database with default data and RBAC system.
     """
     init_default_admin()
+    
+    # Initialize RBAC system
+    with Session(engine) as session:
+        try:
+            initialize_rbac_system(session)
+            logging.info("Database initialization completed successfully")
+        except Exception as e:
+            logging.error(f"Failed to initialize RBAC system: {e}")
+            raise
