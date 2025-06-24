@@ -28,20 +28,20 @@ def test_decode_invalid_token():
 
 # --- Integration Tests for API Endpoints ---
 
-def test_create_user(client: TestClient):
+def test_create_user(authenticated_client: TestClient):
     """Tests user creation via the API."""
-    response = client.post("/users/", json={"username": "testuser", "password": "testpassword"})
+    response = authenticated_client.post("/users/", json={"username": "testuser", "password": "testpassword"})
     assert response.status_code == 200
     data = response.json()
     assert data["username"] == "testuser"
     assert "id" in data
 
-def test_create_duplicate_user(client: TestClient):
+def test_create_duplicate_user(authenticated_client: TestClient):
     """Tests that creating a user with an existing username fails."""
     # Create the first user
-    client.post("/users/", json={"username": "duplicate", "password": "password123"})
+    authenticated_client.post("/users/", json={"username": "duplicate", "password": "password123"})
     # Attempt to create the second user with the same username
-    response = client.post("/users/", json={"username": "duplicate", "password": "password456"})
+    response = authenticated_client.post("/users/", json={"username": "duplicate", "password": "password456"})
     assert response.status_code == 400
     assert "Username already registered" in response.json()["detail"]
 
@@ -85,4 +85,4 @@ def test_read_current_user_no_token(client: TestClient):
     """Tests that accessing a protected endpoint without a token fails."""
     response = client.get("/users/me")
     assert response.status_code == 401
-    assert "Not authenticated" in response.json()["detail"]
+    assert "Could not validate credentials" in response.json()["detail"]
