@@ -99,6 +99,9 @@ async def get_timeline_events(
     Returns:
         List of timeline events
     """
+    if limit <= 0:
+        return []
+
     events = get_events()
     
     # Filter by event_type if provided
