@@ -395,14 +395,22 @@ def read_users_me(
     user_permissions = checker.get_user_permissions(current_user)
     
     # Create a dictionary from the user model
-    user_data = current_user.model_dump()
+    try:
+        user_data = current_user.model_dump()
+    except AttributeError:
+        # Fallback for older Pydantic versions
+        user_data = current_user.dict()
     
     # Add roles and permissions
     user_data['roles'] = [role.name for role in user_roles]
     user_data['permissions'] = sorted(list(user_permissions))
     
     # Create the final response model from the corrected dictionary
-    user_with_roles = UserWithRoles.model_validate(user_data)
+    try:
+        user_with_roles = UserWithRoles.model_validate(user_data)
+    except AttributeError:
+        # Fallback for older Pydantic versions
+        user_with_roles = UserWithRoles.parse_obj(user_data)
     
     return user_with_roles
 
@@ -451,10 +459,23 @@ def get_user(
     # Get permissions from roles and groups
     user_permissions = checker.get_user_permissions(user)
     
-    # Convert to UserWithRoles
-    user_with_roles = UserWithRoles.from_orm(user)
-    user_with_roles.roles = [role.name for role in user_roles]
-    user_with_roles.permissions = sorted(list(user_permissions))
+    # Create a dictionary from the user model
+    try:
+        user_data = user.model_dump()
+    except AttributeError:
+        # Fallback for older Pydantic versions
+        user_data = user.dict()
+    
+    # Add roles and permissions
+    user_data['roles'] = [role.name for role in user_roles]
+    user_data['permissions'] = sorted(list(user_permissions))
+    
+    # Create the final response model from the corrected dictionary
+    try:
+        user_with_roles = UserWithRoles.model_validate(user_data)
+    except AttributeError:
+        # Fallback for older Pydantic versions
+        user_with_roles = UserWithRoles.parse_obj(user_data)
     
     return user_with_roles
 

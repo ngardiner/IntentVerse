@@ -106,6 +106,16 @@ def authenticated_client_fixture(client, test_user):
     client.headers.update(get_auth_headers())
     yield client
 
+@pytest.fixture(name="session")
+def session_fixture():
+    """
+    Pytest fixture to provide a database session for tests.
+    """
+    with Session(test_engine) as session:
+        # Create tables if they don't exist
+        SQLModel.metadata.create_all(test_engine)
+        yield session
+
 @pytest.fixture(name="service_client")
 def service_client_fixture(client):
     """

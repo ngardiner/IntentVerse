@@ -167,7 +167,7 @@ def require_permission(permission: str):
         A dependency function that checks the permission
     """
     def permission_dependency(
-        current_user: Annotated[User, Depends(_get_current_user)],
+        current_user: Annotated[User, Depends(_get_current_user())],
         checker: Annotated[PermissionChecker, Depends(get_permission_checker)]
     ) -> User:
         if not checker.has_permission(current_user, permission):
@@ -195,7 +195,7 @@ def require_any_permission(permissions: List[str]):
         A dependency function that checks the permissions
     """
     def permission_dependency(
-        current_user: Annotated[User, Depends(_get_current_user)],
+        current_user: Annotated[User, Depends(_get_current_user())],
         checker: Annotated[PermissionChecker, Depends(get_permission_checker)]
     ) -> User:
         if not checker.has_any_permission(current_user, permissions):
@@ -223,7 +223,7 @@ def require_all_permissions(permissions: List[str]):
         A dependency function that checks the permissions
     """
     def permission_dependency(
-        current_user: Annotated[User, Depends(_get_current_user)],
+        current_user: Annotated[User, Depends(_get_current_user())],
         checker: Annotated[PermissionChecker, Depends(get_permission_checker)]
     ) -> User:
         if not checker.has_all_permissions(current_user, permissions):
@@ -251,7 +251,7 @@ def require_permission_or_service(permission: str):
         A dependency function that checks permission or service auth
     """
     def permission_or_service_dependency(
-        current_user_or_service: Annotated[Union[User, str], Depends(_get_current_user_or_service)],
+        current_user_or_service: Annotated[Union[User, str], Depends(_get_current_user_or_service())],
         checker: Annotated[PermissionChecker, Depends(get_permission_checker)]
     ) -> Union[User, str]:
         # If it's service authentication, allow access
