@@ -30,7 +30,7 @@ def create_api_routes(module_loader: ModuleLoader, content_pack_manager=None) ->
 
     @router.get("/ui/layout")
     def get_ui_layout(
-        current_user: Annotated[User, Depends(get_current_user)]
+        current_user: Annotated[User, Depends(gget_current_user_or_service)]
     ) -> Dict[str, Any]:
         """
         Returns the full UI schema for all loaded modules.
@@ -40,7 +40,7 @@ def create_api_routes(module_loader: ModuleLoader, content_pack_manager=None) ->
 
     @router.get("/{module_name}/state")
     def get_module_state(
-        current_user: Annotated[User, Depends(get_current_user)],
+        current_user: Annotated[User, Depends(get_current_user_or_service],
         module_name: str = Path(..., title="The name of the module")
     ) -> Dict[str, Any]:
         """
@@ -297,7 +297,7 @@ def create_api_routes(module_loader: ModuleLoader, content_pack_manager=None) ->
     if content_pack_manager:
         @router.get("/content-packs/available")
         def list_available_content_packs(
-            current_user: Annotated[User, Depends(get_current_user)]
+            current_user: Annotated[User, Depends(get_current_user_or_service)]
         ) -> List[Dict[str, Any]]:
             """
             Returns a list of all available content packs in the content_packs directory.
@@ -306,7 +306,7 @@ def create_api_routes(module_loader: ModuleLoader, content_pack_manager=None) ->
         
         @router.get("/content-packs/loaded")
         def get_loaded_content_packs(
-            current_user: Annotated[User, Depends(get_current_user)]
+            current_user: Annotated[User, Depends(gget_current_user_or_service)]
         ) -> List[Dict[str, Any]]:
             """
             Returns information about currently loaded content packs.
@@ -316,7 +316,7 @@ def create_api_routes(module_loader: ModuleLoader, content_pack_manager=None) ->
         @router.post("/content-packs/export")
         def export_content_pack(
             request: Dict[str, Any],
-            current_user: Annotated[User, Depends(get_current_user)]
+            current_user: Annotated[User, Depends(get_current_user_or_service)]
         ) -> Dict[str, Any]:
             """
             Export current system state as a content pack.
@@ -347,7 +347,7 @@ def create_api_routes(module_loader: ModuleLoader, content_pack_manager=None) ->
         @router.post("/content-packs/load")
         def load_content_pack(
             request: Dict[str, Any],
-            current_user: Annotated[User, Depends(get_current_user)]
+            current_user: Annotated[User, Depends(get_current_user_or_service)]
         ) -> Dict[str, Any]:
             """
             Load a content pack by filename.
@@ -370,7 +370,7 @@ def create_api_routes(module_loader: ModuleLoader, content_pack_manager=None) ->
         @router.post("/content-packs/unload")
         def unload_content_pack(
             request: Dict[str, Any],
-            current_user: Annotated[User, Depends(get_current_user)]
+            current_user: Annotated[User, Depends(get_current_user_or_service)]
         ) -> Dict[str, Any]:
             """
             Unload a content pack by filename or name.
@@ -394,7 +394,7 @@ def create_api_routes(module_loader: ModuleLoader, content_pack_manager=None) ->
         
         @router.post("/content-packs/clear-all")
         def clear_all_loaded_packs(
-            current_user: Annotated[User, Depends(get_current_user)]
+            current_user: Annotated[User, Depends(get_current_user_or_service)]
         ) -> Dict[str, Any]:
             """
             Clear all loaded content packs from tracking.
@@ -414,7 +414,7 @@ def create_api_routes(module_loader: ModuleLoader, content_pack_manager=None) ->
         @router.get("/content-packs/preview/{filename}")
         def preview_content_pack(
             filename: str,
-            current_user: Annotated[User, Depends(get_current_user)]
+            current_user: Annotated[User, Depends(get_current_user_or_service)]
         ) -> Dict[str, Any]:
             """
             Preview a content pack without loading it, including validation results.
@@ -429,7 +429,7 @@ def create_api_routes(module_loader: ModuleLoader, content_pack_manager=None) ->
         @router.post("/content-packs/validate")
         def validate_content_pack(
             request: Dict[str, Any],
-            current_user: Annotated[User, Depends(get_current_user)]
+            current_user: Annotated[User, Depends(get_current_user_or_service)]
         ) -> Dict[str, Any]:
             """
             Validate a content pack by filename and return detailed validation results.
@@ -452,7 +452,7 @@ def create_api_routes(module_loader: ModuleLoader, content_pack_manager=None) ->
         
         @router.get("/content-packs/remote")
         def list_remote_content_packs(
-            current_user: Annotated[User, Depends(get_current_user)],
+            current_user: Annotated[User, Depends(gget_current_user_or_service)],
             force_refresh: bool = False
         ) -> List[Dict[str, Any]]:
             """
@@ -463,7 +463,7 @@ def create_api_routes(module_loader: ModuleLoader, content_pack_manager=None) ->
         @router.get("/content-packs/remote/info/{filename}")
         def get_remote_content_pack_info(
             filename: str,
-            current_user: Annotated[User, Depends(get_current_user)]
+            current_user: Annotated[User, Depends(gget_current_user_or_service)]
         ) -> Dict[str, Any]:
             """
             Get detailed information about a specific remote content pack.
@@ -476,7 +476,7 @@ def create_api_routes(module_loader: ModuleLoader, content_pack_manager=None) ->
         @router.post("/content-packs/remote/search")
         def search_remote_content_packs(
             request: Dict[str, Any],
-            current_user: Annotated[User, Depends(get_current_user)]
+            current_user: Annotated[User, Depends(get_current_user_or_service)]
         ) -> List[Dict[str, Any]]:
             """
             Search remote content packs by query, category, or tags.
@@ -514,7 +514,7 @@ def create_api_routes(module_loader: ModuleLoader, content_pack_manager=None) ->
         @router.post("/content-packs/remote/install")
         def install_remote_content_pack(
             request: Dict[str, Any],
-            current_user: Annotated[User, Depends(get_current_user)]
+            current_user: Annotated[User, Depends(get_current_user_or_service)]
         ) -> Dict[str, Any]:
             """
             Download and install a remote content pack.
@@ -539,7 +539,7 @@ def create_api_routes(module_loader: ModuleLoader, content_pack_manager=None) ->
         
         @router.get("/content-packs/remote/repository-info")
         def get_remote_repository_info(
-            current_user: Annotated[User, Depends(get_current_user)]
+            current_user: Annotated[User, Depends(get_current_user_or_service)]
         ) -> Dict[str, Any]:
             """
             Get information about the remote repository including statistics.
@@ -548,7 +548,7 @@ def create_api_routes(module_loader: ModuleLoader, content_pack_manager=None) ->
         
         @router.post("/content-packs/remote/refresh-cache")
         def refresh_remote_cache(
-            current_user: Annotated[User, Depends(get_current_user)]
+            current_user: Annotated[User, Depends(get_current_user_or_service)]
         ) -> Dict[str, Any]:
             """
             Force refresh the remote manifest cache.
@@ -566,7 +566,7 @@ def create_api_routes(module_loader: ModuleLoader, content_pack_manager=None) ->
         
         @router.post("/content-packs/remote/clear-cache")
         def clear_remote_cache(
-            current_user: Annotated[User, Depends(get_current_user)]
+            current_user: Annotated[User, Depends(gget_current_user_or_service)]
         ) -> Dict[str, Any]:
             """
             Clear the remote content pack cache.
