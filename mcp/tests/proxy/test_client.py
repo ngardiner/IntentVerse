@@ -489,15 +489,33 @@ class TestMCPClient:
     def test_unsupported_transport(self):
         """Test unsupported transport type."""
         settings = ServerSettings()
+        
+        # The ServerConfig constructor will validate the type first
+        with pytest.raises(ValueError, match="Unsupported server type: unsupported"):
+            config = ServerConfig(
+                name="test",
+                enabled=True,
+                description="Test",
+                type="unsupported",
+                settings=settings
+            )
+    
+    def test_unimplemented_transport(self):
+        """Test transport type that's valid in ServerConfig but not implemented in MCPClient."""
+        settings = ServerSettings()
+        
+        # Create a config with a valid type for ServerConfig but not implemented in MCPClient
         config = ServerConfig(
             name="test",
             enabled=True,
             description="Test",
-            type="unsupported",
+            type="websocket",  # Valid for ServerConfig but not implemented in MCPClient
+            url="ws://localhost:8080",  # Required for websocket type
             settings=settings
         )
         
-        with pytest.raises(ValueError, match="Unsupported transport type"):
+        # MCPClient should reject it
+        with pytest.raises(ValueError, match="Unsupported transport type: websocket"):
             MCPClient(config)
 
     @pytest.mark.asyncio

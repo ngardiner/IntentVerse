@@ -7,6 +7,8 @@ discovering their tools, and integrating them into our tool ecosystem.
 
 from .config import ProxyConfig, ServerConfig, GlobalSettings
 from .client import MCPClient, MCPMessage, ConnectionState, MCPTool, MCPServerInfo
+from .discovery import ToolDiscoveryService, ToolRegistry, ToolConflict, DiscoveryResult
+from .generator import ProxyToolGenerator, ParameterValidator, ResultProcessor, ProxyFunctionMetadata
 
 __all__ = [
     'ProxyConfig',
@@ -16,5 +18,13 @@ __all__ = [
     'MCPMessage',
     'ConnectionState',
     'MCPTool',
-    'MCPServerInfo'
+    'MCPServerInfo',
+    'ToolDiscoveryService',
+    'ToolRegistry',
+    'ToolConflict',
+    'DiscoveryResult',
+    'ProxyToolGenerator',
+    'ParameterValidator',
+    'ResultProcessor',
+    'ProxyFunctionMetadata'
 ]
