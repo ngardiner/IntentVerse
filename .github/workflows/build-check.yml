@@ -23,7 +23,6 @@ jobs:
       - name: Run MCP tests
         run: docker compose up mcp-tests --build --abort-on-container-exit
 
-  # This is the new job we are adding
   gitleaks-scan:
     name: Gitleaks Secret Scan
     runs-on: ubuntu-latest
