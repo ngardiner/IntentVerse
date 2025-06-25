@@ -202,14 +202,23 @@ class TestMCPIntegration:
         # ASSERT: Check that the execute endpoint was called with the correct payload
         assert execute_route.called
         
-        # The CoreClient makes multiple calls: timeline logging (before), main execution, timeline logging (after)
-        # We want to verify the main execution call (should be the second call)
-        assert len(execute_route.calls) >= 2, f"Expected at least 2 calls, got {len(execute_route.calls)}"
-        
-        # Check the main tool execution call (second call)
-        main_execution_call = execute_route.calls[1]
-        request_payload = main_execution_call.request.content
+        # The CoreClient makes multiple calls, and register_tools also makes calls
+        # We need to find the actual filesystem.read_file call
         import json
+        
+        # Find the call with filesystem.read_file
+        filesystem_calls = []
+        for i, call in enumerate(execute_route.calls):
+            payload_data = json.loads(call.request.content)
+            if payload_data.get("tool_name") == "filesystem.read_file":
+                filesystem_calls.append((i, call))
+        
+        # Verify that we found at least one filesystem.read_file call
+        assert filesystem_calls, "No filesystem.read_file calls found"
+        
+        # Check the first filesystem.read_file call
+        call_index, main_execution_call = filesystem_calls[0]
+        request_payload = main_execution_call.request.content
         assert json.loads(request_payload) == {
             "tool_name": "filesystem.read_file",
             "parameters": {"path": test_path}
