@@ -18,7 +18,8 @@ UI_SCHEMA = {
       ],
       "sort_by": "timestamp",
       "sort_order": "desc",
-      "max_rows": 100
+      "max_rows": 100,
+      "hidden": True  # Set to be hidden by default
     }
   ]
 }

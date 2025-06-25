@@ -85,7 +85,8 @@ const DashboardPage = ({ isEditing, onSaveLayout, onCancelEdit, currentDashboard
       title: schemaItem.title || schemaItem.display_name,
       ...schemaItem, // Pass all properties of the current schema item
       module_id: schemaItem.module_id || schemaItem.name, // Ensure module_id is passed, falls back to name
-      sizeClass
+      sizeClass,
+      hidden: schemaItem.hidden // Pass the hidden property
     };
 
     const gridRowStyle = getGridRowStyle(schemaItem);

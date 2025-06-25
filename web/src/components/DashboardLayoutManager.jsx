@@ -20,6 +20,8 @@ const DashboardLayoutManager = ({
   // State to track the original and current layout
   const [originalLayout, setOriginalLayout] = useState({});
   const [currentLayout, setCurrentLayout] = useState({});
+  const [hiddenWidgets, setHiddenWidgets] = useState({});
+  const [originalHiddenState, setOriginalHiddenState] = useState({});
   const [isDragging, setIsDragging] = useState(false);
   const [draggedItem, setDraggedItem] = useState(null);
   
@@ -75,9 +77,31 @@ const DashboardLayoutManager = ({
     // Always generate the layout based on current children first.
     // This gives us a complete default for every widget.
     const generatedLayout = generateInitialLayout();
+    
+    // Initialize hidden widgets based on children props
+    const initialHiddenState = {};
+    React.Children.forEach(children, child => {
+      if (!child) return;
+      
+      // Extract the module ID from the child's props
+      const moduleId = child.props?.module_id || 
+                      child.props?.moduleSchema?.module_id || 
+                      (child.props?.moduleSchema && `module-${child.props.moduleSchema.module_id}`) ||
+                      child.key;
+      
+      if (!moduleId) return;
+      
+      // Check if this widget should be hidden by default
+      if (child.props?.hidden || child.props?.moduleSchema?.hidden) {
+        initialHiddenState[moduleId] = true;
+      }
+    });
 
     const savedLayoutJSON = localStorage.getItem(`dashboard-layout-${currentDashboard}`);
+    const savedHiddenJSON = localStorage.getItem(`dashboard-hidden-${currentDashboard}`);
 
+    // Process saved layout
+    let mergedLayout = { ...generatedLayout };
     if (savedLayoutJSON) {
       try {
         const savedLayout = JSON.parse(savedLayoutJSON);
@@ -85,51 +109,65 @@ const DashboardLayoutManager = ({
         // Create a new layout that is guaranteed to be complete.
         // Start with the complete generated layout.
         // Then, overwrite with any valid positions from the saved layout.
-        const mergedLayout = { ...generatedLayout };
         Object.keys(mergedLayout).forEach(moduleId => {
           if (savedLayout[moduleId] && savedLayout[moduleId].row && savedLayout[moduleId].col) {
             mergedLayout[moduleId] = savedLayout[moduleId];
           }
         });
-
-        setCurrentLayout(mergedLayout);
-        if (!isEditing) {
-          setOriginalLayout(mergedLayout);
-        }
       } catch (e) {
         console.error("Error parsing saved layout, falling back to default:", e);
-        // If parsing fails, just use the fresh generated layout.
-        setCurrentLayout(generatedLayout);
-        if (!isEditing) {
-          setOriginalLayout(generatedLayout);
-        }
       }
-    } else {
-      // If no saved layout exists, use the fresh generated layout.
-      setCurrentLayout(generatedLayout);
-      if (!isEditing) {
-        setOriginalLayout(generatedLayout);
+    }
+    
+    // Process saved hidden state
+    let mergedHiddenState = { ...initialHiddenState };
+    if (savedHiddenJSON) {
+      try {
+        const savedHidden = JSON.parse(savedHiddenJSON);
+        mergedHiddenState = { ...initialHiddenState, ...savedHidden };
+      } catch (e) {
+        console.error("Error parsing saved hidden state, falling back to default:", e);
       }
+    }
+
+    setCurrentLayout(mergedLayout);
+    setHiddenWidgets(mergedHiddenState);
+    
+    if (!isEditing) {
+      setOriginalLayout(mergedLayout);
+      setOriginalHiddenState(mergedHiddenState);
     }
   }, [currentDashboard, isEditing, children]);
 
-  // When entering edit mode, store the original layout
+  // When entering edit mode, store the original layout and hidden state
   useEffect(() => {
     if (isEditing) {
       setOriginalLayout({...currentLayout});
+      setOriginalHiddenState({...hiddenWidgets});
     }
   }, [isEditing]);
   
   // Handle saving the layout
   const handleSaveLayout = () => {
     localStorage.setItem(`dashboard-layout-${currentDashboard}`, JSON.stringify(currentLayout));
+    localStorage.setItem(`dashboard-hidden-${currentDashboard}`, JSON.stringify(hiddenWidgets));
     onSaveLayout();
   };
   
   // Handle canceling edits
   const handleCancelEdit = () => {
     setCurrentLayout({...originalLayout});
+    setHiddenWidgets({...originalHiddenState});
     onCancelEdit();
+  };
+  
+  // Toggle widget visibility
+  const toggleWidgetVisibility = (moduleId) => {
+    console.log('Toggling visibility for:', moduleId, 'Current state:', hiddenWidgets[moduleId]);
+    setHiddenWidgets(prev => ({
+      ...prev,
+      [moduleId]: !prev[moduleId]
+    }));
   };
   
   // Update the position of a module
@@ -233,7 +271,7 @@ const DashboardLayoutManager = ({
           <div className="layout-edit-message">
             <span>Editing Dashboard Layout</span>
             <p className="layout-edit-instructions">
-              Drag and drop modules to rearrange them
+              Drag and drop modules to rearrange them. Use the eye icon to show/hide widgets.
             </p>
           </div>
           <div className="layout-edit-actions">
@@ -243,6 +281,70 @@ const DashboardLayoutManager = ({
             <button className="layout-cancel-button" onClick={handleCancelEdit}>
               Cancel
             </button>
+          </div>
+        </div>
+      )}
+      
+      {isEditing && (
+        <div className="hidden-widgets-panel">
+          <h3>Hidden Widgets ({Object.keys(hiddenWidgets).filter(id => hiddenWidgets[id]).length})</h3>
+          {/* Debug info */}
+          <div style={{fontSize: '0.7rem', color: 'var(--text-color-secondary)', marginBottom: '0.5rem'}}>
+            Debug: All widgets: {JSON.stringify(Object.keys(hiddenWidgets))} | Hidden: {JSON.stringify(Object.keys(hiddenWidgets).filter(id => hiddenWidgets[id]))}
+          </div>
+          <div className="hidden-widgets-list">
+            {(() => {
+              const hiddenItems = [];
+              
+              // Process all children to find hidden widgets
+              React.Children.forEach(children, child => {
+                if (!child) return;
+                
+                // Handle both single components and arrays of components
+                const processChild = (childComponent) => {
+                  if (!childComponent) return;
+                  
+                  const moduleId = childComponent.props?.module_id || 
+                                  childComponent.props?.moduleSchema?.module_id || 
+                                  (childComponent.props?.moduleSchema && `module-${childComponent.props.moduleSchema.module_id}`) ||
+                                  childComponent.key;
+                  
+                  if (moduleId && hiddenWidgets[moduleId]) {
+                    const title = childComponent.props?.title || 
+                                 childComponent.props?.moduleSchema?.title || 
+                                 childComponent.props?.display_name ||
+                                 moduleId;
+                    
+                    hiddenItems.push(
+                      <div key={moduleId} className="hidden-widget-item">
+                        <span className="hidden-widget-title">{title}</span>
+                        <button 
+                          className="show-widget-button"
+                          onClick={() => toggleWidgetVisibility(moduleId)}
+                          title="Show widget"
+                        >
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 6a7 7 0 017 7 7 7 0 01-7 7 7 7 0 01-7-7 7 7 0 017-7zm0 3a4 4 0 100 8 4 4 0 000-8z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                          Show
+                        </button>
+                      </div>
+                    );
+                  }
+                };
+                
+                // Handle arrays of components
+                if (Array.isArray(child)) {
+                  child.forEach(processChild);
+                } else {
+                  processChild(child);
+                }
+              });
+              
+              return hiddenItems.length > 0 ? hiddenItems : (
+                <p className="no-hidden-widgets">No hidden widgets</p>
+              );
+            })()}
           </div>
         </div>
       )}
@@ -268,12 +370,24 @@ const DashboardLayoutManager = ({
             gridColumn: position.col ? `${position.col} / span ${getSizeSpan(child.props?.sizeClass)}` : 'auto'
           };
           
+          // Skip rendering if widget is hidden (both in edit and normal mode to prevent overlap)
+          if (hiddenWidgets[moduleId]) {
+            return null;
+          }
+          
           // If in edit mode, add drag and drop handlers
           const editProps = isEditing ? {
             draggable: true,
-            onDragStart: (e) => handleDragStart(e, moduleId),
+            onDragStart: (e) => {
+              // Prevent dragging if the target is a control button
+              if (e.target.closest('.module-control-buttons')) {
+                e.preventDefault();
+                return;
+              }
+              handleDragStart(e, moduleId);
+            },
             onDragEnd: handleDragEnd,
-            className: `module-wrapper ${isEditing ? 'editing' : ''} ${draggedItem === moduleId ? 'dragging' : ''}`,
+            className: `module-wrapper ${isEditing ? 'editing' : ''} ${draggedItem === moduleId ? 'dragging' : ''} ${hiddenWidgets[moduleId] ? 'hidden-widget' : ''}`,
           } : {};
           
           // Wrap the child in a div with the appropriate grid positioning
@@ -282,7 +396,32 @@ const DashboardLayoutManager = ({
               style={gridStyle}
               {...editProps}
             >
-              {isEditing && <div className="module-drag-handle">⋮⋮</div>}
+              {isEditing && (
+                <div className="module-edit-controls">
+                  <div className="module-drag-handle" title="Drag to move widget">⋮⋮</div>
+                  <div className="module-control-buttons">
+                    <button 
+                      className={`module-visibility-toggle ${hiddenWidgets[moduleId] ? 'hidden' : 'visible'}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleWidgetVisibility(moduleId);
+                      }}
+                      title={hiddenWidgets[moduleId] ? "Show widget" : "Hide widget"}
+                    >
+                      {hiddenWidgets[moduleId] ? (
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M3 3L21 21M10.5 10.677a2 2 0 002.823 2.823M7.362 7.561A7 7 0 0112 6c3.866 0 7 3.134 7 7 0 1.572-.518 3.02-1.39 4.185M15 15.73A7 7 0 015.268 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      ) : (
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M12 6a7 7 0 017 7 7 7 0 01-7 7 7 7 0 01-7-7 7 7 0 017-7zm0 3a4 4 0 100 8 4 4 0 000-8z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      )}
+                    </button>
+                    <span className="widget-title-label">{child.props?.title || child.props?.moduleSchema?.title || moduleId}</span>
+                  </div>
+                </div>
+              )}
               {child}
             </div>
           );
@@ -291,19 +430,21 @@ const DashboardLayoutManager = ({
         {/* If in edit mode, render drop zones */}
         {isEditing && (
           <div className="drop-zones-overlay">
-            {Array.from({ length: 6 }).map((_, rowIndex) => (
-              // Create drop zones at all positions to ensure small widgets can be placed anywhere
-              [1, 4, 7, 10].map((colStart) => (
+            {Array.from({ length: 10 }).map((_, rowIndex) => (
+              // Create drop zones at all column positions for better flexibility
+              [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((colStart) => (
                 <div 
                   key={`drop-${rowIndex}-${colStart}`}
-                  className={`drop-zone ${colStart === 1 || colStart === 4 ? 'small-widget-zone' : ''}`}
+                  className={`drop-zone`}
                   onDragOver={(e) => handleDragOver(e, rowIndex + 1, colStart)}
                   onDragLeave={handleDragLeave}
                   onDrop={(e) => handleDrop(e, rowIndex + 1, colStart)}
                   style={{
                     gridRow: rowIndex + 1,
                     gridColumn: colStart,
-                    width: colStart === 1 || colStart === 4 ? '60px' : '40px' // Wider for small widget positions
+                    width: '30px',
+                    height: '60px',
+                    minHeight: '60px'
                   }}
                 />
               ))

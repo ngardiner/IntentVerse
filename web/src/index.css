@@ -2523,6 +2523,159 @@
     background-color: rgba(106, 141, 255, 0.3);
   }
 
+  /* Enhanced Module Edit Controls */
+  .module-edit-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+    background-color: rgba(0, 0, 0, 0.7);
+    padding: 0.5rem;
+    border-radius: 6px;
+    backdrop-filter: blur(4px);
+    border: 1px solid var(--border-color);
+  }
+
+  .module-drag-handle {
+    cursor: grab;
+    color: var(--text-color-secondary);
+    font-size: 1.2rem;
+    line-height: 1;
+    user-select: none;
+    padding: 4px;
+  }
+
+  .module-control-buttons {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: default; /* Override the drag cursor */
+  }
+
+  .module-control-buttons * {
+    cursor: default !important; /* Ensure all child elements don't inherit drag cursor */
+  }
+
+  .module-visibility-toggle {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--border-color);
+    color: var(--text-color);
+    cursor: pointer !important;
+    padding: 6px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    min-width: 32px;
+    min-height: 32px;
+  }
+
+  .module-visibility-toggle:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+    border-color: var(--primary-color);
+    transform: scale(1.05);
+    cursor: pointer !important;
+  }
+
+  .module-visibility-toggle.hidden {
+    background-color: rgba(239, 68, 68, 0.2);
+    border-color: #ef4444;
+    color: #ef4444;
+  }
+
+  .module-visibility-toggle.visible {
+    background-color: rgba(34, 197, 94, 0.2);
+    border-color: #22c55e;
+    color: #22c55e;
+  }
+
+  .widget-title-label {
+    font-size: 0.8rem;
+    color: var(--text-color);
+    font-weight: 500;
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* Hidden Widgets Panel */
+  .hidden-widgets-panel {
+    background-color: var(--surface-color);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .hidden-widgets-panel h3 {
+    margin: 0 0 1rem 0;
+    color: var(--text-color);
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .hidden-widgets-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .hidden-widget-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem;
+    background-color: rgba(255, 255, 255, 0.05);
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+  }
+
+  .hidden-widget-title {
+    color: var(--text-color);
+    font-weight: 500;
+    flex: 1;
+  }
+
+  .show-widget-button {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    transition: background-color 0.2s;
+  }
+
+  .show-widget-button:hover {
+    background-color: #5a7dff;
+  }
+
+  .no-hidden-widgets {
+    color: var(--text-color-secondary);
+    font-style: italic;
+    text-align: center;
+    margin: 0;
+    padding: 1rem;
+  }
+
+  /* Prevent drag cursor on control buttons */
+  .module-wrapper.editing .module-control-buttons,
+  .module-wrapper.editing .module-control-buttons * {
+    cursor: default !important;
+  }
+
+  .module-wrapper.editing .module-visibility-toggle {
+    cursor: pointer !important;
+  }
+
   /* Confirmation Popup Styles */
   .confirmation-popup-overlay {
     position: fixed;
