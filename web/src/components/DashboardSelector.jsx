@@ -1,18 +1,59 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { getModulesStatus } from '../api/client';
 
 const DashboardSelector = ({ currentDashboard, onDashboardChange }) => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [availableDashboards, setAvailableDashboards] = useState([
+    { id: 'state', label: 'State', icon: '⚡', description: 'View and manage module states' }
+  ]);
+  const [loading, setLoading] = useState(false);
   const dropdownRef = useRef(null);
   const selectorRef = useRef(null);
 
-  // Available dashboards
-  const dashboards = [
-    { id: 'state', label: 'State' },
-    { id: 'timeline', label: 'Timeline' }
+  // All possible dashboards with their metadata
+  const allDashboards = [
+    { id: 'state', label: 'State', icon: '⚡', description: 'View and manage module states', alwaysAvailable: true },
+    { id: 'timeline', label: 'Timeline', icon: '📋', description: 'View events and activity', moduleRequired: 'timeline' }
   ];
 
-  // Get the current dashboard label
-  const currentDashboardLabel = dashboards.find(d => d.id === currentDashboard)?.label || 'State';
+  // Load available dashboards based on enabled modules
+  useEffect(() => {
+    const loadAvailableDashboards = async () => {
+      try {
+        setLoading(true);
+        const response = await getModulesStatus();
+        const modules = response.data.modules;
+        
+        const available = allDashboards.filter(dashboard => {
+          // Always include dashboards that don't require modules
+          if (dashboard.alwaysAvailable) {
+            return true;
+          }
+          
+          // Include dashboards whose required module is enabled and loaded
+          if (dashboard.moduleRequired) {
+            const module = modules[dashboard.moduleRequired];
+            return module && module.is_enabled && module.is_loaded;
+          }
+          
+          return false;
+        });
+        
+        setAvailableDashboards(available);
+      } catch (error) {
+        console.error('Failed to load module status:', error);
+        // Fallback to just the state dashboard
+        setAvailableDashboards([allDashboards[0]]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadAvailableDashboards();
+  }, []);
+
+  // Get the current dashboard info
+  const currentDashboardInfo = availableDashboards.find(d => d.id === currentDashboard) || availableDashboards[0];
 
   useEffect(() => {
     // Function to handle clicks outside the dropdown
@@ -67,24 +108,53 @@ const DashboardSelector = ({ currentDashboard, onDashboardChange }) => {
         onClick={toggleDropdown}
         aria-haspopup="true"
         aria-expanded={isDropdownOpen}
+        disabled={loading}
       >
-        <span className="dashboard-selector-label">{currentDashboardLabel}</span>
-        <span className="dashboard-selector-icon">▼</span>
+        <div className="dashboard-selector-content">
+          <span className="dashboard-selector-icon">{currentDashboardInfo?.icon || '⚡'}</span>
+          <span className="dashboard-selector-label">{currentDashboardInfo?.label || 'State'}</span>
+        </div>
+        <span className="dashboard-selector-arrow">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+            <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </span>
       </div>
       {isDropdownOpen && (
         <div 
           ref={dropdownRef}
           className="dashboard-selector-dropdown"
         >
-          {dashboards.map((dashboard) => (
+          <div className="dashboard-dropdown-header">
+            <span>Switch Dashboard</span>
+          </div>
+          {availableDashboards.map((dashboard) => (
             <button
               key={dashboard.id}
               className={`dashboard-option ${dashboard.id === currentDashboard ? 'active' : ''}`}
               onClick={() => handleDashboardSelect(dashboard.id)}
             >
-              {dashboard.label}
+              <div className="dashboard-option-content">
+                <div className="dashboard-option-main">
+                  <span className="dashboard-option-icon">{dashboard.icon}</span>
+                  <span className="dashboard-option-label">{dashboard.label}</span>
+                  {dashboard.id === currentDashboard && (
+                    <span className="dashboard-option-current">
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path d="M13.5 4.5L6 12L2.5 8.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </span>
+                  )}
+                </div>
+                <div className="dashboard-option-description">{dashboard.description}</div>
+              </div>
             </button>
           ))}
+          {availableDashboards.length === 1 && (
+            <div className="dashboard-dropdown-footer">
+              <span>Enable modules in Settings to see more dashboards</span>
+            </div>
+          )}
         </div>
       )}
     </div>

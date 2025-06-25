@@ -290,4 +290,14 @@ export const getAuditLogStats = () => {
   return apiClient.get('/audit-logs/stats');
 };
 
+// --- Module Configuration API Functions ---
+
+export const getModulesStatus = () => {
+  return apiClient.get('/api/v1/modules/status');
+};
+
+export const toggleModule = (moduleName, enabled) => {
+  return apiClient.post(`/api/v1/modules/${moduleName}/toggle`, { enabled });
+};
+
 export default apiClient;
