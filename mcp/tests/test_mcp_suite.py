@@ -1,5 +1,6 @@
 import pytest
 import inspect
+import os
 from typing import Any, Dict
 import httpx
 import respx
@@ -7,6 +8,7 @@ import respx
 from app.registrar import ToolRegistrar
 from app.core_client import CoreClient
 from fastmcp.tools import FunctionTool
+from fastmcp import FastMCP
 
 # --- Unit Tests for ToolRegistrar ---
 

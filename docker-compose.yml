@@ -82,13 +82,14 @@ services:
     build:
       context: ./mcp
     container_name: intentverse-mcp-tests
+    working_dir: /app
     volumes:
       - ./mcp:/app
     environment:
       - PYTHONPATH=/app
       - CORE_API_URL=http://core:8000
       - SERVICE_API_KEY=dev-service-key-12345
-    command: ["python", "-m", "pytest"]
+    command: ["python", "-m", "pytest", "tests/", "-v"]
     depends_on:
       core:
         condition: service_healthy
