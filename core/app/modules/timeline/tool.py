@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from ...state_manager import state_manager
 from ...auth import get_current_user_or_service
 from ...models import User
+from ..base_tool import BaseTool
 
 # Create a router for the timeline endpoints
 router = APIRouter(
@@ -182,3 +183,92 @@ def log_error(title: str, description: str, details: Optional[Dict[str, Any]] = 
         details=details,
         status="error"
     )
+
+class TimelineTool(BaseTool):
+    """
+    Timeline tool for logging and tracking events in the system.
+    This tool provides functionality to log tool executions, system events, and errors.
+    """
+
+    def __init__(self, state_manager: Any):
+        super().__init__(state_manager)
+        # Initialize the timeline state if it doesn't exist
+        if not self.state_manager.get("timeline"):
+            self.state_manager.set("timeline", {
+                "events": []
+            })
+    
+    def get_ui_schema(self) -> Dict[str, Any]:
+        """Returns the UI schema for the timeline module."""
+        try:
+            from .schema import UI_SCHEMA
+            return UI_SCHEMA
+        except ImportError:
+            # Fallback if schema file doesn't exist
+            return {
+                "name": "timeline",
+                "displayName": "Timeline",
+                "description": "Timeline tool for logging and tracking events in the system",
+                "version": "1.0.0",
+                "components": []
+            }
+    
+    def get_events(self, event_type: Optional[str] = None, limit: int = 100) -> List[Dict[str, Any]]:
+        """
+        Get timeline events, optionally filtered by event_type.
+        
+        Args:
+            event_type: Optional filter for event type
+            limit: Maximum number of events to return
+            
+        Returns:
+            List of timeline events
+        """
+        if limit <= 0:
+            return []
+
+        state = self.state_manager.get("timeline") or {}
+        events = state.get("events", [])
+        
+        # Filter by event_type if provided
+        if event_type:
+            events = [e for e in events if e.get("event_type") == event_type]
+        
+        # Sort by timestamp (newest first)
+        events.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
+        
+        # Limit the number of events
+        return events[:limit]
+    
+    def add_event(
+        self,
+        event_type: str,
+        title: str,
+        description: str,
+        details: Optional[Dict[str, Any]] = None,
+        status: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Add a new event to the timeline.
+        
+        Args:
+            event_type: The type of event (e.g., tool_execution, system, error)
+            title: A short title for the event
+            description: A longer description of the event
+            details: Optional additional details about the event (e.g., tool parameters)
+            status: Optional status of the event (e.g., success, error, pending)
+            
+        Returns:
+            The newly created event
+        """
+        return add_event(event_type, title, description, details, status)
+    
+    def clear_events(self) -> str:
+        """
+        Clear all timeline events.
+        
+        Returns:
+            Success message
+        """
+        self.state_manager.set("timeline", {"events": []})
+        return "Timeline events cleared successfully"

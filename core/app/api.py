@@ -644,4 +644,72 @@ def create_api_routes(module_loader: ModuleLoader, content_pack_manager=None) ->
             else:
                 raise HTTPException(status_code=500, detail="Failed to clear remote cache")
 
+    # --- Module Configuration Endpoints ---
+    
+    @router.get("/modules/status")
+    def get_modules_status(
+        current_user: Annotated[User, Depends(require_permission_or_service("system.config"))],
+        session: Annotated[Session, Depends(get_session)]
+    ) -> Dict[str, Any]:
+        """
+        Get the status of all available modules (enabled and disabled).
+        """
+        modules_status = module_loader.get_module_status(session)
+        return {
+            "status": "success",
+            "modules": modules_status
+        }
+    
+    @router.post("/modules/{module_name}/toggle")
+    def toggle_module(
+        module_name: str,
+        payload: Dict[str, Any],
+        current_user: Annotated[User, Depends(require_permission_or_service("system.config"))],
+        session: Annotated[Session, Depends(get_session)],
+        request: Request
+    ) -> Dict[str, Any]:
+        """
+        Enable or disable a module.
+        """
+        ip_address, user_agent = get_client_info(request)
+        enabled = payload.get("enabled", True)
+        
+        # Validate module exists
+        modules_status = module_loader.get_module_status(session)
+        if module_name not in modules_status:
+            raise HTTPException(status_code=404, detail=f"Module '{module_name}' not found")
+        
+        # Toggle the module
+        success = module_loader.set_module_enabled(module_name, enabled, session)
+        
+        if success:
+            # Log the action
+            log_audit_event(
+                session=session,
+                user_id=current_user.id if isinstance(current_user, User) else None,
+                username=current_user.username if isinstance(current_user, User) else "service",
+                action="module_toggle",
+                resource_type="module",
+                resource_id=module_name,
+                resource_name=module_name,
+                details={
+                    "enabled": enabled,
+                    "previous_state": modules_status[module_name]["is_enabled"]
+                },
+                ip_address=ip_address,
+                user_agent=user_agent,
+                status="success"
+            )
+            
+            return {
+                "status": "success",
+                "message": f"Module '{module_name}' {'enabled' if enabled else 'disabled'} successfully",
+                "module": {
+                    "name": module_name,
+                    "enabled": enabled
+                }
+            }
+        else:
+            raise HTTPException(status_code=500, detail=f"Failed to toggle module '{module_name}'")
+
     return router

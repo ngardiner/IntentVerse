@@ -1,4 +1,4 @@
-from sqlmodel import create_engine, SQLModel, Session
+from sqlmodel import create_engine, SQLModel, Session, select
 from sqlalchemy import text
 import logging
 import os
@@ -21,7 +21,7 @@ def create_db_and_tables():
     logging.info("Initializing database and creating tables...")
     
     # Import all models to ensure they're registered with SQLModel
-    from .models import User, UserGroup, UserGroupLink, AuditLog
+    from .models import User, UserGroup, UserGroupLink, AuditLog, ModuleConfiguration
     
     # Check if database exists and has the expected schema
     db_file = "./intentverse.db"

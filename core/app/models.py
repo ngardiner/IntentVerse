@@ -128,3 +128,22 @@ class AuditLog(SQLModel, table=True):
     
     # Relationship to user (optional since user might be deleted)
     user: Optional[User] = Relationship()
+
+class ModuleConfiguration(SQLModel, table=True):
+    """
+    Represents module and tool configuration settings.
+    This table stores whether modules and individual tools are enabled/disabled.
+    """
+    id: Optional[int] = Field(default=None, primary_key=True)
+    module_name: str = Field(index=True)  # e.g., "filesystem", "email", "database"
+    tool_name: Optional[str] = Field(default=None, index=True)  # e.g., "read_file", "write_file" (None for module-level config)
+    is_enabled: bool = Field(default=True)  # Whether the module/tool is enabled
+    configuration: Optional[Dict[str, Any]] = Field(default=None, sa_column=Column(JSON))  # Additional configuration as JSON
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    
+    class Config:
+        # Ensure unique constraint on module_name + tool_name combination
+        table_args = (
+            {"sqlite_autoincrement": True},
+        )

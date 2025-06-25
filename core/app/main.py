@@ -9,7 +9,8 @@ from .module_loader import ModuleLoader
 from .api import create_api_routes
 from .auth import router as auth_router, get_current_user, get_current_user_or_service
 from .models import User
-from .database import create_db_and_tables
+from .database import create_db_and_tables, engine
+from sqlmodel import Session
 from .init_db import init_db
 from .content_pack_manager import ContentPackManager
 from .logging_config import setup_logging
@@ -26,7 +27,8 @@ async def lifespan(app: FastAPI):
     # Initialize the database with default data (admin user and groups)
     init_db()
     # Discover and load all modules from the 'modules' directory
-    module_loader.load_modules()
+    with Session(engine) as session:
+        module_loader.load_modules(session)
     # Load default content pack after modules are loaded
     content_pack_manager.load_default_content_pack()
     
