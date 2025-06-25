@@ -5,6 +5,7 @@ from fastmcp.tools import FunctionTool
 from typing import Dict, Any, Callable, Awaitable, List, Optional, Union, get_origin, get_args
 
 from .core_client import CoreClient
+from .proxy import MCPProxyEngine
 
 class ToolRegistrar:
     """
@@ -14,6 +15,7 @@ class ToolRegistrar:
 
     def __init__(self, core_client: CoreClient):
         self.core_client = core_client
+        self.proxy_engine: Optional[MCPProxyEngine] = None
 
     def _create_dynamic_proxy(self, tool_def: Dict[str, Any]) -> Callable[..., Awaitable[Dict[str, Any]]]:
         """
@@ -147,12 +149,38 @@ class ToolRegistrar:
         
         return proxy_func
 
+    async def initialize_proxy_engine(self, config_path: Optional[str] = None) -> None:
+        """
+        Initialize the MCP Proxy Engine.
+        
+        Args:
+            config_path: Path to proxy configuration file
+        """
+        try:
+            self.proxy_engine = MCPProxyEngine(config_path)
+            await self.proxy_engine.initialize()
+            logging.info("MCP Proxy Engine initialized successfully")
+        except Exception as e:
+            logging.warning(f"Failed to initialize MCP Proxy Engine: {e}")
+            self.proxy_engine = None
+
     async def register_tools(self, server: FastMCP):
         """
         Fetches the tool manifest and registers each tool with the MCP server
         using a dynamically generated, correctly-signed proxy function.
+        Also registers proxy tools from external MCP servers if proxy engine is available.
         """
         logging.info("Registrar: Registering tools...")
+        
+        # Register core tools
+        await self._register_core_tools(server)
+        
+        # Register proxy tools if proxy engine is available
+        await self._register_proxy_tools(server)
+
+    async def _register_core_tools(self, server: FastMCP):
+        """Register core tools from the Core Engine."""
+        logging.info("Registering core tools...")
         tool_manifest = await self.core_client.get_tool_manifest()
 
         for tool_def in tool_manifest:
@@ -165,7 +193,7 @@ class ToolRegistrar:
             # Add the dynamically created function as a tool to the FastMCP server
             server.add_tool(FunctionTool.from_function(dynamic_proxy, name=tool_name))
 
-            logging.info(f"  - Registered proxy for tool: '{tool_name}' with signature {dynamic_proxy.__signature__}")
+            logging.info(f"  - Registered core tool: '{tool_name}' with signature {dynamic_proxy.__signature__}")
             
             # Only log tool registration for non-timeline tools to avoid circular dependencies
             if not tool_name.startswith("timeline."):
@@ -173,14 +201,100 @@ class ToolRegistrar:
                     await self.core_client.execute_tool({
                         "tool_name": "timeline.log_system_event",
                         "parameters": {
-                            "title": f"Tool Registered: {tool_name}",
-                            "description": f"The tool '{tool_name}' has been registered with the MCP Interface.",
+                            "title": f"Core Tool Registered: {tool_name}",
+                            "description": f"The core tool '{tool_name}' has been registered with the MCP Interface.",
                             "details": {
                                 "tool_name": tool_name,
-                                "description": tool_def.get("description", "No description available.")
+                                "description": tool_def.get("description", "No description available."),
+                                "source": "core_engine"
                             }
                         }
                     })
                 except Exception as e:
                     # This is expected to fail for the first few tools before timeline is registered
                     logging.debug(f"Could not log tool registration event: {e}")
+
+    async def _register_proxy_tools(self, server: FastMCP):
+        """Register proxy tools from external MCP servers."""
+        if not self.proxy_engine:
+            logging.info("No proxy engine available, skipping proxy tool registration")
+            return
+
+        try:
+            logging.info("Starting MCP Proxy Engine and registering proxy tools...")
+            
+            # Start the proxy engine
+            await self.proxy_engine.start()
+            
+            # Register proxy tools with FastMCP server
+            proxy_tools_count = await self.proxy_engine.register_proxy_tools(server)
+            
+            logging.info(f"Registered {proxy_tools_count} proxy tools from external MCP servers")
+            
+            # Log proxy tool registration summary
+            try:
+                stats = self.proxy_engine.get_stats()
+                await self.core_client.execute_tool({
+                    "tool_name": "timeline.log_system_event",
+                    "parameters": {
+                        "title": "MCP Proxy Tools Registered",
+                        "description": f"Successfully registered {proxy_tools_count} proxy tools from {stats.servers_connected} external MCP servers.",
+                        "details": {
+                            "proxy_tools_count": proxy_tools_count,
+                            "servers_connected": stats.servers_connected,
+                            "servers_configured": stats.servers_configured,
+                            "conflicts_detected": stats.conflicts_detected,
+                            "source": "mcp_proxy"
+                        }
+                    }
+                })
+            except Exception as e:
+                logging.debug(f"Could not log proxy tool registration summary: {e}")
+                
+        except Exception as e:
+            logging.error(f"Failed to register proxy tools: {e}")
+
+    async def shutdown(self):
+        """Shutdown the registrar and cleanup resources."""
+        if self.proxy_engine:
+            try:
+                await self.proxy_engine.stop()
+                logging.info("MCP Proxy Engine stopped")
+            except Exception as e:
+                logging.error(f"Error stopping proxy engine: {e}")
+
+    def get_proxy_engine_stats(self) -> Optional[Dict[str, Any]]:
+        """
+        Get statistics from the proxy engine.
+        
+        Returns:
+            Proxy engine statistics if available, None otherwise
+        """
+        if self.proxy_engine and self.proxy_engine.is_running:
+            return self.proxy_engine.get_stats().to_dict()
+        return None
+
+    def get_proxy_tool_info(self, tool_name: str) -> Optional[Dict[str, Any]]:
+        """
+        Get information about a specific proxy tool.
+        
+        Args:
+            tool_name: Name of the proxy tool
+            
+        Returns:
+            Tool information if found, None otherwise
+        """
+        if self.proxy_engine:
+            return self.proxy_engine.get_tool_info(tool_name)
+        return None
+
+    def get_all_proxy_tools(self) -> List[Dict[str, Any]]:
+        """
+        Get information about all proxy tools.
+        
+        Returns:
+            List of proxy tool information
+        """
+        if self.proxy_engine:
+            return self.proxy_engine.get_all_tool_info()
+        return []

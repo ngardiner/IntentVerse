@@ -17,8 +17,11 @@ jobs:
       - name: Build all service images
         run: docker compose build
 
-      - name: Run all tests
-        run: docker compose --profile tests up --build  --abort-on-container-exit
+      - name: Run core tests
+        run: docker compose up tests --build --abort-on-container-exit
+
+      - name: Run MCP tests
+        run: docker compose up mcp-tests --build --abort-on-container-exit
 
   # This is the new job we are adding
   gitleaks-scan:

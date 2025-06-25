@@ -9,6 +9,7 @@ from .config import ProxyConfig, ServerConfig, GlobalSettings
 from .client import MCPClient, MCPMessage, ConnectionState, MCPTool, MCPServerInfo
 from .discovery import ToolDiscoveryService, ToolRegistry, ToolConflict, DiscoveryResult
 from .generator import ProxyToolGenerator, ParameterValidator, ResultProcessor, ProxyFunctionMetadata
+from .engine import MCPProxyEngine, ProxyEngineStats, create_and_start_proxy_engine
 
 __all__ = [
     'ProxyConfig',
@@ -26,5 +27,8 @@ __all__ = [
     'ProxyToolGenerator',
     'ParameterValidator',
     'ResultProcessor',
-    'ProxyFunctionMetadata'
+    'ProxyFunctionMetadata',
+    'MCPProxyEngine',
+    'ProxyEngineStats',
+    'create_and_start_proxy_engine'
 ]

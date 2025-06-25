@@ -25,10 +25,13 @@ async def main():
     core_client = CoreClient()
     tool_registrar = ToolRegistrar(core_client)
 
+    # Initialize the MCP Proxy Engine (optional - will gracefully handle if config doesn't exist)
+    await tool_registrar.initialize_proxy_engine()
+
     # Create the FastMCPServer instance
     server = FastMCP("IntentVerse Mock Tool Server")
 
-    # Call the registrar to dynamically load tools from the core engine
+    # Call the registrar to dynamically load tools from the core engine and proxy tools
     await tool_registrar.register_tools(server)
 
     # Check for the --stdio flag to determine the run mode
@@ -56,8 +59,8 @@ async def main():
             
         await server.run_async(transport="streamable-http", host=host, port=port)
 
-async def shutdown():
-    """Log the MCP shutdown event to the timeline."""
+async def shutdown(tool_registrar: ToolRegistrar = None):
+    """Log the MCP shutdown event to the timeline and cleanup resources."""
     try:
         # Create a temporary client to log the shutdown event
         temp_client = CoreClient()
@@ -75,6 +78,11 @@ async def shutdown():
             logging.debug(f"Could not log MCP shutdown event: {e}")
             
         await temp_client.close()
+        
+        # Shutdown the tool registrar (which will stop the proxy engine)
+        if tool_registrar:
+            await tool_registrar.shutdown()
+            
     except Exception as e:
         logging.error(f"Error during shutdown: {e}")
 
