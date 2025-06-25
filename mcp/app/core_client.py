@@ -42,8 +42,20 @@ class CoreClient:
             response.raise_for_status()  # Raises an exception for 4xx or 5xx status codes
             logging.info("CoreClient: Successfully fetched tool manifest.")
             return response.json()
-        except httpx.RequestError as e:
-            logging.error(f"An error occurred while requesting the tool manifest: {e}")
+        except (httpx.RequestError, httpx.HTTPStatusError) as e:
+            # Extract error details from HTTP response if available
+            error_message = str(e)
+            if isinstance(e, httpx.HTTPStatusError):
+                try:
+                    # Try to extract error detail from JSON response
+                    response_data = e.response.json()
+                    if "detail" in response_data:
+                        error_message = f"{str(e)} - {response_data['detail']}"
+                except Exception:
+                    # If we can't parse the response, just use the original error message
+                    pass
+            
+            logging.error(f"An error occurred while requesting the tool manifest: {error_message}")
             return []
 
     async def execute_tool(self, payload: Dict[str, Any]) -> Dict[str, Any]:
@@ -95,8 +107,20 @@ class CoreClient:
                     logging.error(f"Failed to log tool execution result to timeline: {e}")
             
             return result
-        except httpx.RequestError as e:
+        except (httpx.RequestError, httpx.HTTPStatusError) as e:
             logging.error(f"An error occurred while executing tool: {e}")
+            
+            # Extract error details from HTTP response if available
+            error_message = str(e)
+            if isinstance(e, httpx.HTTPStatusError):
+                try:
+                    # Try to extract error detail from JSON response
+                    response_data = e.response.json()
+                    if "detail" in response_data:
+                        error_message = f"{str(e)} - {response_data['detail']}"
+                except Exception:
+                    # If we can't parse the response, just use the original error message
+                    pass
             
             # Log the error to the timeline if it's not a timeline tool
             if not payload.get("tool_name", "").startswith("timeline."):
@@ -105,18 +129,18 @@ class CoreClient:
                         "tool_name": "timeline.log_error",
                         "parameters": {
                             "title": f"Error executing tool: {payload.get('tool_name')}",
-                            "description": str(e),
+                            "description": error_message,
                             "details": {
                                 "tool_name": payload.get("tool_name"),
                                 "parameters": payload.get("parameters", {}),
-                                "error": str(e)
+                                "error": error_message
                             }
                         }
                     })
                 except Exception as log_error:
                     logging.error(f"Failed to log error to timeline: {log_error}")
             
-            return {"status": "error", "result": str(e)}
+            return {"status": "error", "result": error_message}
 
     async def close(self):
         """

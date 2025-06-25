@@ -163,7 +163,7 @@ class TestMCPIntegration:
 
     @respx.mock
     @pytest.mark.asyncio
-    async def test_mcp_request_handling(self, registrar, sample_tool_manifest):
+    async def test_mcp_request_handling(self, sample_tool_manifest):
         """
         Tests that a call to a registered tool is correctly translated
         into a REST API request to the Core Engine.
@@ -176,6 +176,10 @@ class TestMCPIntegration:
         respx.get(manifest_url).mock(return_value=httpx.Response(200, json=sample_tool_manifest))
         # Mock the execute call, which we will inspect
         execute_route = respx.post(execute_url).mock(return_value=httpx.Response(200, json={"status": "success", "result": "mocked result"}))
+        
+        # Create a real CoreClient and ToolRegistrar to test actual HTTP requests
+        core_client = CoreClient()
+        registrar = ToolRegistrar(core_client)
         
         # Create a real FastMCP server to register tools against
         server = FastMCP("Integration Test Server")
@@ -199,7 +203,13 @@ class TestMCPIntegration:
         # ASSERT: Check that the execute endpoint was called with the correct payload
         assert execute_route.called
         
-        request_payload = execute_route.calls.last.request.content
+        # The CoreClient makes multiple calls: timeline logging (before), main execution, timeline logging (after)
+        # We want to verify the main execution call (should be the second call)
+        assert len(execute_route.calls) >= 2, f"Expected at least 2 calls, got {len(execute_route.calls)}"
+        
+        # Check the main tool execution call (second call)
+        main_execution_call = execute_route.calls[1]
+        request_payload = main_execution_call.request.content
         import json
         assert json.loads(request_payload) == {
             "tool_name": "filesystem.read_file",
