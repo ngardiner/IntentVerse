@@ -134,10 +134,9 @@ class TestMCPIntegration:
         Tests that the registrar correctly fetches a tool manifest and
         registers each tool with the FastMCP server.
         """
-        # ARRANGE: Mock the Core API endpoint for the tool manifest
-        respx.get(f"{os.environ['CORE_API_URL']}/api/v1/tools/manifest").mock(
-            return_value=httpx.Response(200, json=sample_tool_manifest)
-        )
+        # ARRANGE: Configure the mocked core_client to return the sample manifest
+        registrar.core_client.get_tool_manifest.return_value = sample_tool_manifest
+        
         # Mock the timeline logging call to prevent errors during this test
         respx.post(f"{os.environ['CORE_API_URL']}/api/v1/execute").mock(
             return_value=httpx.Response(200, json={"status": "success"})
