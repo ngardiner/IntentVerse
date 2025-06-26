@@ -71,7 +71,8 @@ services:
     environment:
       - PYTHONPATH=/app
       - SERVICE_API_KEY=dev-service-key-12345
-    command: ["python", "-m", "pytest"]
+      - CORE_API_URL=http://core:8000
+    command: ["python", "-m", "pytest", "tests/", "-v", "--tb=short", "--disable-warnings"]
     depends_on:
       core:
         condition: service_healthy
@@ -89,10 +90,26 @@ services:
       - PYTHONPATH=/app
       - CORE_API_URL=http://core:8000
       - SERVICE_API_KEY=dev-service-key-12345
-    command: ["python", "-m", "pytest", "tests/", "-v"]
+    command: ["python", "-m", "pytest", "tests/", "-v", "--tb=short", "--disable-warnings"]
     depends_on:
       core:
         condition: service_healthy
+    profiles:
+      - tests
+
+  web-tests:
+    build:
+      context: ./web
+    container_name: intentverse-web-tests
+    working_dir: /app
+    volumes:
+      - ./web/src:/app/src
+      - ./web/public:/app/public
+    environment:
+      - CI=true
+    command: ["npm", "test", "--", "--coverage", "--watchAll=false", "--ci"]
+    depends_on:
+      - core
     profiles:
       - tests
 

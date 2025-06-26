@@ -31,6 +31,7 @@ def get_service_headers():
     return {"X-API-Key": SERVICE_API_KEY}
 
 
+@pytest.mark.unit
 class TestServerDiagnosticsUnit:
     """Unit tests for server diagnostics endpoints using mocked dependencies."""
     
@@ -115,6 +116,7 @@ class TestServerDiagnosticsUnit:
             assert result["loaded_modules"] == []
 
 
+@pytest.mark.integration
 class TestServerDiagnosticsIntegration:
     """Integration tests for server diagnostics endpoints using TestClient."""
     
