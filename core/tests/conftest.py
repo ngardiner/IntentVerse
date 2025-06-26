@@ -5,6 +5,9 @@ from sqlalchemy import text
 from pathlib import Path
 import os
 
+# Import logging configuration
+from tests.conftest_logging import configure_test_logging
+
 # Set the test service API key BEFORE importing any app modules
 TEST_SERVICE_API_KEY = "test-service-key-12345"
 os.environ["SERVICE_API_KEY"] = TEST_SERVICE_API_KEY

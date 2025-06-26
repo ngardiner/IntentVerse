@@ -17,13 +17,13 @@ JWT (JSON Web Token) authentication is used for user sessions and web UI interac
 POST /auth/login
 Content-Type: application/x-www-form-urlencoded
 
-username=admin&password=IntentVerse
+username=your_username&password=your_password
 ```
 
 **Response:**
 ```json
 {
-  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.example.token",
   "token_type": "bearer"
 }
 ```
@@ -33,7 +33,7 @@ username=admin&password=IntentVerse
 Include the token in the Authorization header for all subsequent requests:
 
 ```http
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+Authorization: Bearer YOUR_JWT_TOKEN_HERE
 ```
 
 **Example:**
@@ -53,7 +53,7 @@ X-API-Key: your-service-api-key
 
 **Example:**
 ```bash
-curl -H "X-API-Key: dev-service-key-12345" \
+curl -H "X-API-Key: your-service-api-key" \
   "http://localhost:8000/api/v1/tools/manifest"
 ```
 
@@ -73,13 +73,13 @@ Authenticates a user and returns a JWT access token.
 ```bash
 curl -X POST "http://localhost:8000/auth/login" \
   -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "username=admin&password=IntentVerse"
+  -d "username=your_username&password=your_password"
 ```
 
 **Response:**
 ```json
 {
-  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImV4cCI6MTcwMzI2MjAwMH0.signature",
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.example.signature",
   "token_type": "bearer"
 }
 ```
@@ -135,7 +135,7 @@ Currently, token refresh is not implemented. Users must re-authenticate when tok
 
 ### Environment Variables
 
-- `SERVICE_API_KEY`: API key for service authentication (default: "dev-service-key-12345")
+- `SERVICE_API_KEY`: API key for service authentication (default: "your-service-key")
 - `SECRET_KEY`: Secret key for JWT token signing
 - `ACCESS_TOKEN_EXPIRE_MINUTES`: Token expiration time in minutes
 
@@ -206,7 +206,7 @@ The API automatically checks permissions for protected endpoints. Users without 
 # 1. Login to get token
 TOKEN=$(curl -s -X POST "http://localhost:8000/auth/login" \
   -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "username=admin&password=IntentVerse" | \
+  -d "username=your_username&password=your_password" | \
   jq -r '.access_token')
 
 # 2. Use token for API calls
@@ -222,7 +222,7 @@ curl -H "Authorization: Bearer $TOKEN" \
 
 ```bash
 # Using API key for service calls
-curl -H "X-API-Key: dev-service-key-12345" \
+curl -H "X-API-Key: your-service-api-key" \
   "http://localhost:8000/api/v1/tools/manifest"
 ```
 

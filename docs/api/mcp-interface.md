@@ -111,7 +111,7 @@ X-API-Key: your-service-api-key
 
 **Example:**
 ```bash
-curl -H "X-API-Key: dev-service-key-12345" \
+curl -H "X-API-Key: your-service-api-key" \
   "http://localhost:8000/api/v1/tools/manifest"
 ```
 
@@ -471,7 +471,7 @@ class IntentVerseClient:
 # Usage example
 client = IntentVerseClient(
     base_url="http://localhost:8000",
-    api_key="dev-service-key-12345"
+    api_key="your-service-api-key"
 )
 
 # Get available tools
@@ -537,7 +537,7 @@ class IntentVerseClient {
 
 // Usage example
 const client = new IntentVerseClient('http://localhost:8000', {
-  apiKey: 'dev-service-key-12345'
+  apiKey: 'your-service-api-key'
 });
 
 // Get available tools

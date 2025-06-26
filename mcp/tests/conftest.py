@@ -2,6 +2,9 @@ import pytest
 import os
 from unittest.mock import Mock, AsyncMock
 
+# Import logging configuration
+from tests.conftest_logging import configure_test_logging
+
 # Set environment variables for testing before importing application modules
 os.environ["CORE_API_URL"] = "http://test-core-api:8000"
 os.environ["SERVICE_API_KEY"] = "test-mcp-service-key"
