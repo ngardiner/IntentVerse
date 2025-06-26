@@ -5,7 +5,8 @@ import time
 
 # The URL of our core service, as seen from within the Docker network
 CORE_API_URL = os.environ.get("CORE_API_URL", "http://core:8000")
-SERVICE_API_KEY = os.environ.get("SERVICE_API_KEY", "test-service-key-12345")
+# Use the same default as the auth module to ensure consistency in e2e tests
+SERVICE_API_KEY = os.environ.get("SERVICE_API_KEY", "dev-service-key-12345")
 
 def get_service_headers():
     """Get headers with service API key for authentication."""
