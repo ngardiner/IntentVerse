@@ -1,6 +1,7 @@
 import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import create_engine, Session, SQLModel
+from sqlalchemy import text
 from pathlib import Path
 import os
 
@@ -122,9 +123,9 @@ def create_test_db_and_tables():
     # Verify critical tables exist
     with Session(test_engine) as session:
         try:
-            session.exec("SELECT COUNT(*) FROM auditlog").first()
-            session.exec("SELECT COUNT(*) FROM user").first()
-            session.exec("SELECT COUNT(*) FROM role").first()
+            session.exec(text("SELECT COUNT(*) FROM auditlog")).first()
+            session.exec(text("SELECT COUNT(*) FROM user")).first()
+            session.exec(text("SELECT COUNT(*) FROM role")).first()
         except Exception as e:
             raise RuntimeError(f"Failed to create test database tables: {e}")
 
