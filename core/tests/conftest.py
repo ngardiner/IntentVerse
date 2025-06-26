@@ -14,11 +14,11 @@ from app.database import get_session
 from app.state_manager import StateManager
 from app.module_loader import ModuleLoader
 from app.auth import get_current_user, get_current_user_or_service, User, UserGroup, UserGroupLink
-from app.models import AuditLog
+from app.models import AuditLog, Role, Permission, UserRoleLink, GroupRoleLink, RolePermissionLink
 from app.security import get_password_hash, create_access_token
 
 # Use an in-memory SQLite database for testing
-TEST_DATABASE_URL = "sqlite:///./test.db"  # Use a file-based SQLite for consistency in tests
+TEST_DATABASE_URL = "sqlite:///:memory:"  # Use in-memory SQLite for test isolation
 test_engine = create_engine(TEST_DATABASE_URL, connect_args={"check_same_thread": False})
 
 def get_session_override():
@@ -37,6 +37,13 @@ TEST_USER_DATA = {
     "is_admin": True
 }
 
+def setup_test_database(session: Session):
+    """Set up the test database with RBAC system and test data."""
+    from app.rbac import initialize_rbac_system
+    
+    # Initialize RBAC system first to ensure roles and permissions exist
+    initialize_rbac_system(session)
+
 def create_test_user(session: Session) -> User:
     """Create a test user in the database."""
     hashed_password = get_password_hash(TEST_USER_DATA["password"])
@@ -50,6 +57,11 @@ def create_test_user(session: Session) -> User:
     session.add(user)
     session.commit()
     session.refresh(user)
+    
+    # Ensure the admin role is assigned to the admin user
+    from app.rbac import assign_admin_role_to_admins
+    assign_admin_role_to_admins(session)
+    
     return user
 
 def get_test_token() -> str:
@@ -89,13 +101,19 @@ def client_fixture():
     This fixture now correctly handles the application lifespan,
     ensuring the database and modules are initialized before tests run.
     """
+    # Manually create tables for the in-memory/test database
+    SQLModel.metadata.create_all(test_engine)
+    
+    # Set up test database with RBAC system
+    with Session(test_engine) as session:
+        setup_test_database(session)
+    
     # This context manager will run the startup events before yielding
     with TestClient(app) as client:
-        # Manually create tables for the in-memory/test database
-        SQLModel.metadata.create_all(test_engine)
         yield client
-        # Clean up by dropping tables after tests are done
-        SQLModel.metadata.drop_all(test_engine)
+        
+    # Clean up by dropping tables after tests are done
+    SQLModel.metadata.drop_all(test_engine)
 
 @pytest.fixture(name="authenticated_client")
 def authenticated_client_fixture(client, test_user):
