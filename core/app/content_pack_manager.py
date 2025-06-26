@@ -465,7 +465,7 @@ class ContentPackManager:
     
     def _merge_state_content(self, new_state: Dict[str, Any]):
         """
-        Merge new state content with existing state.
+        Merge new state content with existing state using intelligent merging strategies.
         
         Args:
             new_state: State content to merge
@@ -474,11 +474,294 @@ class ContentPackManager:
             if module_name == "database":
                 continue  # Skip database - handled separately
             
-            # Set the state for each module
-            # This will overwrite existing state for the module
-            # In the future, we might want more sophisticated merging
-            self.state_manager.set(module_name, module_state)
-            logging.debug(f"Merged state for module: {module_name}")
+            # Get existing state for this module
+            existing_state = self.state_manager.get(module_name)
+            
+            if existing_state is None:
+                # No existing state, just set the new state
+                self.state_manager.set(module_name, module_state)
+                logging.debug(f"Set initial state for module: {module_name}")
+            else:
+                # Merge with existing state using appropriate strategy
+                merged_state = self._merge_module_state(module_name, existing_state, module_state)
+                self.state_manager.set(module_name, merged_state)
+                logging.debug(f"Merged state for module: {module_name}")
+    
+    def _merge_module_state(self, module_name: str, existing_state: Any, new_state: Any) -> Any:
+        """
+        Merge module state using appropriate strategy based on module type and data structure.
+        
+        Args:
+            module_name: Name of the module
+            existing_state: Current state of the module
+            new_state: New state to merge in
+            
+        Returns:
+            Merged state
+        """
+        # Handle different module types with appropriate merging strategies
+        if module_name == "email":
+            return self._merge_email_state(existing_state, new_state)
+        elif module_name == "filesystem":
+            return self._merge_filesystem_state(existing_state, new_state)
+        elif module_name == "memory":
+            return self._merge_memory_state(existing_state, new_state)
+        elif module_name == "web_search":
+            return self._merge_web_search_state(existing_state, new_state)
+        else:
+            # For unknown modules, try generic dictionary merging
+            return self._merge_generic_state(existing_state, new_state)
+    
+    def _merge_email_state(self, existing: Dict[str, Any], new: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Merge email module state by combining inbox, sent, and drafts arrays.
+        
+        Args:
+            existing: Existing email state
+            new: New email state to merge
+            
+        Returns:
+            Merged email state
+        """
+        if not isinstance(existing, dict) or not isinstance(new, dict):
+            logging.warning("Email state is not a dictionary, using new state")
+            return new
+        
+        merged = existing.copy()
+        
+        # Merge each email folder (inbox, sent, drafts)
+        for folder_name in ["inbox", "sent", "drafts"]:
+            existing_emails = existing.get(folder_name, [])
+            new_emails = new.get(folder_name, [])
+            
+            if not isinstance(existing_emails, list):
+                existing_emails = []
+            if not isinstance(new_emails, list):
+                new_emails = []
+            
+            # Combine emails, avoiding duplicates based on id if present
+            merged_emails = existing_emails.copy()
+            existing_ids = {email.get("id") for email in existing_emails if isinstance(email, dict) and "id" in email}
+            
+            for email in new_emails:
+                if isinstance(email, dict):
+                    email_id = email.get("id")
+                    if email_id is None or email_id not in existing_ids:
+                        merged_emails.append(email)
+                else:
+                    merged_emails.append(email)
+            
+            merged[folder_name] = merged_emails
+        
+        # Merge any other keys that might exist
+        for key, value in new.items():
+            if key not in ["inbox", "sent", "drafts"]:
+                merged[key] = value
+        
+        return merged
+    
+    def _merge_filesystem_state(self, existing: Dict[str, Any], new: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Merge filesystem state by combining directory trees.
+        
+        Args:
+            existing: Existing filesystem state
+            new: New filesystem state to merge
+            
+        Returns:
+            Merged filesystem state
+        """
+        if not isinstance(existing, dict) or not isinstance(new, dict):
+            logging.warning("Filesystem state is not a dictionary, using new state")
+            return new
+        
+        # If either is not a proper filesystem node, use new state
+        if existing.get("type") != "directory" or new.get("type") != "directory":
+            return new
+        
+        # Merge directory trees
+        return self._merge_filesystem_node(existing, new)
+    
+    def _merge_filesystem_node(self, existing_node: Dict[str, Any], new_node: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Recursively merge filesystem nodes (files and directories).
+        
+        Args:
+            existing_node: Existing filesystem node
+            new_node: New filesystem node to merge
+            
+        Returns:
+            Merged filesystem node
+        """
+        if not isinstance(existing_node, dict) or not isinstance(new_node, dict):
+            return new_node
+        
+        # Start with existing node
+        merged = existing_node.copy()
+        
+        # If it's a file, new content overwrites existing
+        if new_node.get("type") == "file":
+            return new_node
+        
+        # If it's a directory, merge children
+        if new_node.get("type") == "directory" and existing_node.get("type") == "directory":
+            existing_children = existing_node.get("children", [])
+            new_children = new_node.get("children", [])
+            
+            if not isinstance(existing_children, list):
+                existing_children = []
+            if not isinstance(new_children, list):
+                new_children = []
+            
+            # Create a map of existing children by name
+            existing_children_map = {}
+            for child in existing_children:
+                if isinstance(child, dict) and "name" in child:
+                    existing_children_map[child["name"]] = child
+            
+            # Merge new children
+            merged_children = []
+            processed_names = set()
+            
+            # First, process existing children
+            for child in existing_children:
+                if isinstance(child, dict) and "name" in child:
+                    child_name = child["name"]
+                    # Check if there's a new child with the same name
+                    new_child = None
+                    for nc in new_children:
+                        if isinstance(nc, dict) and nc.get("name") == child_name:
+                            new_child = nc
+                            break
+                    
+                    if new_child:
+                        # Merge the children
+                        merged_child = self._merge_filesystem_node(child, new_child)
+                        merged_children.append(merged_child)
+                    else:
+                        # Keep existing child
+                        merged_children.append(child)
+                    
+                    processed_names.add(child_name)
+                else:
+                    merged_children.append(child)
+            
+            # Add new children that don't exist in existing
+            for new_child in new_children:
+                if isinstance(new_child, dict) and "name" in new_child:
+                    if new_child["name"] not in processed_names:
+                        merged_children.append(new_child)
+                else:
+                    merged_children.append(new_child)
+            
+            merged["children"] = merged_children
+        
+        # Update other properties from new node
+        for key, value in new_node.items():
+            if key not in ["children"]:
+                merged[key] = value
+        
+        return merged
+    
+    def _merge_memory_state(self, existing: Dict[str, Any], new: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Merge memory module state by deep merging dictionaries.
+        
+        Args:
+            existing: Existing memory state
+            new: New memory state to merge
+            
+        Returns:
+            Merged memory state
+        """
+        if not isinstance(existing, dict) or not isinstance(new, dict):
+            logging.warning("Memory state is not a dictionary, using new state")
+            return new
+        
+        return self._deep_merge_dict(existing, new)
+    
+    def _merge_web_search_state(self, existing: Dict[str, Any], new: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Merge web search module state.
+        
+        Args:
+            existing: Existing web search state
+            new: New web search state to merge
+            
+        Returns:
+            Merged web search state
+        """
+        if not isinstance(existing, dict) or not isinstance(new, dict):
+            logging.warning("Web search state is not a dictionary, using new state")
+            return new
+        
+        # For web search, merge search history and cache
+        merged = existing.copy()
+        
+        # Merge search history if it exists
+        if "search_history" in new:
+            existing_history = existing.get("search_history", [])
+            new_history = new.get("search_history", [])
+            
+            if isinstance(existing_history, list) and isinstance(new_history, list):
+                # Combine histories, avoiding duplicates
+                merged_history = existing_history.copy()
+                for item in new_history:
+                    if item not in merged_history:
+                        merged_history.append(item)
+                merged["search_history"] = merged_history
+            else:
+                merged["search_history"] = new_history
+        
+        # Merge other keys
+        for key, value in new.items():
+            if key != "search_history":
+                merged[key] = value
+        
+        return merged
+    
+    def _merge_generic_state(self, existing: Any, new: Any) -> Any:
+        """
+        Generic state merging for unknown module types.
+        
+        Args:
+            existing: Existing state
+            new: New state to merge
+            
+        Returns:
+            Merged state
+        """
+        # If both are dictionaries, try deep merge
+        if isinstance(existing, dict) and isinstance(new, dict):
+            return self._deep_merge_dict(existing, new)
+        
+        # If both are lists, combine them
+        if isinstance(existing, list) and isinstance(new, list):
+            return existing + new
+        
+        # Otherwise, new state overwrites existing
+        return new
+    
+    def _deep_merge_dict(self, dict1: Dict[str, Any], dict2: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Deep merge two dictionaries.
+        
+        Args:
+            dict1: First dictionary
+            dict2: Second dictionary (takes precedence)
+            
+        Returns:
+            Merged dictionary
+        """
+        result = dict1.copy()
+        
+        for key, value in dict2.items():
+            if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+                result[key] = self._deep_merge_dict(result[key], value)
+            else:
+                result[key] = value
+        
+        return result
     
     def _generate_default_metadata(self) -> Dict[str, Any]:
         """Generate default metadata for content pack export."""
