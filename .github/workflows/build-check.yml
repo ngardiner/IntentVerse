@@ -27,51 +27,62 @@ jobs:
           docker compose ps
 
       - name: Run core unit tests
+        id: core-unit-tests
         run: |
           echo "Running core unit tests..."
           docker compose run --rm \
             -e PYTHONPATH=/app \
             -e SERVICE_API_KEY=dev-service-key-12345 \
+            -e LOG_LEVEL=ERROR \
             tests python -m pytest tests/ -v \
             --tb=short \
             --disable-warnings \
+            --no-header \
             -m "not e2e" \
             --junitxml=/app/test-results-unit.xml
-        continue-on-error: false
+        continue-on-error: true
 
       - name: Run core e2e tests
+        id: core-e2e-tests
         run: |
           echo "Running core e2e tests..."
           docker compose run --rm \
             -e PYTHONPATH=/app \
             -e SERVICE_API_KEY=dev-service-key-12345 \
             -e CORE_API_URL=http://core:8000 \
+            -e LOG_LEVEL=ERROR \
             tests python -m pytest tests/ -v \
             --tb=short \
             --disable-warnings \
+            --no-header \
             -m "e2e" \
             --junitxml=/app/test-results-e2e.xml
         continue-on-error: true
 
       - name: Run MCP tests
+        id: mcp-tests
         run: |
           echo "Running MCP tests..."
           docker compose run --rm \
             -e PYTHONPATH=/app \
             -e CORE_API_URL=http://core:8000 \
             -e SERVICE_API_KEY=dev-service-key-12345 \
+            -e LOG_LEVEL=ERROR \
             mcp-tests python -m pytest tests/ -v \
             --tb=short \
             --disable-warnings \
+            --no-header \
             --junitxml=/app/test-results-mcp.xml
         continue-on-error: true
 
       - name: Run web tests
+        id: web-tests
         run: |
           echo "Running web tests..."
           docker compose run --rm \
             -e CI=true \
             web npm test -- --coverage --watchAll=false --ci \
+            --silent \
             --testResultsProcessor=jest-junit
         continue-on-error: true
 
@@ -82,11 +93,109 @@ jobs:
       - name: Collect test results
         if: always()
         run: |
-          echo "Test execution completed. Check individual step results above."
-          echo "Core unit tests: Check step results"
-          echo "Core e2e tests: Check step results"  
-          echo "MCP tests: Check step results"
-          echo "Web tests: Check step results"
+          echo "==================== TEST EXECUTION SUMMARY ===================="
+          echo "Core unit tests: ${{ steps.core-unit-tests.outcome }}"
+          echo "Core e2e tests: ${{ steps.core-e2e-tests.outcome }}"  
+          echo "MCP tests: ${{ steps.mcp-tests.outcome }}"
+          echo "Web tests: ${{ steps.web-tests.outcome }}"
+          echo "=============================================================="
+          
+          # Extract test counts from JUnit XML files
+          echo "Extracting test counts from JUnit XML files..."
+          
+          # Function to extract test counts from XML
+          extract_counts() {
+            local file=$1
+            if [ -f "$file" ]; then
+              echo "From $(basename $file):"
+              tests=$(grep -o 'tests="[0-9]*"' "$file" | head -1 | grep -o '[0-9]*')
+              failures=$(grep -o 'failures="[0-9]*"' "$file" | head -1 | grep -o '[0-9]*')
+              errors=$(grep -o 'errors="[0-9]*"' "$file" | head -1 | grep -o '[0-9]*')
+              skipped=$(grep -o 'skipped="[0-9]*"' "$file" | head -1 | grep -o '[0-9]*')
+              echo "  Tests: ${tests:-0}, Failures: ${failures:-0}, Errors: ${errors:-0}, Skipped: ${skipped:-0}"
+            else
+              echo "File $file not found"
+            fi
+          }
+          
+          # Create a directory for test artifacts
+          mkdir -p test-results
+          
+          # Extract and display test counts
+          docker cp intentverse-tests:/app/test-results-unit.xml ./test-results/core-unit.xml 2>/dev/null || true
+          docker cp intentverse-tests:/app/test-results-e2e.xml ./test-results/core-e2e.xml 2>/dev/null || true
+          docker cp intentverse-mcp-tests:/app/test-results-mcp.xml ./test-results/mcp.xml 2>/dev/null || true
+          
+          echo "Core unit tests:"
+          extract_counts "./test-results/core-unit.xml"
+          
+          echo "Core e2e tests:"
+          extract_counts "./test-results/core-e2e.xml"
+          
+          echo "MCP tests:"
+          extract_counts "./test-results/mcp.xml"
+          
+          # Create a summary file
+          echo "# Test Results Summary" > test-results/summary.md
+          echo "" >> test-results/summary.md
+          echo "| Test Suite | Status | Tests | Failures | Errors | Skipped |" >> test-results/summary.md
+          echo "|-----------|--------|-------|----------|--------|---------|" >> test-results/summary.md
+          
+          # Add core unit tests
+          if [ -f "./test-results/core-unit.xml" ]; then
+            tests=$(grep -o 'tests="[0-9]*"' "./test-results/core-unit.xml" | head -1 | grep -o '[0-9]*')
+            failures=$(grep -o 'failures="[0-9]*"' "./test-results/core-unit.xml" | head -1 | grep -o '[0-9]*')
+            errors=$(grep -o 'errors="[0-9]*"' "./test-results/core-unit.xml" | head -1 | grep -o '[0-9]*')
+            skipped=$(grep -o 'skipped="[0-9]*"' "./test-results/core-unit.xml" | head -1 | grep -o '[0-9]*')
+            echo "| Core Unit | ${{ steps.core-unit-tests.outcome }} | ${tests:-0} | ${failures:-0} | ${errors:-0} | ${skipped:-0} |" >> test-results/summary.md
+          else
+            echo "| Core Unit | ${{ steps.core-unit-tests.outcome }} | - | - | - | - |" >> test-results/summary.md
+          fi
+          
+          # Add core e2e tests
+          if [ -f "./test-results/core-e2e.xml" ]; then
+            tests=$(grep -o 'tests="[0-9]*"' "./test-results/core-e2e.xml" | head -1 | grep -o '[0-9]*')
+            failures=$(grep -o 'failures="[0-9]*"' "./test-results/core-e2e.xml" | head -1 | grep -o '[0-9]*')
+            errors=$(grep -o 'errors="[0-9]*"' "./test-results/core-e2e.xml" | head -1 | grep -o '[0-9]*')
+            skipped=$(grep -o 'skipped="[0-9]*"' "./test-results/core-e2e.xml" | head -1 | grep -o '[0-9]*')
+            echo "| Core E2E | ${{ steps.core-e2e-tests.outcome }} | ${tests:-0} | ${failures:-0} | ${errors:-0} | ${skipped:-0} |" >> test-results/summary.md
+          else
+            echo "| Core E2E | ${{ steps.core-e2e-tests.outcome }} | - | - | - | - |" >> test-results/summary.md
+          fi
+          
+          # Add MCP tests
+          if [ -f "./test-results/mcp.xml" ]; then
+            tests=$(grep -o 'tests="[0-9]*"' "./test-results/mcp.xml" | head -1 | grep -o '[0-9]*')
+            failures=$(grep -o 'failures="[0-9]*"' "./test-results/mcp.xml" | head -1 | grep -o '[0-9]*')
+            errors=$(grep -o 'errors="[0-9]*"' "./test-results/mcp.xml" | head -1 | grep -o '[0-9]*')
+            skipped=$(grep -o 'skipped="[0-9]*"' "./test-results/mcp.xml" | head -1 | grep -o '[0-9]*')
+            echo "| MCP | ${{ steps.mcp-tests.outcome }} | ${tests:-0} | ${failures:-0} | ${errors:-0} | ${skipped:-0} |" >> test-results/summary.md
+          else
+            echo "| MCP | ${{ steps.mcp-tests.outcome }} | - | - | - | - |" >> test-results/summary.md
+          fi
+          
+          # Add Web tests
+          echo "| Web | ${{ steps.web-tests.outcome }} | - | - | - | - |" >> test-results/summary.md
+          
+          # Display the summary
+          cat test-results/summary.md
+          
+          # Set exit code based on test results
+          if [ "${{ steps.core-unit-tests.outcome }}" == "failure" ] || \
+             [ "${{ steps.core-e2e-tests.outcome }}" == "failure" ] || \
+             [ "${{ steps.mcp-tests.outcome }}" == "failure" ] || \
+             [ "${{ steps.web-tests.outcome }}" == "failure" ]; then
+            echo "::error::One or more test suites failed!"
+            exit 1
+          fi
+          
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-results
+          path: test-results/
+          retention-days: 7
 
   gitleaks-scan:
     name: Gitleaks Secret Scan
