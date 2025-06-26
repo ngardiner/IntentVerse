@@ -1,5 +1,15 @@
 """
 Unit tests for the Timeline module.
+
+This test file uses database mocking similar to the auth test cases to avoid 
+database dependencies and improve test performance and reliability.
+
+The tests are organized into:
+1. TestTimelineCore: Unit tests for core timeline functions (state manager mocked)
+2. TestTimelineAPIUnit: Unit tests for API endpoints (database and auth mocked)
+3. TestTimelineAPI: Integration tests using TestClient (slower but more comprehensive)
+4. TestTimelineSampleData: Tests for sample data generation
+5. TestTimelineIntegration: Integration tests for module loading and schema
 """
 import pytest
 import json
@@ -8,6 +18,7 @@ from datetime import datetime, timedelta
 from unittest.mock import Mock, patch, MagicMock
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
+from sqlmodel import Session
 
 from app.modules.timeline.tool import (
     get_events,
@@ -19,6 +30,7 @@ from app.modules.timeline.tool import (
 )
 from app.modules.timeline.sample_data import generate_sample_events
 from app.state_manager import StateManager
+from app.models import User
 
 
 class TestTimelineCore:
@@ -280,8 +292,138 @@ class TestTimelineCore:
             assert event["status"] == "error"
 
 
+class TestTimelineAPIUnit:
+    """Unit tests for timeline API endpoints using mocks."""
+    
+    @patch('app.auth.get_session')
+    async def test_get_timeline_events_with_mocked_auth(self, mock_get_session):
+        """Test timeline events endpoint with mocked authentication."""
+        from app.modules.timeline.tool import get_timeline_events
+        
+        # Create a mock session and user
+        mock_session = Mock(spec=Session)
+        mock_user = User(
+            id=1,
+            username="testuser",
+            email="test@example.com",
+            hashed_password="hashed_password",
+            is_active=True,
+            is_admin=False
+        )
+        
+        # Mock the database query
+        mock_session.exec.return_value.first.return_value = mock_user
+        mock_get_session.return_value = mock_session
+        
+        # Mock the get_events function
+        sample_events = [
+            {
+                "id": "event-1",
+                "event_type": "tool_execution",
+                "title": "Tool Executed: filesystem.read_file",
+                "description": "The tool 'filesystem.read_file' was executed",
+                "timestamp": "2023-01-01T12:00:00",
+                "status": "success"
+            }
+        ]
+        
+        with patch('app.modules.timeline.tool.get_events', return_value=sample_events):
+            # Test the API function directly
+            result = await get_timeline_events(current_user_or_service=mock_user)
+            
+            assert len(result) == 1
+            assert result[0]["id"] == "event-1"
+            assert result[0]["event_type"] == "tool_execution"
+    
+    @patch('app.auth.get_session')
+    async def test_get_timeline_events_with_filter(self, mock_get_session):
+        """Test timeline events endpoint with event type filter."""
+        from app.modules.timeline.tool import get_timeline_events
+        
+        # Create a mock session and user
+        mock_session = Mock(spec=Session)
+        mock_user = User(
+            id=1,
+            username="testuser",
+            email="test@example.com",
+            hashed_password="hashed_password",
+            is_active=True,
+            is_admin=False
+        )
+        
+        # Mock the database query
+        mock_session.exec.return_value.first.return_value = mock_user
+        mock_get_session.return_value = mock_session
+        
+        # Mock the get_events function
+        sample_events = [
+            {
+                "id": "event-1",
+                "event_type": "tool_execution",
+                "title": "Tool Executed: filesystem.read_file",
+                "description": "The tool 'filesystem.read_file' was executed",
+                "timestamp": "2023-01-01T12:00:00",
+                "status": "success"
+            },
+            {
+                "id": "event-2",
+                "event_type": "system",
+                "title": "System Started",
+                "description": "The system has been started",
+                "timestamp": "2023-01-01T11:00:00",
+                "status": None
+            }
+        ]
+        
+        with patch('app.modules.timeline.tool.get_events', return_value=sample_events):
+            # Test with event_type filter
+            result = await get_timeline_events(
+                current_user_or_service=mock_user,
+                event_type="tool_execution"
+            )
+            
+            assert len(result) == 1
+            assert result[0]["event_type"] == "tool_execution"
+    
+    @patch('app.auth.get_session')
+    async def test_get_timeline_events_with_limit(self, mock_get_session):
+        """Test timeline events endpoint with limit."""
+        from app.modules.timeline.tool import get_timeline_events
+        
+        # Create a mock session and user
+        mock_session = Mock(spec=Session)
+        mock_user = User(
+            id=1,
+            username="testuser",
+            email="test@example.com",
+            hashed_password="hashed_password",
+            is_active=True,
+            is_admin=False
+        )
+        
+        # Mock the database query
+        mock_session.exec.return_value.first.return_value = mock_user
+        mock_get_session.return_value = mock_session
+        
+        # Mock the get_events function with multiple events
+        sample_events = [
+            {"id": f"event-{i}", "event_type": "test", "title": f"Event {i}", 
+             "description": f"Description {i}", "timestamp": f"2023-01-01T{i:02d}:00:00", 
+             "status": None} for i in range(5)
+        ]
+        
+        with patch('app.modules.timeline.tool.get_events', return_value=sample_events):
+            # Test with limit
+            result = await get_timeline_events(
+                current_user_or_service=mock_user,
+                limit=2
+            )
+            
+            assert len(result) == 2
+
+
 class TestTimelineAPI:
-    """Test timeline API endpoints."""
+    """Integration tests for timeline API endpoints."""
     
     @pytest.fixture
     def sample_events(self):
@@ -319,10 +461,57 @@ class TestTimelineAPI:
             }
         ]
     
-    def test_get_timeline_events_success(self, authenticated_client, sample_events):
+    @pytest.fixture
+    def mock_auth_user(self):
+        """Create a mock authenticated user."""
+        return User(
+            id=1,
+            username="testuser",
+            email="test@example.com",
+            hashed_password="hashed_password",
+            is_active=True,
+            is_admin=False
+        )
+    
+    @pytest.fixture
+    def mock_client(self, mock_auth_user):
+        """Create a test client with mocked authentication and database."""
+        from fastapi.testclient import TestClient
+        from app.main import app
+        
+        # Mock the database session
+        mock_session = Mock(spec=Session)
+        mock_session.exec.return_value.first.return_value = mock_auth_user
+        
+        # Mock the get_session dependency
+        def mock_get_session():
+            return mock_session
+        
+        # Mock the get_current_user_or_service dependency
+        def mock_get_current_user_or_service():
+            return mock_auth_user
+        
+        # Override dependencies
+        from app.database import get_session
+        from app.auth import get_current_user_or_service
+        
+        app.dependency_overrides[get_session] = mock_get_session
+        app.dependency_overrides[get_current_user_or_service] = mock_get_current_user_or_service
+        
+        # Create client without triggering startup events
+        with TestClient(app) as client:
+            yield client
+        
+        # Clean up dependency overrides
+        if get_session in app.dependency_overrides:
+            del app.dependency_overrides[get_session]
+        if get_current_user_or_service in app.dependency_overrides:
+            del app.dependency_overrides[get_current_user_or_service]
+    
+    def test_get_timeline_events_success(self, mock_client, sample_events):
         """Test successful retrieval of timeline events."""
         with patch('app.modules.timeline.tool.get_events', return_value=sample_events):
-            response = authenticated_client.get("/api/v1/timeline/events")
+            response = mock_client.get("/api/v1/timeline/events")
             
             assert response.status_code == 200
             data = response.json()
@@ -333,10 +522,10 @@ class TestTimelineAPI:
             assert data[1]["id"] == "event-2"  # 11:00:00
             assert data[2]["id"] == "event-3"  # 10:00:00 - oldest
     
-    def test_get_timeline_events_with_event_type_filter(self, authenticated_client, sample_events):
+    def test_get_timeline_events_with_event_type_filter(self, mock_client, sample_events):
         """Test filtering events by event_type."""
         with patch('app.modules.timeline.tool.get_events', return_value=sample_events):
-            response = authenticated_client.get("/api/v1/timeline/events?event_type=tool_execution")
+            response = mock_client.get("/api/v1/timeline/events?event_type=tool_execution")
             
             assert response.status_code == 200
             data = response.json()
@@ -346,10 +535,10 @@ class TestTimelineAPI:
             assert data[0]["event_type"] == "tool_execution"
             assert data[0]["id"] == "event-1"
     
-    def test_get_timeline_events_with_limit(self, authenticated_client, sample_events):
+    def test_get_timeline_events_with_limit(self, mock_client, sample_events):
         """Test limiting the number of returned events."""
         with patch('app.modules.timeline.tool.get_events', return_value=sample_events):
-            response = authenticated_client.get("/api/v1/timeline/events?limit=2")
+            response = mock_client.get("/api/v1/timeline/events?limit=2")
             
             assert response.status_code == 200
             data = response.json()
@@ -359,7 +548,7 @@ class TestTimelineAPI:
             assert data[0]["id"] == "event-1"
             assert data[1]["id"] == "event-2"
     
-    def test_get_timeline_events_with_event_type_and_limit(self, authenticated_client, sample_events):
+    def test_get_timeline_events_with_event_type_and_limit(self, mock_client, sample_events):
         """Test combining event_type filter and limit."""
         # Add more tool_execution events to test limit
         extended_events = sample_events + [
@@ -374,7 +563,7 @@ class TestTimelineAPI:
         ]
         
         with patch('app.modules.timeline.tool.get_events', return_value=extended_events):
-            response = authenticated_client.get("/api/v1/timeline/events?event_type=tool_execution&limit=1")
+            response = mock_client.get("/api/v1/timeline/events?event_type=tool_execution&limit=1")
             
             assert response.status_code == 200
             data = response.json()
@@ -384,39 +573,39 @@ class TestTimelineAPI:
             assert data[0]["event_type"] == "tool_execution"
             assert data[0]["id"] == "event-4"  # Newest tool_execution event
     
-    def test_get_timeline_events_empty_result(self, authenticated_client):
+    def test_get_timeline_events_empty_result(self, mock_client):
         """Test when no events exist."""
         with patch('app.modules.timeline.tool.get_events', return_value=[]):
-            response = authenticated_client.get("/api/v1/timeline/events")
+            response = mock_client.get("/api/v1/timeline/events")
             
             assert response.status_code == 200
             data = response.json()
             assert data == []
     
-    def test_get_timeline_events_no_matching_filter(self, authenticated_client, sample_events):
+    def test_get_timeline_events_no_matching_filter(self, mock_client, sample_events):
         """Test when no events match the filter."""
         with patch('app.modules.timeline.tool.get_events', return_value=sample_events):
-            response = authenticated_client.get("/api/v1/timeline/events?event_type=nonexistent")
+            response = mock_client.get("/api/v1/timeline/events?event_type=nonexistent")
             
             assert response.status_code == 200
             data = response.json()
             assert data == []
     
-    def test_get_timeline_events_invalid_limit(self, authenticated_client, sample_events):
+    def test_get_timeline_events_invalid_limit(self, mock_client, sample_events):
         """Test with invalid limit parameter."""
         with patch('app.modules.timeline.tool.get_events', return_value=sample_events):
             # Test with negative limit
-            response = authenticated_client.get("/api/v1/timeline/events?limit=-1")
+            response = mock_client.get("/api/v1/timeline/events?limit=-1")
             
             assert response.status_code == 200
             data = response.json()
             # Should return empty list for negative limit
             assert data == []
     
-    def test_get_timeline_events_zero_limit(self, authenticated_client, sample_events):
+    def test_get_timeline_events_zero_limit(self, mock_client, sample_events):
         """Test with zero limit."""
         with patch('app.modules.timeline.tool.get_events', return_value=sample_events):
-            response = authenticated_client.get("/api/v1/timeline/events?limit=0")
+            response = mock_client.get("/api/v1/timeline/events?limit=0")
             
             assert response.status_code == 200
             data = response.json()
@@ -472,7 +661,8 @@ class TestTimelineSampleData:
             mock_datetime.utcnow.return_value = datetime(2023, 1, 1, 12, 0, 0)
             mock_randint.return_value = 1
             mock_choice.return_value = "filesystem.read_file"
-            mock_choices.side_effect = [["tool_execution"], ["success"]]
+            # Create a repeating pattern for the choices mock
+            mock_choices.side_effect = [["tool_execution"], ["success"]] * 20
             
             events = generate_sample_events()
             
