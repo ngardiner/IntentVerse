@@ -368,8 +368,13 @@ class TestAPIRoutes:
         with patch.object(module_loader, 'get_tool') as mock_get_tool:
             # Create a mock tool that raises HTTPException
             mock_tool = MockTool(Mock())
+            
+            # Create a proper mock function with the correct signature
+            def mock_simple_method(param1: str) -> str:
+                raise HTTPException(status_code=400, detail="Tool error")
+            
             # Override the simple_method to raise HTTPException
-            mock_tool.simple_method = Mock(side_effect=HTTPException(status_code=400, detail="Tool error"))
+            mock_tool.simple_method = mock_simple_method
             mock_get_tool.return_value = mock_tool
             
             payload = {
@@ -391,8 +396,13 @@ class TestAPIRoutes:
         with patch.object(module_loader, 'get_tool') as mock_get_tool:
             # Create a mock tool that raises ValueError
             mock_tool = MockTool(Mock())
+            
+            # Create a proper mock function with the correct signature
+            def mock_simple_method(param1: str) -> str:
+                raise ValueError("Generic error")
+            
             # Override the simple_method to raise ValueError
-            mock_tool.simple_method = Mock(side_effect=ValueError("Generic error"))
+            mock_tool.simple_method = mock_simple_method
             mock_get_tool.return_value = mock_tool
             
             payload = {

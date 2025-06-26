@@ -66,7 +66,7 @@ def test_write_and_read_end_to_end():
         
         print("E2E Test: Write and read test completed successfully!")
         
-    except httpx.ConnectError as e:
+    except (httpx.ConnectError, httpx.ConnectTimeout) as e:
         pytest.skip(f"Could not connect to the core service at {CORE_API_URL}. Skipping e2e test. Error: {e}")
     finally:
         client.close()
@@ -105,7 +105,7 @@ async def test_execute_non_existent_tool_returns_404():
         
         print("E2E Test: 404 test completed successfully!")
         
-    except httpx.ConnectError as e:
+    except (httpx.ConnectError, httpx.ConnectTimeout) as e:
         pytest.skip(f"Could not connect to the core service at {CORE_API_URL}. Skipping e2e test. Error: {e}")
 
 @pytest.mark.e2e
@@ -164,7 +164,7 @@ async def test_memory_module_set_and_get_e2e():
             
             print("E2E Test: Memory module test completed successfully!")
             
-    except httpx.ConnectError as e:
+    except (httpx.ConnectError, httpx.ConnectTimeout) as e:
         pytest.skip(f"Could not connect to the core service at {CORE_API_URL}. Skipping e2e test. Error: {e}")
 
 @pytest.mark.e2e
@@ -236,5 +236,5 @@ async def test_database_module_e2e():
             
             print("E2E Test: Database module test completed successfully!")
             
-    except httpx.ConnectError as e:
+    except (httpx.ConnectError, httpx.ConnectTimeout) as e:
         pytest.skip(f"Could not connect to the core service at {CORE_API_URL}. Skipping e2e test. Error: {e}")

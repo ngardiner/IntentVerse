@@ -12,7 +12,7 @@ Welcome to the comprehensive API documentation for IntentVerse. This documentati
 - **[User Management](user-management.md)** - User, group, and permission management
 - **[Timeline](timeline.md)** - Event logging and timeline management
 - **[Error Handling](error-handling.md)** - Error codes, responses, and troubleshooting
-- **[Examples](examples.md)** - Code examples and integration patterns
+- **[Examples](examples.md)** - Code examples and integration patterns (Coming Soon)
 
 ## 🚀 Quick Start
 
@@ -70,7 +70,7 @@ curl -H "Authorization: Bearer YOUR_TOKEN" \
 
 1. **Read the [Overview](overview.md)** to understand the API architecture
 2. **Set up [Authentication](authentication.md)** to access protected endpoints
-3. **Explore [Examples](examples.md)** for common integration patterns
+3. **Explore the individual API documentation** for detailed examples and integration patterns
 4. **Check [Error Handling](error-handling.md)** for troubleshooting
 
 ## 🔄 API Versioning
@@ -81,5 +81,5 @@ The current API version is **v1**. All endpoints are prefixed with `/api/v1` exc
 
 For questions or issues with the API:
 - Check the [Error Handling](error-handling.md) guide
-- Review the [Examples](examples.md) for common patterns
+- Review the individual API documentation for detailed examples
 - Examine the interactive documentation at `/docs`

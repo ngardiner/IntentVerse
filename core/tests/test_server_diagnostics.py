@@ -216,7 +216,7 @@ def test_server_module_loader_diagnostics():
     # ACT: Call the debug endpoint
     try:
         response = client.get("/api/v1/debug/module-loader-state")
-    except httpx.ConnectError as e:
+    except (httpx.ConnectError, httpx.ConnectTimeout) as e:
         pytest.skip(f"Could not connect to the core service at {CORE_API_URL}. Skipping e2e test. Error: {e}")
 
     # ASSERT: Check the response and its data
