@@ -14,7 +14,11 @@ from app.database import get_session
 from app.state_manager import StateManager
 from app.module_loader import ModuleLoader
 from app.auth import get_current_user, get_current_user_or_service, User, UserGroup, UserGroupLink
-from app.models import AuditLog, Role, Permission, UserRoleLink, GroupRoleLink, RolePermissionLink
+# Import ALL models to ensure they're registered with SQLModel metadata
+from app.models import (
+    AuditLog, Role, Permission, UserRoleLink, GroupRoleLink, RolePermissionLink,
+    ModuleConfiguration, User, UserGroup, UserGroupLink
+)
 from app.security import get_password_hash, create_access_token
 
 # Use an in-memory SQLite database for testing
@@ -26,7 +30,16 @@ def get_session_override():
     with Session(test_engine) as session:
         yield session
 
+# Override the database session dependency
 app.dependency_overrides[get_session] = get_session_override
+
+# Also override the engine used in the database module
+from app import database
+database.engine = test_engine
+
+# Override the init_db module to use the test engine
+from app import init_db
+init_db.engine = test_engine
 
 # Test user data
 TEST_USER_DATA = {
@@ -94,6 +107,27 @@ def service_headers_fixture():
     """Get service authentication headers for API requests."""
     return get_service_headers()
 
+def create_test_db_and_tables():
+    """Create all database tables for testing, ensuring all models are imported."""
+    # Import all models to ensure they're registered with SQLModel metadata
+    # This matches what's done in app.database.create_db_and_tables()
+    from app.models import (
+        User, UserGroup, UserGroupLink, AuditLog, ModuleConfiguration,
+        Role, Permission, UserRoleLink, GroupRoleLink, RolePermissionLink
+    )
+    
+    # Create all tables
+    SQLModel.metadata.create_all(test_engine)
+    
+    # Verify critical tables exist
+    with Session(test_engine) as session:
+        try:
+            session.exec("SELECT COUNT(*) FROM auditlog").first()
+            session.exec("SELECT COUNT(*) FROM user").first()
+            session.exec("SELECT COUNT(*) FROM role").first()
+        except Exception as e:
+            raise RuntimeError(f"Failed to create test database tables: {e}")
+
 @pytest.fixture(name="client")
 def client_fixture():
     """
@@ -101,8 +135,8 @@ def client_fixture():
     This fixture now correctly handles the application lifespan,
     ensuring the database and modules are initialized before tests run.
     """
-    # Manually create tables for the in-memory/test database
-    SQLModel.metadata.create_all(test_engine)
+    # Create all database tables
+    create_test_db_and_tables()
     
     # Set up test database with RBAC system
     with Session(test_engine) as session:
@@ -110,6 +144,8 @@ def client_fixture():
     
     # This context manager will run the startup events before yielding
     with TestClient(app) as client:
+        # Ensure tables are still there after app startup
+        create_test_db_and_tables()
         yield client
         
     # Clean up by dropping tables after tests are done
@@ -128,9 +164,10 @@ def session_fixture():
     """
     Pytest fixture to provide a database session for tests.
     """
+    # Ensure tables are created
+    create_test_db_and_tables()
+    
     with Session(test_engine) as session:
-        # Create tables if they don't exist
-        SQLModel.metadata.create_all(test_engine)
         yield session
 
 @pytest.fixture(name="service_client")

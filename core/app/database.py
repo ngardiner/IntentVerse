@@ -23,33 +23,37 @@ def create_db_and_tables():
     # Import all models to ensure they're registered with SQLModel
     from .models import User, UserGroup, UserGroupLink, AuditLog, ModuleConfiguration
     
-    # Check if database exists and has the expected schema
-    db_file = "./intentverse.db"
-    needs_recreation = False
+    # Check if this is an in-memory database (used for testing)
+    is_memory_db = str(engine.url).startswith("sqlite:///:memory:")
     
-    if os.path.exists(db_file):
-        # Check if we need to recreate due to schema changes
-        try:
-            # Test if the current schema matches by trying to access new columns
-            with Session(engine) as session:
-                # Try to query a user with the new email field
-                test_query = select(User.id, User.email).limit(1)
-                session.exec(test_query).first()
-                
-                # Try to query the audit log table
-                test_audit_query = select(AuditLog.id).limit(1)
-                session.exec(test_audit_query).first()
-                
-        except Exception as e:
-            logging.warning(f"Database schema appears outdated: {e}")
-            logging.info("Recreating database...")
-            needs_recreation = True
-    
-    if needs_recreation:
-        # Remove the old database file
+    if not is_memory_db:
+        # Only check for file recreation if using a file-based database
+        db_file = "./intentverse.db"
+        needs_recreation = False
+        
         if os.path.exists(db_file):
-            os.remove(db_file)
-            logging.info("Removed old database file")
+            # Check if we need to recreate due to schema changes
+            try:
+                # Test if the current schema matches by trying to access new columns
+                with Session(engine) as session:
+                    # Try to query a user with the new email field
+                    test_query = select(User.id, User.email).limit(1)
+                    session.exec(test_query).first()
+                    
+                    # Try to query the audit log table
+                    test_audit_query = select(AuditLog.id).limit(1)
+                    session.exec(test_audit_query).first()
+                    
+            except Exception as e:
+                logging.warning(f"Database schema appears outdated: {e}")
+                logging.info("Recreating database...")
+                needs_recreation = True
+        
+        if needs_recreation:
+            # Remove the old database file
+            if os.path.exists(db_file):
+                os.remove(db_file)
+                logging.info("Removed old database file")
     
     # Create all tables
     SQLModel.metadata.create_all(engine)
