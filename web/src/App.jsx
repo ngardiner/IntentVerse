@@ -34,7 +34,6 @@ const AuthProvider = ({ children }) => {
       }
     } catch (error) {
       console.error("Login failed:", error);
-      // You might want to set an error state here to show in the UI
     }
   };
 

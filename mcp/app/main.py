@@ -3,7 +3,6 @@ import asyncio
 import logging
 from fastmcp import FastMCP
 
-# Import the components we just built
 from .registrar import ToolRegistrar
 from .core_client import CoreClient
 from .logging_config import setup_logging
@@ -95,6 +94,3 @@ if __name__ == "__main__":
             asyncio.run(shutdown())
         except Exception as e:
             logging.error(f"Error during shutdown: {e}")
-    # In a real app, you might want to gracefully close the client connection
-    # finally:
-    #     asyncio.run(core_client.close())

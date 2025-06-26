@@ -37,7 +37,6 @@ class CoreClient:
         """
         try:
             logging.info("CoreClient: Fetching tool manifest from Core Engine...")
-            # We'll need to create this endpoint in the core service.
             response = await self.client.get("/api/v1/tools/manifest")
             response.raise_for_status()  # Raises an exception for 4xx or 5xx status codes
             logging.info("CoreClient: Successfully fetched tool manifest.")
