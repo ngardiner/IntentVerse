@@ -56,7 +56,7 @@ IntentVerse supports two authentication methods:
 
 ### 1. JWT Token Authentication (Users)
 ```http
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+Authorization: Bearer YOUR_JWT_TOKEN_HERE
 ```
 
 ### 2. API Key Authentication (Services)

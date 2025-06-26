@@ -3,6 +3,7 @@ Test RBAC integration and functionality.
 """
 
 import pytest
+import os
 from fastapi.testclient import TestClient
 from sqlmodel import Session, select
 
@@ -122,27 +123,23 @@ def test_wildcard_permissions(session: Session):
     assert not checker.has_permission(user, "users.create")
 
 
-def test_rbac_api_endpoints(client: TestClient, session: Session):
+def test_rbac_api_endpoints(client: TestClient):
     """Test RBAC management API endpoints."""
-    # Initialize RBAC system
-    initialize_rbac_system(session)
+    # RBAC system is already initialized by the client fixture
     
-    # Create an admin user and get token
-    admin_user = User(
-        username="admin_api",
-        hashed_password=get_password_hash("adminpass"),
-        email="admin_api@example.com",
-        is_admin=True
-    )
-    session.add(admin_user)
-    session.commit()
-    session.refresh(admin_user)
+    # Create an admin user through the API using service authentication
+    service_headers = {"X-API-Key": os.environ.get("SERVICE_API_KEY", "test-service-key-12345")}
     
-    # Assign admin role
-    admin_role = session.exec(select(Role).where(Role.name == "admin")).first()
-    admin_role_link = UserRoleLink(user_id=admin_user.id, role_id=admin_role.id)
-    session.add(admin_role_link)
-    session.commit()
+    admin_user_data = {
+        "username": "admin_api",
+        "password": "adminpass",
+        "email": "admin_api@example.com",
+        "is_admin": True
+    }
+    
+    # Create user via API
+    create_response = client.post("/users/", json=admin_user_data, headers=service_headers)
+    assert create_response.status_code == 200
     
     # Login to get token
     login_response = client.post("/auth/login", data={
@@ -180,26 +177,23 @@ def test_rbac_api_endpoints(client: TestClient, session: Session):
     assert not created_role["is_system_role"]
 
 
-def test_permission_denied_for_regular_user(client: TestClient, session: Session):
+def test_permission_denied_for_regular_user(client: TestClient):
     """Test that regular users are denied access to admin endpoints."""
-    # Initialize RBAC system
-    initialize_rbac_system(session)
+    # RBAC system is already initialized by the client fixture
     
-    # Create a regular user
-    user = User(
-        username="regular_user",
-        hashed_password=get_password_hash("userpass"),
-        email="user@example.com"
-    )
-    session.add(user)
-    session.commit()
-    session.refresh(user)
+    # Create a regular user through the API using service authentication
+    service_headers = {"X-API-Key": os.environ.get("SERVICE_API_KEY", "test-service-key-12345")}
     
-    # Assign user role
-    user_role = session.exec(select(Role).where(Role.name == "user")).first()
-    user_role_link = UserRoleLink(user_id=user.id, role_id=user_role.id)
-    session.add(user_role_link)
-    session.commit()
+    user_data = {
+        "username": "regular_user",
+        "password": "userpass",
+        "email": "user@example.com",
+        "is_admin": False
+    }
+    
+    # Create user via API
+    create_response = client.post("/users/", json=user_data, headers=service_headers)
+    assert create_response.status_code == 200
     
     # Login to get token
     login_response = client.post("/auth/login", data={
@@ -231,26 +225,25 @@ def test_permission_denied_for_regular_user(client: TestClient, session: Session
     assert response.status_code == 403
 
 
-def test_user_can_view_own_details(client: TestClient, session: Session):
+def test_user_can_view_own_details(client: TestClient):
     """Test that users can view their own details."""
-    # Initialize RBAC system
-    initialize_rbac_system(session)
+    # RBAC system is already initialized by the client fixture
     
-    # Create a regular user
-    user = User(
-        username="self_view_user",
-        hashed_password=get_password_hash("userpass"),
-        email="selfview@example.com"
-    )
-    session.add(user)
-    session.commit()
-    session.refresh(user)
+    # Create a regular user through the API using service authentication
+    service_headers = {"X-API-Key": os.environ.get("SERVICE_API_KEY", "test-service-key-12345")}
     
-    # Assign user role
-    user_role = session.exec(select(Role).where(Role.name == "user")).first()
-    user_role_link = UserRoleLink(user_id=user.id, role_id=user_role.id)
-    session.add(user_role_link)
-    session.commit()
+    user_data = {
+        "username": "self_view_user",
+        "password": "userpass",
+        "email": "selfview@example.com",
+        "is_admin": False
+    }
+    
+    # Create user via API
+    create_response = client.post("/users/", json=user_data, headers=service_headers)
+    assert create_response.status_code == 200
+    created_user = create_response.json()
+    user_id = created_user["id"]
     
     # Login to get token
     login_response = client.post("/auth/login", data={
@@ -264,13 +257,13 @@ def test_user_can_view_own_details(client: TestClient, session: Session):
     # Test that user can view their own details
     response = client.get("/users/me", headers=headers)
     assert response.status_code == 200
-    user_data = response.json()
-    assert user_data["username"] == "self_view_user"
-    assert "roles" in user_data
-    assert "permissions" in user_data
+    user_response_data = response.json()
+    assert user_response_data["username"] == "self_view_user"
+    assert "roles" in user_response_data
+    assert "permissions" in user_response_data
     
     # Test that user can view their own details by ID
-    response = client.get(f"/users/{user.id}", headers=headers)
+    response = client.get(f"/users/{user_id}", headers=headers)
     assert response.status_code == 200
-    user_data = response.json()
-    assert user_data["username"] == "self_view_user"
+    user_response_data = response.json()
+    assert user_response_data["username"] == "self_view_user"

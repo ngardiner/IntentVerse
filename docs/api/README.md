@@ -26,7 +26,7 @@ http://localhost:8000
 # Login to get access token
 curl -X POST "http://localhost:8000/auth/login" \
   -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "username=admin&password=IntentVerse"
+  -d "username=your_username&password=your_password"
 
 # Use token in subsequent requests
 curl -H "Authorization: Bearer YOUR_TOKEN" \

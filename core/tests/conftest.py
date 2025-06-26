@@ -9,8 +9,10 @@ import os
 from tests.conftest_logging import configure_test_logging
 
 # Set the test service API key BEFORE importing any app modules
+# Only override if not already set (e.g., by docker-compose for e2e tests)
 TEST_SERVICE_API_KEY = "test-service-key-12345"
-os.environ["SERVICE_API_KEY"] = TEST_SERVICE_API_KEY
+if "SERVICE_API_KEY" not in os.environ:
+    os.environ["SERVICE_API_KEY"] = TEST_SERVICE_API_KEY
 
 # Adjust imports to match the new structure
 from app.main import app
@@ -92,7 +94,7 @@ def get_auth_headers() -> dict:
 
 def get_service_headers() -> dict:
     """Get authentication headers with service API key."""
-    return {"X-API-Key": TEST_SERVICE_API_KEY}
+    return {"X-API-Key": os.environ.get("SERVICE_API_KEY", TEST_SERVICE_API_KEY)}
 
 @pytest.fixture(name="test_user")
 def test_user_fixture():

@@ -145,8 +145,12 @@ def test_get_current_user_or_service_with_jwt_token(mock_get_session):
     assert result.username == "testuser"
 
 
-def test_log_audit_event_with_mock():
+@patch('os.getenv')
+def test_log_audit_event_with_mock(mock_getenv):
     """Test audit logging with mocked session."""
+    # Mock os.getenv to return a non-test key so audit logging is not skipped
+    mock_getenv.return_value = "non-test-key"
+    
     mock_session = Mock(spec=Session)
     
     # Test audit logging
