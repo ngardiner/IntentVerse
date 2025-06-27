@@ -50,6 +50,9 @@
         "lines": 70,
         "statements": 70
       }
+    },
+    "moduleNameMapper": {
+      "\\.(css|less|scss|sass)$": "identity-obj-proxy"
     }
   },
   "jest-junit": {

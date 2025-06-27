@@ -75,6 +75,15 @@ class PermissionChecker:
         # Add admin permissions if user is admin (backward compatibility)
         if user.is_admin:
             permissions.add("admin.all")
+            # Debug logging for tests
+            import os
+            if os.getenv("SERVICE_API_KEY") == "test-service-key-12345":
+                logger.debug(f"Added admin.all permission for admin user {user.username}")
+        
+        # Debug logging for tests
+        import os
+        if os.getenv("SERVICE_API_KEY") == "test-service-key-12345":
+            logger.debug(f"Final permissions for user {user.username}: {sorted(list(permissions))}")
         
         return permissions
     
@@ -91,12 +100,22 @@ class PermissionChecker:
         """
         user_permissions = self.get_user_permissions(user)
         
+        # Debug logging for tests
+        import os
+        if os.getenv("SERVICE_API_KEY") == "test-service-key-12345":
+            logger.debug(f"Checking permission '{permission}' for user {user.username} (is_admin={user.is_admin})")
+            logger.debug(f"User permissions: {sorted(list(user_permissions))}")
+        
         # Check for exact permission match
         if permission in user_permissions:
+            if os.getenv("SERVICE_API_KEY") == "test-service-key-12345":
+                logger.debug(f"Permission granted: exact match for '{permission}'")
             return True
         
         # Check for admin.all permission (grants everything)
         if "admin.all" in user_permissions:
+            if os.getenv("SERVICE_API_KEY") == "test-service-key-12345":
+                logger.debug(f"Permission granted: admin.all grants '{permission}'")
             return True
         
         # Check for wildcard permissions (e.g., "filesystem.*" grants "filesystem.read")
@@ -104,8 +123,12 @@ class PermissionChecker:
             if perm.endswith(".*"):
                 prefix = perm[:-2]  # Remove ".*"
                 if permission.startswith(prefix + "."):
+                    if os.getenv("SERVICE_API_KEY") == "test-service-key-12345":
+                        logger.debug(f"Permission granted: wildcard '{perm}' grants '{permission}'")
                     return True
         
+        if os.getenv("SERVICE_API_KEY") == "test-service-key-12345":
+            logger.debug(f"Permission denied: no matching permission for '{permission}'")
         return False
     
     def has_any_permission(self, user: User, permissions: List[str]) -> bool:

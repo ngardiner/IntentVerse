@@ -28,7 +28,8 @@ SERVICE_API_KEY = os.getenv("SERVICE_API_KEY", "dev-service-key-12345")
 # Known development and test API keys that should never be used in production
 FORBIDDEN_PRODUCTION_KEYS = {
     "test-service-key-12345",
-    "dev-service-key-12345"
+    "dev-service-key-12345",
+    "test-mcp-service-key"
 }
 
 def validate_api_key_for_environment(api_key: str) -> None:
@@ -351,6 +352,47 @@ def create_user(
     session.add(db_user)
     session.commit()
     session.refresh(db_user)
+    
+    # Assign appropriate roles to the new user
+    from sqlmodel import select
+    from .models import UserRoleLink, Role
+    
+    if db_user.is_admin:
+        # Assign admin role to admin users
+        admin_role = session.exec(select(Role).where(Role.name == "admin")).first()
+        if admin_role:
+            # Check if admin role is already assigned
+            existing_admin_link = session.exec(
+                select(UserRoleLink)
+                .where(UserRoleLink.user_id == db_user.id)
+                .where(UserRoleLink.role_id == admin_role.id)
+            ).first()
+            
+            if not existing_admin_link:
+                admin_role_link = UserRoleLink(user_id=db_user.id, role_id=admin_role.id)
+                session.add(admin_role_link)
+                logging.info(f"Assigned admin role to user {db_user.username}")
+            else:
+                logging.info(f"Admin role already assigned to user {db_user.username}")
+        else:
+            logging.error(f"Admin role not found when creating admin user {db_user.username}")
+    else:
+        logging.info(f"Created regular user {db_user.username}")
+    
+    # Assign default user role if no roles are assigned and user is not admin
+    if not db_user.is_admin:
+        existing_roles = session.exec(
+            select(UserRoleLink).where(UserRoleLink.user_id == db_user.id)
+        ).all()
+        
+        if not existing_roles:
+            user_role = session.exec(select(Role).where(Role.name == "user")).first()
+            if user_role:
+                user_role_link = UserRoleLink(user_id=db_user.id, role_id=user_role.id)
+                session.add(user_role_link)
+    
+    # Commit all role assignments
+    session.commit()
     
     # Log successful user creation
     log_audit_event(
@@ -725,7 +767,11 @@ def get_group(
     ).all()
     
     # Convert to GroupWithUsers
-    group_with_users = GroupWithUsers.from_orm(group)
+    try:
+        group_with_users = GroupWithUsers.model_validate(group)
+    except AttributeError:
+        # Fallback for older Pydantic versions
+        group_with_users = GroupWithUsers.from_orm(group)
     group_with_users.users = [user.username for user in group_users]
     
     return group_with_users
@@ -1009,7 +1055,11 @@ def get_role(
     ).all()
     
     # Convert to RoleWithPermissions
-    role_with_permissions = RoleWithPermissions.from_orm(role)
+    try:
+        role_with_permissions = RoleWithPermissions.model_validate(role)
+    except AttributeError:
+        # Fallback for older Pydantic versions
+        role_with_permissions = RoleWithPermissions.from_orm(role)
     role_with_permissions.permissions = [perm.name for perm in role_permissions]
     
     return role_with_permissions
@@ -1278,7 +1328,11 @@ def get_group_roles(
     ).all()
     
     # Convert to GroupWithRoles
-    group_with_roles = GroupWithRoles.from_orm(group)
+    try:
+        group_with_roles = GroupWithRoles.model_validate(group)
+    except AttributeError:
+        # Fallback for older Pydantic versions
+        group_with_roles = GroupWithRoles.from_orm(group)
     group_with_roles.roles = [role.name for role in group_roles]
     
     return group_with_roles
