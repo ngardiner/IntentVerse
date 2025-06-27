@@ -152,27 +152,69 @@ If you prefer to run services individually:
 
 ### Using with AI Models
 
-IntentVerse implements the Model Context Protocol (MCP) for seamless integration with AI models and frameworks.
+IntentVerse implements the Model Context Protocol (MCP) for seamless integration with AI models and frameworks. The MCP Interface supports two running modes:
+
+- **HTTP Mode (Default):** Persistent server for remote connections and multiple clients
+- **Stdio Mode:** Ephemeral process for local, single-session interactions
 
 #### Claude Desktop Integration
-Add this to your Claude Desktop configuration:
+
+For Claude Desktop, use stdio mode with this configuration:
+
 ```json
 {
   "mcpServers": {
     "intentverse": {
       "command": "docker",
-      "args": ["run", "-i", "--rm", "--network", "intentverse-net", "intentverse-mcp"]
+      "args": [
+        "run", "-i", "--rm", 
+        "--network", "intentverse-net", 
+        "intentverse-mcp", 
+        "python", "-m", "app.main", "--stdio"
+      ]
     }
   }
 }
 ```
 
-**Note:** This requires that you've already built the IntentVerse images locally using `docker compose build`.
+**Prerequisites:**
+- IntentVerse must be running: `docker compose up`
+- Images must be built: `docker compose build`
 
-#### Generic MCP Client
-Connect any MCP-compatible client to:
-- **HTTP Mode:** `http://localhost:8001` (when running via docker-compose)
-- **Stdio Mode:** `docker run -i --rm --network intentverse-net intentverse-mcp`
+#### Generic MCP Client Integration
+
+**HTTP Mode (Multiple Clients):**
+```bash
+# Connect to persistent server
+curl -X POST http://localhost:8001/ \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc": "2.0", "id": 1, "method": "tools/list"}'
+```
+
+**Stdio Mode (Single Session):**
+```bash
+# Local development
+cd mcp && python -m app.main --stdio
+
+# With Docker
+docker run -i --rm --network intentverse-net intentverse-mcp --stdio
+```
+
+For detailed mode documentation, see [docs/mcp-modes.md](docs/mcp-modes.md).
+
+#### Testing Both Modes
+
+Verify that both modes work correctly:
+
+```bash
+# Quick test of both modes
+python test_mcp_modes.py
+
+# Comprehensive pytest-based tests
+cd mcp && python run_mode_tests.py
+```
+
+See [docs/testing-mcp-modes.md](docs/testing-mcp-modes.md) for detailed testing information.
 
 ### Troubleshooting
 
