@@ -17,7 +17,10 @@ def init_default_admin():
     Username: admin
     Password: IntentVerse
     """
-    with Session(engine) as session:
+    # Use the current engine value (important for testing when engine is overridden)
+    from . import database
+    current_engine = database.engine
+    with Session(current_engine) as session:
         # Check if admin user exists
         admin = session.exec(select(User).where(User.username == "admin")).first()
         
@@ -64,7 +67,9 @@ def init_db():
     init_default_admin()
     
     # Initialize RBAC system
-    with Session(engine) as session:
+    from . import database
+    current_engine = database.engine
+    with Session(current_engine) as session:
         try:
             initialize_rbac_system(session)
             logging.info("Database initialization completed successfully")

@@ -18,13 +18,18 @@ def create_db_and_tables():
     Creates the database file and all tables defined by our SQLModel classes.
     For development, we'll recreate the database if schema changes are detected.
     """
+    # Use the current engine value (important for testing when engine is overridden)
+    current_engine = globals()['engine']
+    
     logging.info("Initializing database and creating tables...")
     
     # Import all models to ensure they're registered with SQLModel
     from .models import User, UserGroup, UserGroupLink, AuditLog, ModuleConfiguration
+    # Import RBAC models to ensure they're registered
+    from .models import Role, Permission, UserRoleLink, GroupRoleLink, RolePermissionLink
     
     # Check if this is an in-memory database (used for testing)
-    is_memory_db = str(engine.url).startswith("sqlite:///:memory:")
+    is_memory_db = str(current_engine.url).startswith("sqlite:///:memory:")
     
     if not is_memory_db:
         # Only check for file recreation if using a file-based database
@@ -35,7 +40,7 @@ def create_db_and_tables():
             # Check if we need to recreate due to schema changes
             try:
                 # Test if the current schema matches by trying to access new columns
-                with Session(engine) as session:
+                with Session(current_engine) as session:
                     # Try to query a user with the new email field
                     test_query = select(User.id, User.email).limit(1)
                     session.exec(test_query).first()
@@ -56,7 +61,7 @@ def create_db_and_tables():
                 logging.info("Removed old database file")
     
     # Create all tables
-    SQLModel.metadata.create_all(engine)
+    SQLModel.metadata.create_all(current_engine)
     logging.info("Database and tables initialized.")
 
 def get_session():

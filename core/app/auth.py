@@ -25,6 +25,52 @@ api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 # Service API key for internal communication (should be set as environment variable)
 SERVICE_API_KEY = os.getenv("SERVICE_API_KEY", "dev-service-key-12345")
 
+# Known development and test API keys that should never be used in production
+FORBIDDEN_PRODUCTION_KEYS = {
+    "test-service-key-12345",
+    "dev-service-key-12345"
+}
+
+def validate_api_key_for_environment(api_key: str) -> None:
+    """
+    Validate that the API key is appropriate for the current environment.
+    Blocks known dev/test keys in production environments.
+    
+    Args:
+        api_key: The API key to validate
+        
+    Raises:
+        HTTPException: If a forbidden key is used in production
+    """
+    # Get environment indicator - check common environment variables
+    environment = (
+        os.getenv("ENVIRONMENT", "").lower() or
+        os.getenv("ENV", "").lower() or
+        os.getenv("NODE_ENV", "").lower() or
+        os.getenv("FLASK_ENV", "").lower() or
+        os.getenv("DJANGO_ENV", "").lower()
+    )
+    
+    # Also check for production indicators in other variables
+    is_production = (
+        environment in ("production", "prod", "live") or
+        os.getenv("PRODUCTION", "").lower() in ("true", "1", "yes") or
+        os.getenv("IS_PRODUCTION", "").lower() in ("true", "1", "yes")
+    )
+    
+    # If we detect production environment, block forbidden keys
+    if is_production and api_key in FORBIDDEN_PRODUCTION_KEYS:
+        logging.critical(
+            f"SECURITY ALERT: Attempt to use forbidden API key '{api_key}' in production environment. "
+            f"Environment indicators: ENVIRONMENT={os.getenv('ENVIRONMENT')}, "
+            f"ENV={os.getenv('ENV')}, NODE_ENV={os.getenv('NODE_ENV')}"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid API key for production environment",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
 # --- Audit Logging Functions ---
 
 def log_audit_event(
@@ -126,10 +172,14 @@ def get_current_user_or_service(
     Returns a User object for JWT auth, or "service" string for API key auth.
     """
     # Check API key first (for service-to-service communication)
-    # Read the service API key dynamically to handle test environment overrides
-    current_service_api_key = os.getenv("SERVICE_API_KEY", "dev-service-key-12345")
-    if api_key and api_key == current_service_api_key:
-        return "service"
+    if api_key:
+        # Validate that the API key is appropriate for the current environment
+        validate_api_key_for_environment(api_key)
+        
+        # Read the service API key dynamically to handle test environment overrides
+        current_service_api_key = os.getenv("SERVICE_API_KEY", "dev-service-key-12345")
+        if api_key == current_service_api_key:
+            return "service"
     
     # Fall back to JWT token authentication
     if token:

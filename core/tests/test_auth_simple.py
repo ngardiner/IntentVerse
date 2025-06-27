@@ -98,10 +98,14 @@ def test_get_current_user_with_invalid_token(mock_get_session):
 
 
 @patch('app.auth.get_session')
-def test_get_current_user_or_service_with_api_key(mock_get_session):
+@patch('os.getenv')
+def test_get_current_user_or_service_with_api_key(mock_getenv, mock_get_session):
     """Test get_current_user_or_service with valid API key."""
     mock_session = Mock(spec=Session)
     mock_get_session.return_value = mock_session
+    
+    # Mock os.getenv to return the test service API key
+    mock_getenv.return_value = "test-service-key-12345"
     
     # Test with valid API key
     result = get_current_user_or_service(

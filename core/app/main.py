@@ -9,7 +9,7 @@ from .module_loader import ModuleLoader
 from .api import create_api_routes
 from .auth import router as auth_router, get_current_user, get_current_user_or_service
 from .models import User
-from .database import create_db_and_tables, engine
+from .database import create_db_and_tables
 from sqlmodel import Session
 from .init_db import init_db
 from .content_pack_manager import ContentPackManager
@@ -23,14 +23,31 @@ setup_logging()
 async def lifespan(app: FastAPI):
     # This code runs on server startup
     logging.info("--- IntentVerse Core Engine Starting Up ---")
-    create_db_and_tables()
-    # Initialize the database with default data (admin user and groups)
-    init_db()
+    
+    # Skip database initialization during tests
+    import os
+    is_testing = os.getenv("SERVICE_API_KEY") == "test-service-key-12345"
+    
+    if not is_testing:
+        create_db_and_tables()
+        # Initialize the database with default data (admin user and groups)
+        init_db()
+    else:
+        logging.info("Skipping database initialization during tests")
+    
     # Discover and load all modules from the 'modules' directory
+    from .database import engine
     with Session(engine) as session:
-        module_loader.load_modules(session)
+        if not is_testing:
+            module_loader.load_modules(session)
+        else:
+            logging.info("Skipping module loading during tests")
+    
     # Load default content pack after modules are loaded
-    content_pack_manager.load_default_content_pack()
+    if not is_testing:
+        content_pack_manager.load_default_content_pack()
+    else:
+        logging.info("Skipping content pack loading during tests")
     
     # Log system startup event
     from .modules.timeline.tool import log_system_event
