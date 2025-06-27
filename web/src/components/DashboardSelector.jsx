@@ -108,7 +108,9 @@ const DashboardSelector = ({ currentDashboard, onDashboardChange }) => {
         onClick={toggleDropdown}
         aria-haspopup="true"
         aria-expanded={isDropdownOpen}
-        disabled={loading}
+        role="button"
+        tabIndex={0}
+        aria-disabled={loading}
       >
         <div className="dashboard-selector-content">
           <span className="dashboard-selector-icon">{currentDashboardInfo?.icon || '⚡'}</span>

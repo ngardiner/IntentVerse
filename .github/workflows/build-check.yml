@@ -32,7 +32,7 @@ jobs:
           echo "Running core unit tests..."
           docker compose run --rm \
             -e PYTHONPATH=/app \
-            -e SERVICE_API_KEY=dev-service-key-12345 \
+            -e SERVICE_API_KEY=test-service-key-12345 \
             -e LOG_LEVEL=ERROR \
             tests python -m pytest tests/ -v \
             --tb=short \

@@ -14,7 +14,7 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="login-container">
+    <div className="login-container" data-testid="login-page">
       <form onSubmit={handleSubmit}>
         <h2>IntentVerse Login</h2>
         <div className="form-group">

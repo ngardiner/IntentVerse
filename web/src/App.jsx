@@ -209,6 +209,7 @@ function App() {
                     <circle cx="12" cy="10" r="3"></circle>
                     <path d="M12 13c-2.67 0-8 1.34-8 4v3h16v-3c0-2.66-5.33-4-8-4z"></path>
                   </svg>
+                  {currentUser && <span className="username">{currentUser.username}</span>}
                 </div>
                 <div 
                   ref={dropdownRef} 
