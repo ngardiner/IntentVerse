@@ -9,7 +9,7 @@ import os
 from .database import get_session
 from .models import User, UserGroup, UserGroupLink, AuditLog, Role, Permission, UserRoleLink, GroupRoleLink, RolePermissionLink
 from .security import get_password_hash, verify_password, create_access_token, decode_access_token
-from .rbac import require_permission, require_any_permission, get_permission_checker, PermissionChecker
+from .rbac import require_permission, require_any_permission, require_permission_or_service, get_permission_checker, PermissionChecker
 
 # --- API Router and Security Scheme ---
 
@@ -126,7 +126,9 @@ def get_current_user_or_service(
     Returns a User object for JWT auth, or "service" string for API key auth.
     """
     # Check API key first (for service-to-service communication)
-    if api_key and api_key == SERVICE_API_KEY:
+    # Read the service API key dynamically to handle test environment overrides
+    current_service_api_key = os.getenv("SERVICE_API_KEY", "dev-service-key-12345")
+    if api_key and api_key == current_service_api_key:
         return "service"
     
     # Fall back to JWT token authentication
@@ -257,7 +259,7 @@ def create_user(
     user: UserCreate, 
     session: Annotated[Session, Depends(get_session)],
     request: Request,
-    current_user: Annotated[User, Depends(require_permission("users.create"))]
+    current_user_or_service: Annotated[Union[User, str], Depends(require_permission_or_service("users.create"))]
 ):
     """
     Creates a new user.
@@ -266,12 +268,16 @@ def create_user(
     
     # RBAC handles permission checking, so we can proceed directly
     
+    # Handle both user and service authentication
+    current_user = current_user_or_service if isinstance(current_user_or_service, User) else None
+    is_service = isinstance(current_user_or_service, str) and current_user_or_service == "service"
+    
     existing_user = session.exec(select(User).where(User.username == user.username)).first()
     if existing_user:
         log_audit_event(
             session=session,
             user_id=current_user.id if current_user else None,
-            username=current_user.username if current_user else "anonymous",
+            username=current_user.username if current_user else ("service" if is_service else "anonymous"),
             action="create_user_failed",
             resource_type="user",
             resource_name=user.username,
@@ -300,7 +306,7 @@ def create_user(
     log_audit_event(
         session=session,
         user_id=current_user.id if current_user else None,
-        username=current_user.username if current_user else "system",
+        username=current_user.username if current_user else ("service" if is_service else "system"),
         action="create_user",
         resource_type="user",
         resource_id=str(db_user.id),

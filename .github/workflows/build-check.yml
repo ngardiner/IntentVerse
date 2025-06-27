@@ -79,7 +79,7 @@ jobs:
         id: web-tests
         run: |
           echo "Running web tests..."
-          docker compose run --rm \
+          docker compose run --name intentverse-web-tests \
             -e CI=true \
             web npm test -- --coverage --watchAll=false --ci \
             --silent \
@@ -88,7 +88,10 @@ jobs:
 
       - name: Stop services
         if: always()
-        run: docker compose down
+        run: |
+          docker compose down
+          # Clean up the named web test container if it exists
+          docker rm intentverse-web-tests 2>/dev/null || true
 
       - name: Collect test results
         if: always()
@@ -125,6 +128,7 @@ jobs:
           docker cp intentverse-tests:/app/test-results-unit.xml ./test-results/core-unit.xml 2>/dev/null || true
           docker cp intentverse-tests:/app/test-results-e2e.xml ./test-results/core-e2e.xml 2>/dev/null || true
           docker cp intentverse-mcp-tests:/app/test-results-mcp.xml ./test-results/mcp.xml 2>/dev/null || true
+          docker cp intentverse-web-tests:/app/test-results/web-test-results.xml ./test-results/web.xml 2>/dev/null || true
           
           echo "Core unit tests:"
           extract_counts "./test-results/core-unit.xml"
@@ -134,6 +138,9 @@ jobs:
           
           echo "MCP tests:"
           extract_counts "./test-results/mcp.xml"
+          
+          echo "Web tests:"
+          extract_counts "./test-results/web.xml"
           
           # Create a summary file
           echo "# Test Results Summary" > test-results/summary.md
@@ -175,7 +182,15 @@ jobs:
           fi
           
           # Add Web tests
-          echo "| Web | ${{ steps.web-tests.outcome }} | - | - | - | - |" >> test-results/summary.md
+          if [ -f "./test-results/web.xml" ]; then
+            tests=$(grep -o 'tests="[0-9]*"' "./test-results/web.xml" | head -1 | grep -o '[0-9]*')
+            failures=$(grep -o 'failures="[0-9]*"' "./test-results/web.xml" | head -1 | grep -o '[0-9]*')
+            errors=$(grep -o 'errors="[0-9]*"' "./test-results/web.xml" | head -1 | grep -o '[0-9]*')
+            skipped=$(grep -o 'skipped="[0-9]*"' "./test-results/web.xml" | head -1 | grep -o '[0-9]*')
+            echo "| Web | ${{ steps.web-tests.outcome }} | ${tests:-0} | ${failures:-0} | ${errors:-0} | ${skipped:-0} |" >> test-results/summary.md
+          else
+            echo "| Web | ${{ steps.web-tests.outcome }} | - | - | - | - |" >> test-results/summary.md
+          fi
           
           # Display the summary
           cat test-results/summary.md

@@ -11,7 +11,8 @@
   "devDependencies": {
     "@testing-library/jest-dom": "^5.16.5",
     "@testing-library/react": "^13.4.0",
-    "@testing-library/user-event": "^14.4.3"
+    "@testing-library/user-event": "^14.4.3",
+    "jest-junit": "^16.0.0"
   },
   "scripts": {
     "start": "react-scripts start",
@@ -50,5 +51,13 @@
         "statements": 70
       }
     }
+  },
+  "jest-junit": {
+    "outputDirectory": "./test-results",
+    "outputName": "web-test-results.xml",
+    "classNameTemplate": "{classname}",
+    "titleTemplate": "{title}",
+    "ancestorSeparator": " > ",
+    "usePathForSuiteName": "true"
   }
 }
