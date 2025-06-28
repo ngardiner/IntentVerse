@@ -54,8 +54,9 @@ describe('DashboardLayoutManager', () => {
     it('applies correct grid layout classes', () => {
       render(<DashboardLayoutManager {...defaultProps} />);
       
-      const container = screen.getByTestId('widget1').parentElement;
-      expect(container).toHaveClass('modules-grid');
+      const widget = screen.getByTestId('widget1');
+      const gridContainer = widget.parentElement.parentElement; // The modules-grid is the grandparent
+      expect(gridContainer).toHaveClass('modules-grid');
     });
 
     it('handles empty children gracefully', () => {
@@ -193,13 +194,20 @@ describe('DashboardLayoutManager', () => {
       const saveButton = screen.getByText('Save Layout');
       await user.click(saveButton);
       
-      expect(localStorageMock.setItem).toHaveBeenCalledWith(
-        'dashboard-layout-test-dashboard',
-        expect.any(String)
-      );
+      // Wait for the localStorage calls to happen (layout and hidden state)
+      await waitFor(() => {
+        expect(localStorageMock.setItem).toHaveBeenCalledWith(
+          'dashboard-layout-test-dashboard',
+          expect.any(String)
+        );
+        expect(localStorageMock.setItem).toHaveBeenCalledWith(
+          'dashboard-hidden-test-dashboard',
+          expect.any(String)
+        );
+      });
     });
 
-    it('loads layout from localStorage on mount', () => {
+    it('loads layout from localStorage on mount', async () => {
       const savedLayout = JSON.stringify({
         widget1: { row: 1, col: 1, colSpan: 6 },
         widget2: { row: 1, col: 7, colSpan: 3 },
@@ -210,7 +218,11 @@ describe('DashboardLayoutManager', () => {
       
       render(<DashboardLayoutManager {...defaultProps} />);
       
-      expect(localStorageMock.getItem).toHaveBeenCalledWith('dashboard-layout-test-dashboard');
+      // Wait for the component to load and call localStorage for both layout and hidden state
+      await waitFor(() => {
+        expect(localStorageMock.getItem).toHaveBeenCalledWith('dashboard-layout-test-dashboard');
+        expect(localStorageMock.getItem).toHaveBeenCalledWith('dashboard-hidden-test-dashboard');
+      });
     });
 
     it('handles invalid localStorage data gracefully', () => {
