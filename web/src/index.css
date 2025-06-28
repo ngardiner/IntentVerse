@@ -3905,3 +3905,47 @@
     font-size: 0.8rem;
     font-style: italic;
   }
+
+  /* --- Loading Column Configuration Retry Controls --- */
+  .loading-column-config {
+    padding: 1rem;
+    text-align: center;
+    background-color: rgba(255, 255, 255, 0.02);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+  }
+
+  .loading-column-config p {
+    margin: 0 0 1rem 0;
+    color: var(--text-color-secondary);
+  }
+
+  .retry-controls {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-color);
+  }
+
+  .retry-message {
+    margin-bottom: 0.75rem !important;
+    font-size: 0.9rem;
+    color: var(--text-color-secondary);
+  }
+
+  .btn-small {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.85rem;
+  }
+
+  .error-state {
+    padding: 1rem;
+    text-align: center;
+    background-color: rgba(255, 0, 0, 0.05);
+    border-radius: 8px;
+    border: 1px solid rgba(255, 0, 0, 0.2);
+  }
+
+  .error-state .error-message {
+    margin: 0 0 0.5rem 0;
+    color: #ff6b6b;
+  }

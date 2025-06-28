@@ -84,15 +84,13 @@ const SwitchableView = ({
   const handleQueryExecuted = async () => {
     console.log('SwitchableView handleQueryExecuted called');
     
-    // Switch to the "Last Query Result" view (index 2 in the database schema)
+    // Find the "Last Query Result" view
     const lastQueryResultIndex = views.findIndex(view => 
       view.title === "Last Query Result"
     );
     console.log('Found Last Query Result index:', lastQueryResultIndex);
     
     if (lastQueryResultIndex !== -1) {
-      setActiveViewIndex(lastQueryResultIndex);
-      
       // Immediately refresh the module state to get the latest query results
       const moduleName = data_source_api?.split('/')[3];
       console.log('Module name for refresh:', moduleName);
@@ -100,12 +98,38 @@ const SwitchableView = ({
       if (moduleName) {
         try {
           console.log('Fetching updated module state...');
+          
+          // Add a longer delay to ensure the backend has processed the query
+          await new Promise(resolve => setTimeout(resolve, 500));
+          
           const response = await getModuleState(moduleName);
           console.log('Got updated module state:', response.data);
-          setModuleState(response.data);
+          
+          // Validate that we have query result data
+          const hasQueryResult = response.data?.last_query_result && 
+                                (response.data.last_query_result.rows || response.data.last_query_result.columns);
+          
+          if (hasQueryResult) {
+            console.log('Query result data found, updating state and switching view');
+            setModuleState(response.data);
+            setActiveViewIndex(lastQueryResultIndex);
+          } else {
+            console.warn('No query result data found, retrying...');
+            // Retry once more with a longer delay
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            const retryResponse = await getModuleState(moduleName);
+            console.log('Retry response:', retryResponse.data);
+            setModuleState(retryResponse.data);
+            setActiveViewIndex(lastQueryResultIndex);
+          }
         } catch (err) {
           console.error('Failed to refresh module state after query execution:', err);
+          // Still switch to the view even if refresh failed
+          setActiveViewIndex(lastQueryResultIndex);
         }
+      } else {
+        // No module name, just switch views
+        setActiveViewIndex(lastQueryResultIndex);
       }
     }
   };

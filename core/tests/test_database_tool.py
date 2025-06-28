@@ -406,7 +406,10 @@ class TestDatabaseTool:
         # Verify state was updated
         db_state = state_manager.get('database')
         assert "content_users" in db_state["tables"]
-        assert db_state["tables"]["content_users"]["row_count"] == 2
+        table_info = db_state["tables"]["content_users"]
+        assert table_info["row_count"] == 2
+        assert table_info["column_count"] == 3  # id, username, email
+        assert table_info["primary_keys"] == "id"
     
     def test_export_database_content(self, database_tool_with_data):
         """Test exporting database content for content packs."""
@@ -480,6 +483,8 @@ class TestDatabaseTool:
         assert "state_test" in db_state["tables"]
         table_info = db_state["tables"]["state_test"]
         assert table_info["row_count"] == 1
+        assert table_info["column_count"] == 2
+        assert table_info["primary_keys"] == "None"  # No primary key defined
         assert len(table_info["columns"]) == 2
         
         # Check column details

@@ -149,9 +149,14 @@ class DatabaseTool(BaseTool):
                 cursor.execute(f"SELECT COUNT(*) FROM {table_name}")
                 row_count = cursor.fetchone()[0]
                 
+                # Extract primary key column names
+                primary_keys = [col["name"] for col in columns if col["primary_key"]]
+                
                 tables_info[table_name] = {
                     "columns": columns,
-                    "row_count": row_count
+                    "column_count": len(columns),
+                    "row_count": row_count,
+                    "primary_keys": ", ".join(primary_keys) if primary_keys else "None"
                 }
             
             # Update state

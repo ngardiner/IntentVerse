@@ -11,27 +11,20 @@ const GenericTable = ({
   data_path = '',
   dynamic_columns = false,
   max_rows = 1000,
-  moduleState = null
+  moduleState = null,
+  data_transform = null
 }) => {
   const [data, setData] = useState([]);
   const [dynamicHeaders, setDynamicHeaders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedEmail, setSelectedEmail] = useState(null);
+  const [retryCount, setRetryCount] = useState(0);
+  const [lastRetryTime, setLastRetryTime] = useState(0);
   const isEmailModule = module_id === 'email';
   const isDatabaseModule = module_id === 'database';
 
-  useEffect(() => {
-    const moduleName = data_source_api?.split('/')[3];
-
-    const processModuleState = (stateData) => {
-      console.log('GenericTable processModuleState called with:', {
-        stateData,
-        data_path,
-        dynamic_columns,
-        module_id
-      });
-      
+  const processModuleState = (stateData) => {
       // Extract data using data_path if provided
       let extractedData = stateData;
       if (data_path) {
@@ -73,55 +66,55 @@ const GenericTable = ({
       } else if (typeof extractedData === 'object' && extractedData !== null) {
         // Convert object to array if it's not already an array
         if (Object.keys(extractedData).length > 0) {
-          // For database tables or similar structures
-          if (isDatabaseModule && data_path === 'tables') {
+          // Handle data_transform property
+          if (data_transform === 'object_to_array') {
+            dataArray = Object.entries(extractedData).map(([name, details]) => ({
+              name,
+              ...details
+            }));
+          } else if (isDatabaseModule && data_path === 'tables') {
+            // Legacy fallback for database tables
             dataArray = Object.entries(extractedData).map(([name, details]) => ({
               name,
               ...details
             }));
           } else if (isDatabaseModule && data_path === 'last_query_result') {
-            // Handle database query results
-            console.log('Processing database query results:', {
-              extractedData,
-              hasRows: Array.isArray(extractedData?.rows),
-              rowsLength: extractedData?.rows?.length,
-              hasColumns: Array.isArray(extractedData?.columns),
-              columnsLength: extractedData?.columns?.length,
-              columns: extractedData?.columns
-            });
+            // Handle database query results - SIMPLIFIED
+            console.log('Processing last_query_result:', extractedData);
             
             if (extractedData && typeof extractedData === 'object') {
-              // Check if we have rows data
-              if (Array.isArray(extractedData.rows)) {
-                dataArray = extractedData.rows.slice(0, max_rows);
-                
-                // Set dynamic headers if available
-                if (dynamic_columns && extractedData.columns && Array.isArray(extractedData.columns) && extractedData.columns.length > 0) {
-                  newDynamicHeaders = extractedData.columns;
-                  console.log('Set dynamic headers from columns:', newDynamicHeaders);
-                } else if (dynamic_columns) {
-                  // If no columns are provided but we have data, try to infer columns from the first row
-                  if (dataArray.length > 0 && Array.isArray(dataArray[0])) {
-                    // Generate column headers like "Column 1", "Column 2", etc.
+              // Get rows and columns
+              const rows = extractedData.rows || [];
+              const columns = extractedData.columns || [];
+              
+              console.log('Extracted rows:', rows.length, 'columns:', columns.length);
+              
+              dataArray = rows.slice(0, max_rows);
+              
+              if (dynamic_columns) {
+                if (columns.length > 0) {
+                  // Use provided columns
+                  newDynamicHeaders = columns;
+                  console.log('Using provided columns:', newDynamicHeaders);
+                } else if (dataArray.length > 0) {
+                  // Generate fallback columns
+                  if (Array.isArray(dataArray[0])) {
                     newDynamicHeaders = dataArray[0].map((_, index) => `Column ${index + 1}`);
+                  } else if (typeof dataArray[0] === 'object' && dataArray[0] !== null) {
+                    newDynamicHeaders = Object.keys(dataArray[0]);
                   } else {
-                    // No data to infer columns from
-                    newDynamicHeaders = [];
+                    newDynamicHeaders = ['Value'];
                   }
-                }
-              } else {
-                // No rows data available
-                dataArray = [];
-                if (dynamic_columns) {
+                  console.log('Generated fallback columns:', newDynamicHeaders);
+                } else {
                   newDynamicHeaders = [];
+                  console.log('No data, empty columns');
                 }
               }
             } else {
-              // extractedData is not a valid object
+              console.log('Invalid extractedData for last_query_result');
               dataArray = [];
-              if (dynamic_columns) {
-                newDynamicHeaders = [];
-              }
+              newDynamicHeaders = [];
             }
           } else {
             // Generic object to array conversion
@@ -134,19 +127,38 @@ const GenericTable = ({
       }
       
       // Update state with both data and headers atomically to prevent race conditions
-      console.log('Setting state:', {
-        dataArray,
-        newDynamicHeaders,
-        dynamic_columns
-      });
-      
+      console.log('Setting data:', dataArray.length, 'rows, headers:', newDynamicHeaders.length);
       setData(dataArray);
       if (dynamic_columns) {
         setDynamicHeaders(newDynamicHeaders);
       }
       setError(null);
       setLoading(false);
+      setRetryCount(0); // Reset retry count on successful data processing
     };
+
+  // Function to handle manual refresh
+  const handleManualRefresh = async () => {
+    const moduleName = data_source_api?.split('/')[3];
+    if (!moduleName) return;
+    
+    setLoading(true);
+    setError(null);
+    setRetryCount(prev => prev + 1);
+    setLastRetryTime(Date.now());
+    
+    try {
+      const response = await getModuleState(moduleName);
+      processModuleState(response.data);
+    } catch (err) {
+      setError(`Failed to refresh data for ${moduleName}.`);
+      console.error(err);
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const moduleName = data_source_api?.split('/')[3];
 
     const fetchState = async () => {
       if (!moduleName) {
@@ -174,7 +186,6 @@ const GenericTable = ({
 
     // If moduleState is provided (from parent SwitchableView), use it directly
     if (moduleState !== null) {
-      console.log('Using provided moduleState:', moduleState);
       processModuleState(moduleState);
       return; // Don't set up polling when using provided state
     }
@@ -199,6 +210,48 @@ const GenericTable = ({
     return () => clearInterval(intervalId);
 
   }, [data_source_api, data_path, dynamic_columns, isEmailModule, moduleState]);
+
+  // Auto-retry mechanism for stuck "Loading column configuration..." state
+  useEffect(() => {
+    if (!dynamic_columns || !isDatabaseModule) return;
+    
+    // Check if we're stuck in the loading column configuration state
+    const isStuckInLoadingColumns = !loading && data.length > 0 && dynamicHeaders.length === 0;
+    
+    if (isStuckInLoadingColumns && retryCount < 3) {
+      const timeSinceLastRetry = Date.now() - lastRetryTime;
+      const shouldRetry = timeSinceLastRetry > 2000; // Wait at least 2 seconds between retries
+      
+      if (shouldRetry) {
+        console.log(`Auto-retrying stuck column configuration (attempt ${retryCount + 1}/3)`, {
+          data: data.length,
+          dynamicHeaders: dynamicHeaders.length,
+          loading,
+          retryCount
+        });
+        handleManualRefresh();
+      }
+    }
+  }, [data, dynamicHeaders, loading, retryCount, lastRetryTime, dynamic_columns, isDatabaseModule]);
+
+  // Timeout mechanism to prevent infinite loading states
+  useEffect(() => {
+    if (!dynamic_columns || !isDatabaseModule || loading) return;
+    
+    const isStuckInLoadingColumns = data.length > 0 && dynamicHeaders.length === 0;
+    
+    if (isStuckInLoadingColumns && retryCount >= 3) {
+      // After 3 retries, set an error state with manual refresh option
+      const timeoutId = setTimeout(() => {
+        if (data.length > 0 && dynamicHeaders.length === 0) {
+          console.warn('Column configuration timeout reached, setting error state');
+          setError('Unable to load column configuration. Data may be malformed.');
+        }
+      }, 10000); // 10 second timeout
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [data, dynamicHeaders, loading, retryCount, dynamic_columns, isDatabaseModule]);
 
   const formatCellValue = (value, columnKey) => {
     if (value === null || value === undefined) {
@@ -255,7 +308,19 @@ const GenericTable = ({
       return <p>Loading data...</p>;
     }
     if (error) {
-      return <p className="error-message">{error}</p>;
+      return (
+        <div className="error-state">
+          <p className="error-message">{error}</p>
+          <button 
+            className="btn btn-secondary btn-small" 
+            onClick={handleManualRefresh}
+            disabled={loading}
+            style={{ marginTop: '0.5rem' }}
+          >
+            {loading ? 'Refreshing...' : 'Try Again'}
+          </button>
+        </div>
+      );
     }
     if (data.length === 0) {
       return <p>No items to display.</p>;
@@ -267,10 +332,44 @@ const GenericTable = ({
     // Check if we have columns to render - either dynamic headers or predefined columns
     const hasColumnsToRender = usesDynamicColumns || (columns && columns.length > 0);
     
-    // For dynamic columns, if we have data but no headers yet, show loading
-    // This handles the case where data is fetched but headers are still being processed
+    // For dynamic columns, if we have data but no headers, just show the data anyway
     if (dynamic_columns && data.length > 0 && dynamicHeaders.length === 0) {
-      return <p>Loading column configuration...</p>;
+      console.log('STUCK STATE DETECTED - showing data anyway');
+      // Just show the data with generic column names
+      const fallbackHeaders = data[0] ? 
+        (Array.isArray(data[0]) ? 
+          data[0].map((_, i) => `Column ${i + 1}`) : 
+          Object.keys(data[0])
+        ) : ['Data'];
+      
+      return (
+        <div className="table-container">
+          <table className={`generic-table ${isDatabaseModule ? 'database-table' : ''}`}>
+            <thead>
+              <tr>
+                {fallbackHeaders.map((header, index) => <th key={index}>{header}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {data.map((row, rowIndex) => (
+                <tr key={rowIndex}>
+                  {fallbackHeaders.map((header, colIndex) => {
+                    let cellValue;
+                    if (Array.isArray(row)) {
+                      cellValue = row[colIndex];
+                    } else if (typeof row === 'object' && row !== null) {
+                      cellValue = row[header];
+                    } else {
+                      cellValue = row;
+                    }
+                    return <td key={colIndex}>{formatCellValue(cellValue, header)}</td>;
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
     }
     
     if (!hasColumnsToRender) {
@@ -302,10 +401,20 @@ const GenericTable = ({
                 onClick={isEmailModule ? () => setSelectedEmail(row) : undefined}
               >
                 {usesDynamicColumns ? 
-                  // For dynamic columns, use the headers as keys
-                  dynamicHeaders.map((header, colIndex) => (
-                    <td key={colIndex}>{formatCellValue(row[colIndex], header)}</td>
-                  )) :
+                  // For dynamic columns, handle both array and object rows
+                  dynamicHeaders.map((header, colIndex) => {
+                    let cellValue;
+                    if (Array.isArray(row)) {
+                      // Row is an array, use column index
+                      cellValue = row[colIndex];
+                    } else if (typeof row === 'object' && row !== null) {
+                      // Row is an object, use header as key
+                      cellValue = row[header];
+                    } else {
+                      cellValue = row;
+                    }
+                    return <td key={colIndex}>{formatCellValue(cellValue, header)}</td>;
+                  }) :
                   // For predefined columns, use the data_key from columns
                   columns.map(col => (
                     <td key={col.data_key}>{formatCellValue(row[col.data_key], col.data_key)}</td>
