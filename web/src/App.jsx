@@ -16,6 +16,7 @@ const AuthContext = createContext(null);
 // This component will wrap our application and provide auth state to all children.
 const AuthProvider = ({ children }) => {
   const [authToken, setAuthToken] = useState(() => localStorage.getItem('authToken'));
+  const [tokenValidated, setTokenValidated] = useState(false);
   
   useEffect(() => {
     // Sync token changes to localStorage
@@ -25,6 +26,25 @@ const AuthProvider = ({ children }) => {
       localStorage.removeItem('authToken');
     }
   }, [authToken]);
+
+  // Validate token when the provider mounts or token changes
+  useEffect(() => {
+    if (authToken && !tokenValidated) {
+      getCurrentUser()
+        .then(response => {
+          // Token is valid, mark as validated
+          setTokenValidated(true);
+        })
+        .catch(error => {
+          console.error('Token validation failed:', error);
+          // Token is invalid, clear it
+          setAuthToken(null);
+          setTokenValidated(true);
+        });
+    } else if (!authToken) {
+      setTokenValidated(false);
+    }
+  }, [authToken, tokenValidated]);
 
   const login = async (credentials) => {
     try {
@@ -111,6 +131,7 @@ function App() {
         })
         .catch(error => {
           console.error('Failed to get current user:', error);
+          // Token validation is handled by AuthProvider
         });
     } else if (!isAuthenticated) {
       setCurrentUser(null);

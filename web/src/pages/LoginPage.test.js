@@ -12,9 +12,14 @@ jest.mock('../App', () => {
   };
 });
 
+// A simple mock AuthProvider for testing
+const MockAuthProvider = ({ children }) => {
+  return <div>{children}</div>;
+};
+
 // A wrapper to provide the context for our tests
 const renderWithAuthProvider = (ui) => {
-  return render(<AuthProvider>{ui}</AuthProvider>);
+  return render(<MockAuthProvider>{ui}</MockAuthProvider>);
 };
 
 describe('LoginPage', () => {
@@ -23,8 +28,11 @@ describe('LoginPage', () => {
   beforeEach(() => {
     // Before each test, reset the mock and set the mocked return value for useAuth
     jest.clearAllMocks();
+    // Clear localStorage to ensure clean state
+    localStorage.clear();
     useAuth.mockReturnValue({
       login: mockLogin,
+      isAuthenticated: false,
     });
   });
 
