@@ -5,6 +5,7 @@ import GenericKeyValue from './GenericKeyValue';
 import GenericFileTree from './GenericFileTree';
 import EmailPopout from './EmailPopout';
 import QueryExecutor from './QueryExecutor';
+import CreateEmailButton from './CreateEmailButton';
 
 const SwitchableView = ({ 
   title,
@@ -144,6 +145,23 @@ const SwitchableView = ({
     setSelectedItem(null);
   };
 
+  const handleEmailCreated = async (newEmail) => {
+    // Show the new email in the popout
+    setSelectedItem(newEmail);
+    setShowPopout(true);
+    
+    // Refresh the module state to show the new draft
+    const moduleName = data_source_api?.split('/')[3];
+    if (moduleName) {
+      try {
+        const refreshResponse = await getModuleState(moduleName);
+        setModuleState(refreshResponse.data);
+      } catch (err) {
+        console.error('Failed to refresh module state after creating draft:', err);
+      }
+    }
+  };
+
   const renderActiveView = () => {
     if (!views || views.length === 0) return null;
     
@@ -190,7 +208,14 @@ const SwitchableView = ({
     >
       <div className="switchable-view-header">
         <h2>{activeTitle}</h2>
-        {views && views.length > 1 && (
+        <div className="header-actions">
+          {/* Create Email Button - only show for email module */}
+          {module_id === 'email' && (
+            <CreateEmailButton onEmailCreated={handleEmailCreated} />
+          )}
+          
+          {/* View Selector */}
+          {views && views.length > 1 && (
           <div className="view-selector">
             <button 
               className="view-selector-button" 
@@ -213,7 +238,8 @@ const SwitchableView = ({
               </div>
             )}
           </div>
-        )}
+          )}
+        </div>
       </div>
       {activeView?.description && (
         <p className="component-description">{activeView.description}</p>

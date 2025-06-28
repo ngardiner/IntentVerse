@@ -27,6 +27,17 @@ UI_SCHEMA = {
         { "header": "To", "data_key": "to" },
         { "header": "Subject", "data_key": "subject" }
       ]
+    },
+    {
+      "component_type": "table",
+      "title": "Drafts",
+      "data_source_api": "/api/v1/email/state",
+      "data_path": "drafts",
+      "columns": [
+        { "header": "Date", "data_key": "timestamp" },
+        { "header": "To", "data_key": "to" },
+        { "header": "Subject", "data_key": "subject" }
+      ]
     }
   ]
 }

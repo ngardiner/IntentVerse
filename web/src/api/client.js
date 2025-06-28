@@ -208,6 +208,17 @@ export const updateEmail = (emailId, updates) => {
   });
 };
 
+export const createDraft = (to = [], subject = '', body = '') => {
+  return apiClient.post('/api/v1/execute', {
+    tool_name: "email.create_draft",
+    parameters: {
+      to,
+      subject,
+      body
+    }
+  });
+};
+
 // Timeline API Functions
 export const getTimelineEvents = (filters = {}) => {
   return apiClient.get('/api/v1/timeline/events', { params: filters });
