@@ -215,6 +215,7 @@ describe('SettingsPage', () => {
       // Then fix the API and refresh
       getModulesStatus.mockResolvedValue({ data: { modules: mockModulesData } });
       
+      // The refresh button should be available even in error state
       const refreshButton = screen.getByText('Refresh Status');
       await user.click(refreshButton);
       
@@ -244,10 +245,12 @@ describe('SettingsPage', () => {
       const user = userEvent.setup();
       render(<SettingsPage />);
       
+      // Wait for initial loading to complete
       await waitFor(() => {
-        expect(getModulesStatus).toHaveBeenCalledTimes(1);
+        expect(screen.getByText('File System')).toBeInTheDocument();
       });
 
+      // Now the refresh button should be available
       const refreshButton = screen.getByText('Refresh Status');
       await user.click(refreshButton);
       
@@ -264,6 +267,11 @@ describe('SettingsPage', () => {
       }));
       
       render(<SettingsPage />);
+      
+      // Wait for the component to render, then find the refresh button
+      await waitFor(() => {
+        expect(screen.getByText('Settings')).toBeInTheDocument();
+      });
       
       const refreshButton = screen.getByText('Refresh Status');
       expect(refreshButton).toBeDisabled();
