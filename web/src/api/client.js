@@ -300,4 +300,13 @@ export const toggleModule = (moduleName, enabled) => {
   return apiClient.post(`/api/v1/modules/${moduleName}/toggle`, { enabled });
 };
 
+// --- Database API Functions ---
+
+export const executeQuery = (sqlQuery) => {
+  return apiClient.post('/api/v1/execute', {
+    tool_name: "database.execute_sql",
+    parameters: { sql_query: sqlQuery }
+  });
+};
+
 export default apiClient;

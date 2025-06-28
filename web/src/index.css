@@ -3684,3 +3684,126 @@
     font-size: 0.875rem;
     font-style: italic;
   }
+
+  /* --- Query Executor Component --- */
+  .query-executor {
+    padding: 1rem;
+  }
+
+  .query-executor-title {
+    margin: 0 0 0.5rem 0;
+    color: var(--text-color);
+    font-size: 1.1rem;
+    font-weight: 600;
+  }
+
+  .query-executor-description {
+    margin: 0 0 1rem 0;
+    color: var(--text-color-secondary);
+    font-size: 0.9rem;
+  }
+
+  .query-executor-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .query-input-container {
+    position: relative;
+  }
+
+  .query-input {
+    width: 100%;
+    min-height: 120px;
+    padding: 0.75rem;
+    background-color: var(--surface-color);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    color: var(--text-color);
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 0.9rem;
+    line-height: 1.4;
+    resize: vertical;
+    transition: border-color 0.2s ease;
+  }
+
+  .query-input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(106, 141, 255, 0.2);
+  }
+
+  .query-input:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .query-input::placeholder {
+    color: var(--text-color-secondary);
+    font-style: italic;
+  }
+
+  .query-executor-actions {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: flex-end;
+  }
+
+  .query-executor-actions .btn {
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 6px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.9rem;
+  }
+
+  .query-executor-actions .btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .query-executor-actions .btn-secondary {
+    background-color: var(--surface-color);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+  }
+
+  .query-executor-actions .btn-secondary:hover:not(:disabled) {
+    background-color: rgba(255, 255, 255, 0.05);
+    border-color: var(--text-color-secondary);
+  }
+
+  .query-executor-actions .btn-primary {
+    background-color: var(--primary-color);
+    color: white;
+  }
+
+  .query-executor-actions .btn-primary:hover:not(:disabled) {
+    background-color: #5a7dff;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(106, 141, 255, 0.3);
+  }
+
+  .query-executor-error {
+    padding: 0.75rem;
+    background-color: rgba(220, 53, 69, 0.1);
+    border: 1px solid rgba(220, 53, 69, 0.3);
+    border-radius: 6px;
+    color: #ff6b6b;
+    font-size: 0.9rem;
+    margin-top: 0.5rem;
+  }
+
+  .query-executor-hint {
+    text-align: center;
+    margin-top: 0.5rem;
+  }
+
+  .query-executor-hint small {
+    color: var(--text-color-secondary);
+    font-size: 0.8rem;
+    font-style: italic;
+  }

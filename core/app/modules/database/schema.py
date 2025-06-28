@@ -36,6 +36,11 @@ UI_SCHEMA = {
           "dynamic_columns": True,
           "max_rows": 100,
           "description": "Results from the most recent SELECT query"
+        },
+        {
+          "component_type": "query_executor",
+          "title": "Execute Query",
+          "description": "Enter and execute SQL queries directly"
         }
       ]
     },

@@ -4,6 +4,7 @@ import GenericTable from './GenericTable';
 import GenericKeyValue from './GenericKeyValue';
 import GenericFileTree from './GenericFileTree';
 import EmailPopout from './EmailPopout';
+import QueryExecutor from './QueryExecutor';
 
 const SwitchableView = ({ 
   title,
@@ -80,6 +81,16 @@ const SwitchableView = ({
     setIsDropdownOpen(false);
   };
 
+  const handleQueryExecuted = () => {
+    // Switch to the "Last Query Result" view (index 2 in the database schema)
+    const lastQueryResultIndex = views.findIndex(view => 
+      view.title === "Last Query Result"
+    );
+    if (lastQueryResultIndex !== -1) {
+      setActiveViewIndex(lastQueryResultIndex);
+    }
+  };
+
   const handleRowClick = (item) => {
     setSelectedItem(item);
     setShowPopout(true);
@@ -117,6 +128,8 @@ const SwitchableView = ({
         return <GenericKeyValue {...viewProps} />;
       case 'file_tree':
         return <GenericFileTree {...viewProps} />;
+      case 'query_executor':
+        return <QueryExecutor {...viewProps} onQueryExecuted={handleQueryExecuted} />;
       default:
         return <div className="error-message">Unknown component type: {activeView.component_type}</div>;
     }

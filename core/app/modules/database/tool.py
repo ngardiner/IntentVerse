@@ -32,6 +32,8 @@ class DatabaseTool(BaseTool):
 
     def _initialize_database_state(self):
         """Initialize the database state in the state manager."""
+        import datetime
+        
         initial_state = {
             "tables": {},
             "last_query": "",
@@ -40,7 +42,7 @@ class DatabaseTool(BaseTool):
             "connection_info": {
                 "type": "SQLite",
                 "location": "in-memory",
-                "created_at": None
+                "created_at": datetime.datetime.now().isoformat()
             }
         }
         self.state_manager.set('database', initial_state)
