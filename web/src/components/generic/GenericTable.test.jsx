@@ -330,4 +330,71 @@ describe('GenericTable', () => {
     expect(screen.getByText('Test Table')).toBeInTheDocument();
     expect(screen.getByText('John Doe')).toBeInTheDocument();
   });
+
+  it('handles database module last_query_result with dynamic columns', async () => {
+    const databaseQueryResult = {
+      last_query_result: {
+        columns: ['id', 'name', 'email'],
+        rows: [
+          [1, 'John Doe', 'john@example.com'],
+          [2, 'Jane Smith', 'jane@example.com'],
+          [3, 'Bob Johnson', 'bob@example.com']
+        ]
+      }
+    };
+
+    getModuleState.mockResolvedValue({ data: databaseQueryResult });
+    
+    render(
+      <GenericTable
+        title="Last Query Result"
+        data_source_api="/api/modules/database/state"
+        module_id="database"
+        data_path="last_query_result"
+        dynamic_columns={true}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Last Query Result')).toBeInTheDocument();
+    });
+
+    // Check dynamic headers from columns array
+    expect(screen.getByText('id')).toBeInTheDocument();
+    expect(screen.getByText('name')).toBeInTheDocument();
+    expect(screen.getByText('email')).toBeInTheDocument();
+
+    // Check data from rows array
+    expect(screen.getByText('John Doe')).toBeInTheDocument();
+    expect(screen.getByText('jane@example.com')).toBeInTheDocument();
+    expect(screen.getByText('Bob Johnson')).toBeInTheDocument();
+  });
+
+  it('handles empty database query result', async () => {
+    const emptyDatabaseResult = {
+      last_query_result: {
+        columns: [],
+        rows: []
+      }
+    };
+
+    getModuleState.mockResolvedValue({ data: emptyDatabaseResult });
+    
+    render(
+      <GenericTable
+        title="Last Query Result"
+        data_source_api="/api/modules/database/state"
+        module_id="database"
+        data_path="last_query_result"
+        dynamic_columns={true}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Last Query Result')).toBeInTheDocument();
+    });
+
+    // Should show "No items to display" message
+    expect(screen.getByText(/No items to display/i)).toBeInTheDocument();
+  });
 });

@@ -37,7 +37,10 @@ class DatabaseTool(BaseTool):
         initial_state = {
             "tables": {},
             "last_query": "",
-            "last_query_result": [],
+            "last_query_result": {
+                "columns": [],
+                "rows": []
+            },
             "query_history": [],
             "connection_info": {
                 "type": "SQLite",
@@ -352,7 +355,28 @@ class DatabaseTool(BaseTool):
         
         # Update last query info
         db_state["last_query"] = sql_query
-        db_state["last_query_result"] = results
+        
+        # Format results for UI consumption with dynamic columns
+        if results and len(results) > 0:
+            # Extract column names from the first result row
+            columns = list(results[0].keys())
+            
+            # Convert each row dict to an array in the same order as columns
+            rows = []
+            for result_row in results:
+                row_array = [result_row.get(col) for col in columns]
+                rows.append(row_array)
+            
+            db_state["last_query_result"] = {
+                "columns": columns,
+                "rows": rows
+            }
+        else:
+            # No results - empty structure
+            db_state["last_query_result"] = {
+                "columns": [],
+                "rows": []
+            }
         
         # Add to query history (keep last 50 queries)
         query_record = {
