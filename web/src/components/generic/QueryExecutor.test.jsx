@@ -24,7 +24,7 @@ describe('QueryExecutor', () => {
       />
     );
 
-    expect(screen.getByText('Execute Query')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Execute Query' })).toBeInTheDocument();
     expect(screen.getByText('Enter and execute SQL queries directly')).toBeInTheDocument();
   });
 

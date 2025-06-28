@@ -4,11 +4,9 @@ import {
   getCurrentUser,
   getModulesStatus,
   getModuleState,
-  setModuleState,
-  getContentPacks,
-  importContentPack,
   exportContentPack,
-  deleteContentPack
+  getAvailableContentPacks,
+  getLoadedContentPacks
 } from './client';
 
 // Mock axios
@@ -18,8 +16,6 @@ const mockedAxios = axios;
 describe('API Client', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    // Reset axios defaults
-    delete axios.defaults.headers.common['Authorization'];
   });
 
   describe('login', () => {
@@ -30,7 +26,16 @@ describe('API Client', () => {
       const credentials = { username: 'admin', password: 'password' };
       const result = await login(credentials);
 
-      expect(mockedAxios.post).toHaveBeenCalledWith('/auth/login', credentials);
+      // Expect URLSearchParams with form data and correct headers
+      const expectedFormData = new URLSearchParams();
+      expectedFormData.append('username', 'admin');
+      expectedFormData.append('password', 'password');
+      
+      expect(mockedAxios.post).toHaveBeenCalledWith('/auth/login', expectedFormData, {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        }
+      });
       expect(result).toEqual(mockResponse);
     });
 
@@ -45,22 +50,19 @@ describe('API Client', () => {
   });
 
   describe('getCurrentUser', () => {
-    it('should make GET request to /auth/me with authorization header', async () => {
+    it('should make GET request to /users/me', async () => {
       const mockResponse = { data: { username: 'admin', id: 1 } };
       mockedAxios.get.mockResolvedValue(mockResponse);
 
-      const token = 'test-token';
-      const result = await getCurrentUser(token);
+      const result = await getCurrentUser();
 
-      expect(mockedAxios.get).toHaveBeenCalledWith('/auth/me', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      expect(mockedAxios.get).toHaveBeenCalledWith('/users/me');
       expect(result).toEqual(mockResponse);
     });
   });
 
   describe('getModulesStatus', () => {
-    it('should make GET request to /modules/status', async () => {
+    it('should make GET request to /api/v1/modules/status', async () => {
       const mockResponse = { 
         data: { 
           modules: { 
@@ -73,82 +75,62 @@ describe('API Client', () => {
 
       const result = await getModulesStatus();
 
-      expect(mockedAxios.get).toHaveBeenCalledWith('/modules/status');
+      expect(mockedAxios.get).toHaveBeenCalledWith('/api/v1/modules/status');
       expect(result).toEqual(mockResponse);
     });
   });
 
   describe('getModuleState', () => {
-    it('should make GET request to /modules/{moduleName}/state', async () => {
+    it('should make GET request to /api/v1/{moduleName}/state', async () => {
       const mockResponse = { data: { files: [], directories: [] } };
       mockedAxios.get.mockResolvedValue(mockResponse);
 
       const result = await getModuleState('filesystem');
 
-      expect(mockedAxios.get).toHaveBeenCalledWith('/modules/filesystem/state');
+      expect(mockedAxios.get).toHaveBeenCalledWith('/api/v1/filesystem/state');
       expect(result).toEqual(mockResponse);
     });
   });
 
-  describe('setModuleState', () => {
-    it('should make PUT request to /modules/{moduleName}/state with new state', async () => {
-      const mockResponse = { data: { success: true } };
-      mockedAxios.put.mockResolvedValue(mockResponse);
-
-      const newState = { files: ['test.txt'], directories: ['docs'] };
-      const result = await setModuleState('filesystem', newState);
-
-      expect(mockedAxios.put).toHaveBeenCalledWith('/modules/filesystem/state', newState);
-      expect(result).toEqual(mockResponse);
-    });
-  });
 
   describe('Content Pack API', () => {
-    describe('getContentPacks', () => {
-      it('should make GET request to /content-packs', async () => {
+    describe('getAvailableContentPacks', () => {
+      it('should make GET request to /api/v1/content-packs/available', async () => {
         const mockResponse = { data: [{ id: 1, name: 'Test Pack' }] };
         mockedAxios.get.mockResolvedValue(mockResponse);
 
-        const result = await getContentPacks();
+        const result = await getAvailableContentPacks();
 
-        expect(mockedAxios.get).toHaveBeenCalledWith('/content-packs');
+        expect(mockedAxios.get).toHaveBeenCalledWith('/api/v1/content-packs/available');
         expect(result).toEqual(mockResponse);
       });
     });
 
-    describe('importContentPack', () => {
-      it('should make POST request to /content-packs/import with pack data', async () => {
-        const mockResponse = { data: { success: true, id: 1 } };
-        mockedAxios.post.mockResolvedValue(mockResponse);
+    describe('getLoadedContentPacks', () => {
+      it('should make GET request to /api/v1/content-packs/loaded', async () => {
+        const mockResponse = { data: [{ id: 1, name: 'Loaded Pack' }] };
+        mockedAxios.get.mockResolvedValue(mockResponse);
 
-        const packData = { name: 'Test Pack', modules: {} };
-        const result = await importContentPack(packData);
+        const result = await getLoadedContentPacks();
 
-        expect(mockedAxios.post).toHaveBeenCalledWith('/content-packs/import', packData);
+        expect(mockedAxios.get).toHaveBeenCalledWith('/api/v1/content-packs/loaded');
         expect(result).toEqual(mockResponse);
       });
     });
 
     describe('exportContentPack', () => {
-      it('should make GET request to /content-packs/{packId}/export', async () => {
-        const mockResponse = { data: { name: 'Test Pack', modules: {} } };
-        mockedAxios.get.mockResolvedValue(mockResponse);
-
-        const result = await exportContentPack(1);
-
-        expect(mockedAxios.get).toHaveBeenCalledWith('/content-packs/1/export');
-        expect(result).toEqual(mockResponse);
-      });
-    });
-
-    describe('deleteContentPack', () => {
-      it('should make DELETE request to /content-packs/{packId}', async () => {
+      it('should make POST request to /api/v1/content-packs/export with filename and metadata', async () => {
         const mockResponse = { data: { success: true } };
-        mockedAxios.delete.mockResolvedValue(mockResponse);
+        mockedAxios.post.mockResolvedValue(mockResponse);
 
-        const result = await deleteContentPack(1);
+        const filename = 'test-pack.json';
+        const metadata = { description: 'Test pack' };
+        const result = await exportContentPack(filename, metadata);
 
-        expect(mockedAxios.delete).toHaveBeenCalledWith('/content-packs/1');
+        expect(mockedAxios.post).toHaveBeenCalledWith('/api/v1/content-packs/export', {
+          filename,
+          metadata
+        });
         expect(result).toEqual(mockResponse);
       });
     });
