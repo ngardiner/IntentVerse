@@ -78,12 +78,13 @@ describe('UsersPage', () => {
   ];
 
   const mockAuditStats = {
-    total_actions: 100,
-    success_rate: 95.5,
-    top_actions: [
-      { action: 'user.login', count: 50 },
-      { action: 'user.create', count: 10 }
-    ]
+    total_logs: 100,
+    status_breakdown: {
+      success: 95,
+      failure: 3,
+      error: 2
+    },
+    recent_activity_24h: 25
   };
 
   beforeEach(() => {
@@ -152,7 +153,7 @@ describe('UsersPage', () => {
       expect(screen.getByText('users')).toBeInTheDocument();
 
       // Switch to Audit tab
-      const auditTab = screen.getByText('Audit');
+      const auditTab = screen.getByText('Audit Logs');
       await user.click(auditTab);
       
       await waitFor(() => {
@@ -169,7 +170,7 @@ describe('UsersPage', () => {
         expect(screen.getByText('admin')).toBeInTheDocument();
       });
 
-      const auditTab = screen.getByText('Audit');
+      const auditTab = screen.getByText('Audit Logs');
       await user.click(auditTab);
       
       await waitFor(() => {
@@ -408,10 +409,10 @@ describe('UsersPage', () => {
       render(<UsersPage />);
       
       await waitFor(() => {
-        expect(screen.getByText('Audit')).toBeInTheDocument();
+        expect(screen.getByText('Audit Logs')).toBeInTheDocument();
       });
 
-      const auditTab = screen.getByText('Audit');
+      const auditTab = screen.getByText('Audit Logs');
       await user.click(auditTab);
       
       await waitFor(() => {
@@ -424,12 +425,12 @@ describe('UsersPage', () => {
       const user = userEvent.setup();
       render(<UsersPage />);
       
-      const auditTab = screen.getByText('Audit');
+      const auditTab = screen.getByText('Audit Logs');
       await user.click(auditTab);
       
       await waitFor(() => {
-        expect(screen.getByText('Total Actions: 100')).toBeInTheDocument();
-        expect(screen.getByText('Success Rate: 95.5%')).toBeInTheDocument();
+        expect(screen.getByText('100')).toBeInTheDocument(); // Total logs
+        expect(screen.getByText('95')).toBeInTheDocument(); // Success count
       });
     });
 
@@ -437,7 +438,7 @@ describe('UsersPage', () => {
       const user = userEvent.setup();
       render(<UsersPage />);
       
-      const auditTab = screen.getByText('Audit');
+      const auditTab = screen.getByText('Audit Logs');
       await user.click(auditTab);
       
       await waitFor(() => {

@@ -47,6 +47,9 @@ const UsersPage = () => {
     start_date: '',
     end_date: ''
   });
+  const [formErrors, setFormErrors] = useState({});
+  const [showMembersModal, setShowMembersModal] = useState(false);
+  const [managingGroup, setManagingGroup] = useState(null);
 
   useEffect(() => {
     loadData();
@@ -96,12 +99,39 @@ const UsersPage = () => {
     }
   };
 
+  const validateUserForm = () => {
+    const errors = {};
+    
+    if (!userForm.username.trim()) {
+      errors.username = 'Username is required';
+    }
+    
+    if (!userForm.email.trim()) {
+      errors.email = 'Email is required';
+    } else if (!/\S+@\S+\.\S+/.test(userForm.email)) {
+      errors.email = 'Please enter a valid email address';
+    }
+    
+    if (!editingUser && !userForm.password.trim()) {
+      errors.password = 'Password is required';
+    }
+    
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   const handleCreateUser = async (e) => {
     e.preventDefault();
+    
+    if (!validateUserForm()) {
+      return;
+    }
+    
     try {
       await createUser(userForm);
       setShowUserModal(false);
       setUserForm({ username: '', password: '', email: '', full_name: '', is_admin: false });
+      setFormErrors({});
       loadData();
     } catch (err) {
       setError('Failed to create user: ' + (err.response?.data?.detail || err.message));
@@ -110,6 +140,11 @@ const UsersPage = () => {
 
   const handleUpdateUser = async (e) => {
     e.preventDefault();
+    
+    if (!validateUserForm()) {
+      return;
+    }
+    
     try {
       const updateData = { ...userForm };
       if (!updateData.password) {
@@ -119,14 +154,15 @@ const UsersPage = () => {
       setShowUserModal(false);
       setEditingUser(null);
       setUserForm({ username: '', password: '', email: '', full_name: '', is_admin: false });
+      setFormErrors({});
       loadData();
     } catch (err) {
       setError('Failed to update user: ' + (err.response?.data?.detail || err.message));
     }
   };
 
-  const handleDeleteUser = async (userId) => {
-    if (window.confirm('Are you sure you want to delete this user?')) {
+  const handleDeleteUser = async (userId, username) => {
+    if (window.confirm(`Are you sure you want to delete user "${username}"?`)) {
       try {
         await deleteUser(userId);
         loadData();
@@ -186,6 +222,7 @@ const UsersPage = () => {
       setEditingUser(null);
       setUserForm({ username: '', password: '', email: '', full_name: '', is_admin: false });
     }
+    setFormErrors({});
     setShowUserModal(true);
   };
 
@@ -201,6 +238,11 @@ const UsersPage = () => {
       setGroupForm({ name: '', description: '' });
     }
     setShowGroupModal(true);
+  };
+
+  const openMembersModal = (group) => {
+    setManagingGroup(group);
+    setShowMembersModal(true);
   };
 
   const handleTabChange = async (tab) => {
@@ -343,7 +385,7 @@ const UsersPage = () => {
                         {user.id !== currentUser?.id && (
                           <button 
                             className="btn btn-sm btn-danger"
-                            onClick={() => handleDeleteUser(user.id)}
+                            onClick={() => handleDeleteUser(user.id, user.username)}
                           >
                             Delete
                           </button>
@@ -402,6 +444,12 @@ const UsersPage = () => {
                           Edit
                         </button>
                         <button 
+                          className="btn btn-sm btn-info"
+                          onClick={() => openMembersModal(group)}
+                        >
+                          Manage Members
+                        </button>
+                        <button 
                           className="btn btn-sm btn-danger"
                           onClick={() => handleDeleteGroup(group.id)}
                         >
@@ -458,8 +506,9 @@ const UsersPage = () => {
           <div className="audit-filters">
             <div className="filter-row">
               <div className="filter-group">
-                <label>Action</label>
+                <label htmlFor="action_filter">Action</label>
                 <input
+                  id="action_filter"
                   type="text"
                   value={auditFilters.action}
                   onChange={(e) => handleAuditFilterChange('action', e.target.value)}
@@ -577,39 +626,46 @@ const UsersPage = () => {
             <form onSubmit={editingUser ? handleUpdateUser : handleCreateUser}>
               <div className="modal-body">
                 <div className="form-group">
-                  <label>Username</label>
+                  <label htmlFor="username">Username</label>
                   <input
+                    id="username"
                     type="text"
                     value={userForm.username}
                     onChange={(e) => setUserForm({...userForm, username: e.target.value})}
                     required
                     disabled={editingUser} // Can't change username when editing
                   />
+                  {formErrors.username && <div className="error-text">{formErrors.username}</div>}
                 </div>
                 <div className="form-group">
-                  <label>Password {editingUser && '(leave empty to keep current)'}</label>
+                  <label htmlFor="password">Password {editingUser && '(leave empty to keep current)'}</label>
                   <input
+                    id="password"
                     type="password"
                     value={userForm.password}
                     onChange={(e) => setUserForm({...userForm, password: e.target.value})}
                     required={!editingUser}
                   />
+                  {formErrors.password && <div className="error-text">{formErrors.password}</div>}
                 </div>
                 <div className="form-group">
-                  <label>Full Name</label>
+                  <label htmlFor="full_name">Full Name</label>
                   <input
+                    id="full_name"
                     type="text"
                     value={userForm.full_name}
                     onChange={(e) => setUserForm({...userForm, full_name: e.target.value})}
                   />
                 </div>
                 <div className="form-group">
-                  <label>Email</label>
+                  <label htmlFor="email">Email</label>
                   <input
+                    id="email"
                     type="email"
                     value={userForm.email}
                     onChange={(e) => setUserForm({...userForm, email: e.target.value})}
                   />
+                  {formErrors.email && <div className="error-text">{formErrors.email}</div>}
                 </div>
                 <div className="form-group">
                   <label className="checkbox-label">
@@ -651,8 +707,9 @@ const UsersPage = () => {
             <form onSubmit={editingGroup ? handleUpdateGroup : handleCreateGroup}>
               <div className="modal-body">
                 <div className="form-group">
-                  <label>Name</label>
+                  <label htmlFor="group_name">Group Name</label>
                   <input
+                    id="group_name"
                     type="text"
                     value={groupForm.name}
                     onChange={(e) => setGroupForm({...groupForm, name: e.target.value})}
@@ -661,8 +718,9 @@ const UsersPage = () => {
                   />
                 </div>
                 <div className="form-group">
-                  <label>Description</label>
+                  <label htmlFor="group_description">Description</label>
                   <textarea
+                    id="group_description"
                     value={groupForm.description}
                     onChange={(e) => setGroupForm({...groupForm, description: e.target.value})}
                     rows="3"
@@ -678,6 +736,32 @@ const UsersPage = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Group Members Modal */}
+      {showMembersModal && managingGroup && (
+        <div className="modal-overlay">
+          <div className="modal">
+            <div className="modal-header">
+              <h3>Manage Group Members</h3>
+              <button 
+                className="modal-close"
+                onClick={() => setShowMembersModal(false)}
+              >
+                ×
+              </button>
+            </div>
+            <div className="modal-body">
+              <p>Managing members for group: {managingGroup.name}</p>
+              {/* TODO: Implement actual member management */}
+            </div>
+            <div className="modal-footer">
+              <button type="button" className="btn btn-secondary" onClick={() => setShowMembersModal(false)}>
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

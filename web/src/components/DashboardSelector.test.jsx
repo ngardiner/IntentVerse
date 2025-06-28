@@ -73,7 +73,8 @@ describe('DashboardSelector', () => {
 
     // Should show dropdown
     expect(screen.getByText('Switch Dashboard')).toBeInTheDocument();
-    expect(screen.getByText('State')).toBeInTheDocument();
+    // Use more specific selector for the dropdown option
+    expect(screen.getByText('View and manage module states')).toBeInTheDocument();
   });
 
   it('shows timeline dashboard when timeline module is enabled and loaded', async () => {
@@ -96,8 +97,8 @@ describe('DashboardSelector', () => {
     await user.click(selectorButton);
 
     // Should show timeline option since it's enabled and loaded
-    expect(screen.getByText('Timeline')).toBeInTheDocument();
-    expect(screen.getByText('ðŸ“‹')).toBeInTheDocument();
+    expect(screen.getByText('View events and activity')).toBeInTheDocument();
+    expect(screen.getByText('ðŸ"‹')).toBeInTheDocument();
   });
 
   it('calls onDashboardChange when different dashboard is selected', async () => {
@@ -120,7 +121,7 @@ describe('DashboardSelector', () => {
     await user.click(selectorButton);
 
     // Click timeline option
-    const timelineOption = screen.getByText('Timeline');
+    const timelineOption = screen.getByText('View events and activity');
     await user.click(timelineOption);
 
     // Should call the change handler
@@ -292,7 +293,7 @@ describe('DashboardSelector', () => {
     await user.click(selectorButton);
 
     // Should show checkmark for current dashboard
-    const timelineOption = screen.getByText('Timeline').closest('button');
+    const timelineOption = screen.getByText('View events and activity').closest('button');
     expect(timelineOption).toHaveClass('active');
   });
 });

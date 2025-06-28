@@ -295,3 +295,4 @@ const AppWrapper = () => (
 );
 
 export default AppWrapper;
+export { AuthProvider, useAuth };

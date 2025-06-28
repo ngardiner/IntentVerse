@@ -208,11 +208,17 @@ const DashboardLayoutManager = ({
     dragImage.style.position = 'absolute';
     dragImage.style.top = '-1000px';
     document.body.appendChild(dragImage);
-    e.dataTransfer.setDragImage(dragImage, 0, 0);
+    
+    // Check if setDragImage is available (not available in some test environments)
+    if (e.dataTransfer.setDragImage) {
+      e.dataTransfer.setDragImage(dragImage, 0, 0);
+    }
     
     // Clean up after drag image is set
     setTimeout(() => {
-      document.body.removeChild(dragImage);
+      if (document.body.contains(dragImage)) {
+        document.body.removeChild(dragImage);
+      }
     }, 0);
     
     // Make sure the dataTransfer object has the moduleId
