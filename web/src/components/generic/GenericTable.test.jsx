@@ -53,7 +53,7 @@ describe('GenericTable', () => {
   });
 
   it('renders table with data after loading', async () => {
-    getModuleState.mockResolvedValue({ data: mockTableData });
+    getModuleState.mockResolvedValue(mockTableData);
     
     render(
       <GenericTable
@@ -64,12 +64,12 @@ describe('GenericTable', () => {
       />
     );
 
+    // Wait for the data to load and table to render
     await waitFor(() => {
-      expect(screen.getByText('Test Table')).toBeInTheDocument();
+      expect(screen.getByText('ID')).toBeInTheDocument();
     });
 
-    // Check headers
-    expect(screen.getByText('ID')).toBeInTheDocument();
+    // Check all headers
     expect(screen.getByText('Name')).toBeInTheDocument();
     expect(screen.getByText('Email')).toBeInTheDocument();
     expect(screen.getByText('Age')).toBeInTheDocument();

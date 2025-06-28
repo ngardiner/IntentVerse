@@ -397,7 +397,7 @@ const ContentPackManager = () => {
       ) : (
         <div className="pack-grid">
           {loadedPacks.map((pack, index) => {
-            const packFilename = pack.path ? pack.path.split('/').pop() : '';
+            const packFilename = pack.filename || (pack.path ? pack.path.split('/').pop() : '');
             const isLoading = actionLoading[packFilename] || actionLoading[pack.metadata?.name];
             
             return (
@@ -424,7 +424,7 @@ const ContentPackManager = () => {
                     <div className="action-buttons">
                       <button 
                         className="unload-button"
-                        onClick={() => handleUnloadPack(packFilename || pack.metadata?.name)}
+                        onClick={() => handleUnloadPack(packFilename)}
                         disabled={isLoading}
                       >
                         {isLoading ? 'Unloading...' : 'Unload Pack'}

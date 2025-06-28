@@ -146,14 +146,22 @@ describe('UsersPage', () => {
       });
 
       // Switch to Groups tab
-      const groupsTab = screen.getByText('Groups');
+      const groupsTab = screen.getByText(/Groups/);
       await user.click(groupsTab);
       
-      expect(screen.getByText('administrators')).toBeInTheDocument();
-      expect(screen.getByText('users')).toBeInTheDocument();
+      // Wait for the groups tab to become active and content to render
+      await waitFor(() => {
+        expect(groupsTab).toHaveClass('active');
+      });
+      
+      // Now check for the group names
+      await waitFor(() => {
+        expect(screen.getByText('administrators')).toBeInTheDocument();
+        expect(screen.getByText('users')).toBeInTheDocument();
+      });
 
       // Switch to Audit tab
-      const auditTab = screen.getByText('Audit Logs');
+      const auditTab = screen.getByText(/Audit Logs/);
       await user.click(auditTab);
       
       await waitFor(() => {

@@ -25,18 +25,21 @@ describe('DashboardLayoutManager', () => {
     </div>
   ];
 
-  const defaultProps = {
+  let defaultProps;
+  
+  const createDefaultProps = () => ({
     isEditing: false,
     onSaveLayout: jest.fn(),
     onCancelEdit: jest.fn(),
     children: mockChildren,
     currentDashboard: 'test-dashboard'
-  };
+  });
 
   beforeEach(() => {
     jest.clearAllMocks();
     localStorageMock.clear();
     localStorageMock.getItem.mockReturnValue(null);
+    defaultProps = createDefaultProps();
   });
 
   describe('Basic Rendering', () => {
@@ -187,24 +190,43 @@ describe('DashboardLayoutManager', () => {
   });
 
   describe('Layout Persistence', () => {
+    it('localStorage mock is working', () => {
+      localStorage.setItem('test', 'value');
+      expect(localStorageMock.setItem).toHaveBeenCalledWith('test', 'value');
+    });
+
     it('saves layout to localStorage when save is clicked', async () => {
       const user = userEvent.setup();
       render(<DashboardLayoutManager {...defaultProps} isEditing={true} />);
       
+      // Wait for the component to be fully rendered and initialized
+      await waitFor(() => {
+        expect(screen.getByText('Save Layout')).toBeInTheDocument();
+      });
+      
       const saveButton = screen.getByText('Save Layout');
+      
+      // Verify the button is enabled and clickable
+      expect(saveButton).toBeEnabled();
+      expect(saveButton).toHaveAttribute('aria-label', 'Save layout changes');
+      
       await user.click(saveButton);
       
-      // Wait for the localStorage calls to happen (layout and hidden state)
-      await waitFor(() => {
-        expect(localStorageMock.setItem).toHaveBeenCalledWith(
-          'dashboard-layout-test-dashboard',
-          expect.any(String)
-        );
-        expect(localStorageMock.setItem).toHaveBeenCalledWith(
-          'dashboard-hidden-test-dashboard',
-          expect.any(String)
-        );
-      });
+      // First check that the onSaveLayout callback was called
+      expect(defaultProps.onSaveLayout).toHaveBeenCalledTimes(1);
+      
+      // Then check that localStorage was called with the correct keys
+      expect(localStorageMock.setItem).toHaveBeenCalledWith(
+        'dashboard-layout-test-dashboard',
+        expect.any(String)
+      );
+      expect(localStorageMock.setItem).toHaveBeenCalledWith(
+        'dashboard-hidden-test-dashboard',
+        expect.any(String)
+      );
+      
+      // Verify localStorage was called exactly twice (layout + hidden state)
+      expect(localStorageMock.setItem).toHaveBeenCalledTimes(2);
     });
 
     it('loads layout from localStorage on mount', async () => {

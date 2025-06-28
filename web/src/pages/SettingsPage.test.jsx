@@ -260,25 +260,32 @@ describe('SettingsPage', () => {
     it('disables refresh button during loading', async () => {
       const user = userEvent.setup();
       
-      // Make getModulesStatus return a pending promise
-      let resolveModules;
-      getModulesStatus.mockReturnValue(new Promise(resolve => {
-        resolveModules = resolve;
-      }));
-      
       render(<SettingsPage />);
       
-      // Wait for the component to render, then find the refresh button
+      // Wait for initial loading to complete so refresh button is visible
       await waitFor(() => {
-        expect(screen.getByText('Settings')).toBeInTheDocument();
+        expect(screen.getByText('File System')).toBeInTheDocument();
       });
       
+      // Now set up a pending promise for the next getModulesStatus call
+      let resolveRefresh;
+      getModulesStatus.mockReturnValue(new Promise(resolve => {
+        resolveRefresh = resolve;
+      }));
+      
       const refreshButton = screen.getByText('Refresh Status');
+      expect(refreshButton).not.toBeDisabled();
+      
+      // Click the refresh button to trigger loading state
+      await user.click(refreshButton);
+      
+      // The button should now be disabled during the refresh
       expect(refreshButton).toBeDisabled();
       
-      // Resolve the loading
-      resolveModules({ data: { modules: mockModulesData } });
+      // Resolve the refresh
+      resolveRefresh({ data: { modules: mockModulesData } });
       
+      // Wait for the refresh to complete and button to be enabled again
       await waitFor(() => {
         expect(refreshButton).not.toBeDisabled();
       });

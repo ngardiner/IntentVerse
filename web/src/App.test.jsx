@@ -251,6 +251,11 @@ describe('App', () => {
   });
 
   it('persists authentication state across page reloads', () => {
+    // Mock getCurrentUser to return a valid user
+    getCurrentUser.mockResolvedValue({
+      data: { username: 'testuser', id: 1 }
+    });
+
     // Simulate existing token in localStorage
     localStorage.setItem('authToken', 'existing-token');
 
