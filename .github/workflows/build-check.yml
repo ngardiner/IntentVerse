@@ -30,7 +30,7 @@ jobs:
         id: core-unit-tests
         run: |
           echo "Running core unit tests..."
-          docker compose run --rm \
+          docker compose run --name intentverse-core-unit-tests \
             -e PYTHONPATH=/app \
             -e SERVICE_API_KEY=test-service-key-12345 \
             -e LOG_LEVEL=ERROR \
@@ -46,7 +46,7 @@ jobs:
         id: core-e2e-tests
         run: |
           echo "Running core e2e tests..."
-          docker compose run --rm \
+          docker compose run --name intentverse-core-e2e-tests \
             -e PYTHONPATH=/app \
             -e SERVICE_API_KEY=dev-service-key-12345 \
             -e CORE_API_URL=http://core:8000 \
@@ -63,7 +63,7 @@ jobs:
         id: mcp-tests
         run: |
           echo "Running MCP tests..."
-          docker compose run --rm \
+          docker compose run --name intentverse-mcp-tests \
             -e PYTHONPATH=/app \
             -e CORE_API_URL=http://core:8000 \
             -e SERVICE_API_KEY=dev-service-key-12345 \
@@ -85,13 +85,6 @@ jobs:
             --silent \
             --testResultsProcessor=jest-junit
         continue-on-error: true
-
-      - name: Stop services
-        if: always()
-        run: |
-          docker compose down
-          # Clean up the named web test container if it exists
-          docker rm intentverse-web-tests 2>/dev/null || true
 
       - name: Collect test results
         if: always()
@@ -125,8 +118,8 @@ jobs:
           mkdir -p test-results
           
           # Extract and display test counts
-          docker cp intentverse-tests:/app/test-results-unit.xml ./test-results/core-unit.xml 2>/dev/null || true
-          docker cp intentverse-tests:/app/test-results-e2e.xml ./test-results/core-e2e.xml 2>/dev/null || true
+          docker cp intentverse-core-unit-tests:/app/test-results-unit.xml ./test-results/core-unit.xml 2>/dev/null || true
+          docker cp intentverse-core-e2e-tests:/app/test-results-e2e.xml ./test-results/core-e2e.xml 2>/dev/null || true
           docker cp intentverse-mcp-tests:/app/test-results-mcp.xml ./test-results/mcp.xml 2>/dev/null || true
           docker cp intentverse-web-tests:/app/test-results/web-test-results.xml ./test-results/web.xml 2>/dev/null || true
           
@@ -203,6 +196,16 @@ jobs:
             echo "::error::One or more test suites failed!"
             exit 1
           fi
+
+      - name: Stop services
+        if: always()
+        run: |
+          docker compose down
+          # Clean up the named test containers if they exist
+          docker rm intentverse-web-tests 2>/dev/null || true
+          docker rm intentverse-core-unit-tests 2>/dev/null || true
+          docker rm intentverse-core-e2e-tests 2>/dev/null || true
+          docker rm intentverse-mcp-tests 2>/dev/null || true
           
       - name: Upload test results
         if: always()
