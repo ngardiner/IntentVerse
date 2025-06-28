@@ -148,3 +148,57 @@ class FileSystemTool(BaseTool):
 
         self.state_manager.set('filesystem', self.state_manager.get('filesystem'))
         return f"Successfully deleted file: {path}"
+
+    def create_directory(self, path: str) -> str:
+        """Creates a new directory at the specified path."""
+        # 1. Perform all validation first.
+        if not path or not path.startswith('/'):
+            raise HTTPException(status_code=400, detail="Path must be absolute and not empty.")
+        if path.strip() == "/":
+            raise HTTPException(status_code=400, detail="Cannot create the root directory.")
+
+        # 2. Find the target and its parent.
+        node, parent = self._find_node_and_parent(path)
+
+        # 3. Handle validation based on what was found.
+        if node:
+            if node.get('type') == 'directory':
+                raise HTTPException(status_code=400, detail=f"Directory already exists at path: {path}")
+            else:
+                raise HTTPException(status_code=400, detail=f"A file already exists at path: {path}")
+        
+        # 4. If parent doesn't exist, create all necessary parent directories
+        if not parent:
+            try:
+                parent = self._create_parent_dirs(path)
+            except HTTPException:
+                # Re-raise if _create_parent_dirs found an invalid path structure
+                raise
+            except Exception:
+                raise HTTPException(status_code=400, detail=f"Invalid path: cannot create parent directories for {path}")
+        
+        directory_name = path.split('/')[-1]
+
+        # 5. Create the new directory.
+        new_directory = {"type": "directory", "name": directory_name, "children": []}
+        parent['children'].append(new_directory)
+        self.state_manager.set('filesystem', self.state_manager.get('filesystem'))
+        return f"Successfully created directory: {path}"
+
+    def delete_directory(self, path: str) -> str:
+        """Deletes a specified directory (must be empty)."""
+        node, parent = self._find_node_and_parent(path)
+
+        if not node:
+            raise HTTPException(status_code=404, detail=f"Directory not found: {path}")
+        if not parent:
+            raise HTTPException(status_code=500, detail="Cannot delete root directory.")
+        if node.get('type') != 'directory':
+            raise HTTPException(status_code=400, detail="Path is a file, not a directory.")
+        if node.get('children') and len(node.get('children', [])) > 0:
+            raise HTTPException(status_code=400, detail="Directory is not empty. Please delete all contents first.")
+
+        parent['children'] = [child for child in parent['children'] if child['name'] != node['name']]
+
+        self.state_manager.set('filesystem', self.state_manager.get('filesystem'))
+        return f"Successfully deleted directory: {path}"

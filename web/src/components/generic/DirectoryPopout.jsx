@@ -3,95 +3,65 @@ import { createDirectory } from '../../api/client';
 
 const DirectoryPopout = ({ parentPath, onClose }) => {
   const [directoryName, setDirectoryName] = useState('');
-  const [isValid, setIsValid] = useState(false);
-  const [error, setError] = useState(null);
-  const [status, setStatus] = useState(null);
+  const [isCreating, setIsCreating] = useState(false);
 
-  const validateDirectoryName = (name) => {
-    // Basic validation: non-empty and no invalid characters
-    const isValid = name.trim() !== '' && !/[\\/:*?"<>|]/.test(name);
-    setIsValid(isValid);
-    return isValid;
-  };
-
-  const handleNameChange = (e) => {
-    const name = e.target.value;
-    setDirectoryName(name);
-    validateDirectoryName(name);
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter' && directoryName.trim()) {
+      handleCreate();
+    } else if (e.key === 'Escape') {
+      onClose();
+    }
   };
 
   const handleCreate = async () => {
-    if (!isValid) {
-      setError("Please enter a valid directory name");
-      return;
-    }
+    if (!directoryName.trim()) return;
     
-    const fullPath = `${parentPath}/${directoryName}`;
+    const fullPath = parentPath === '/' ? `/${directoryName}` : `${parentPath}/${directoryName}`;
     
     try {
-      setStatus('creating');
-      const response = await createDirectory(fullPath);
-      if (response.data.status === 'success') {
-        setStatus('success');
-        setTimeout(() => {
-          onClose();
-        }, 1500);
-      } else {
-        throw new Error('Directory creation failed');
-      }
+      setIsCreating(true);
+      await createDirectory(fullPath);
+      onClose(); // Close immediately on success
     } catch (err) {
-      setStatus('error');
-      setError(`Failed to create directory: ${err.message}`);
-      console.error(err);
+      console.error('Failed to create directory:', err);
+      // Could add error handling here if needed
+    } finally {
+      setIsCreating(false);
     }
   };
 
   return (
-    <div className="directory-popout-overlay" onClick={onClose}>
-      <div className="directory-popout-content" onClick={(e) => e.stopPropagation()}>
-        <div className="directory-popout-header">
-          <h3>Create New Directory</h3>
-          <button className="directory-popout-close" onClick={onClose}>×</button>
+    <div className="popup-overlay" onClick={onClose}>
+      <div className="popup-content compact-popup" onClick={(e) => e.stopPropagation()}>
+        <div className="popup-header">
+          <span>New Directory</span>
         </div>
-        <div className="directory-popout-body">
-          <div className="directory-path-container">
-            <span className="directory-parent-path">{parentPath}/</span>
-            <input
-              type="text"
-              className={`directory-name-input ${!isValid && directoryName ? 'invalid' : ''}`}
-              value={directoryName}
-              onChange={handleNameChange}
-              placeholder="Enter directory name"
-              autoFocus
-            />
-          </div>
-          
-          {error && <div className="directory-error">{error}</div>}
-          
-          {status === 'creating' && (
-            <div className="status-message creating">Creating directory...</div>
-          )}
-          {status === 'success' && (
-            <div className="status-message success">Directory created successfully!</div>
-          )}
-          {status === 'error' && (
-            <div className="status-message error">Failed to create directory.</div>
-          )}
+        <div className="popup-body">
+          <input
+            type="text"
+            value={directoryName}
+            onChange={(e) => setDirectoryName(e.target.value)}
+            onKeyDown={handleKeyPress}
+            placeholder="Directory name"
+            className="popup-input"
+            autoFocus
+            disabled={isCreating}
+          />
         </div>
-        <div className="directory-popout-footer">
+        <div className="popup-actions">
           <button 
-            className="directory-popout-cancel" 
             onClick={onClose}
-            disabled={status === 'creating'}
+            className="popup-btn popup-btn-cancel"
+            disabled={isCreating}
           >
             Cancel
           </button>
           <button 
-            className="directory-popout-create" 
             onClick={handleCreate}
-            disabled={!isValid || status === 'creating' || status === 'success'}
+            className="popup-btn popup-btn-primary"
+            disabled={!directoryName.trim() || isCreating}
           >
-            Create
+            {isCreating ? 'Creating...' : 'Create'}
           </button>
         </div>
       </div>

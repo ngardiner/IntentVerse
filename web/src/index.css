@@ -1533,6 +1533,102 @@
     border: 1px solid #dc3545;
   }
 
+  /* Compact popup styles */
+  .popup-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+  }
+
+  .compact-popup {
+    background: var(--surface-color);
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    min-width: 300px;
+    max-width: 400px;
+    padding: 0;
+    border: 1px solid var(--border-color);
+  }
+
+  .popup-header {
+    padding: 16px 20px 12px;
+    border-bottom: 1px solid var(--border-color);
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--text-color);
+  }
+
+  .popup-body {
+    padding: 16px 20px;
+  }
+
+  .popup-input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 14px;
+    outline: none;
+    box-sizing: border-box;
+    background: var(--background-color);
+    color: var(--text-color);
+  }
+
+  .popup-input:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(106, 141, 255, 0.25);
+  }
+
+  .popup-actions {
+    padding: 12px 20px 16px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    border-top: 1px solid var(--border-color);
+  }
+
+  .popup-btn {
+    padding: 6px 16px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--surface-color);
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.2s;
+    color: var(--text-color);
+  }
+
+  .popup-btn:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  .popup-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .popup-btn-cancel {
+    color: var(--text-color-secondary);
+  }
+
+  .popup-btn-primary {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+  }
+
+  .popup-btn-primary:hover:not(:disabled) {
+    background: #5a7dff;
+    border-color: #5a7dff;
+  }
+
   /* File Popout Styles */
   .file-popout-overlay {
     position: fixed;
