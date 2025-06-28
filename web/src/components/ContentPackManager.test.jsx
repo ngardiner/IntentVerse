@@ -284,13 +284,13 @@ describe('ContentPackManager', () => {
     await user.click(loadButton);
 
     // Should show loading state
-    expect(screen.getByText('Loading...')).toBeInTheDocument();
+    expect(screen.getByText('Loading content packs...')).toBeInTheDocument();
 
     // Resolve the promise
     resolveLoad({ data: { success: true } });
     
     await waitFor(() => {
-      expect(screen.queryByText('Loading...')).not.toBeInTheDocument();
+      expect(screen.queryByText('Loading content packs...')).not.toBeInTheDocument();
     });
   });
 

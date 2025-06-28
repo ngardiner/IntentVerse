@@ -59,15 +59,35 @@ jobs:
             --junitxml=/app/test-results-e2e.xml
         continue-on-error: true
 
+      - name: Verify Core service is ready for MCP tests
+        run: |
+          echo "Verifying Core service is ready for MCP integration tests..."
+          # Additional wait to ensure Core service is fully ready
+          for i in {1..30}; do
+            if docker compose exec -T core curl -f http://localhost:8000/ >/dev/null 2>&1; then
+              echo "Core service is responding"
+              break
+            fi
+            echo "Waiting for Core service... (attempt $i/30)"
+            sleep 2
+          done
+
       - name: Run MCP tests
         id: mcp-tests
         run: |
           echo "Running MCP tests..."
+          echo "Core service status:"
+          docker compose ps core
+          echo "Network connectivity test:"
+          docker compose run --rm mcp-tests ping -c 3 core || true
+          echo "Starting MCP tests..."
           docker compose run --name intentverse-mcp-tests \
             -e PYTHONPATH=/app \
             -e CORE_API_URL=http://core:8000 \
             -e SERVICE_API_KEY=dev-service-key-12345 \
-            -e LOG_LEVEL=ERROR \
+            -e LOG_LEVEL=INFO \
+            -e CI=true \
+            -e GITHUB_ACTIONS=true \
             mcp-tests python -m pytest tests/ -v \
             --tb=short \
             --disable-warnings \
@@ -78,12 +98,37 @@ jobs:
       - name: Run web tests
         id: web-tests
         run: |
-          echo "Running web tests..."
+          echo "Running comprehensive web tests..."
           docker compose run --name intentverse-web-tests \
             -e CI=true \
-            web npm test -- --coverage --watchAll=false --ci \
-            --silent \
-            --testResultsProcessor=jest-junit
+            web npm run test:ci
+        continue-on-error: true
+
+      - name: Run authentication tests
+        id: auth-tests
+        run: |
+          echo "Running authentication tests..."
+          docker compose run --name intentverse-auth-tests \
+            -e CI=true \
+            web npm run test:auth
+        continue-on-error: true
+
+      - name: Run component tests
+        id: component-tests
+        run: |
+          echo "Running component tests..."
+          docker compose run --name intentverse-component-tests \
+            -e CI=true \
+            web npm run test:components
+        continue-on-error: true
+
+      - name: Run page tests
+        id: page-tests
+        run: |
+          echo "Running page tests..."
+          docker compose run --name intentverse-page-tests \
+            -e CI=true \
+            web npm run test:pages
         continue-on-error: true
 
       - name: Collect test results
@@ -93,7 +138,10 @@ jobs:
           echo "Core unit tests: ${{ steps.core-unit-tests.outcome }}"
           echo "Core e2e tests: ${{ steps.core-e2e-tests.outcome }}"  
           echo "MCP tests: ${{ steps.mcp-tests.outcome }}"
-          echo "Web tests: ${{ steps.web-tests.outcome }}"
+          echo "Web tests (comprehensive): ${{ steps.web-tests.outcome }}"
+          echo "Authentication tests: ${{ steps.auth-tests.outcome }}"
+          echo "Component tests: ${{ steps.component-tests.outcome }}"
+          echo "Page tests: ${{ steps.page-tests.outcome }}"
           echo "=============================================================="
           
           # Extract test counts from JUnit XML files
@@ -122,6 +170,9 @@ jobs:
           docker cp intentverse-core-e2e-tests:/app/test-results-e2e.xml ./test-results/core-e2e.xml 2>/dev/null || true
           docker cp intentverse-mcp-tests:/app/test-results-mcp.xml ./test-results/mcp.xml 2>/dev/null || true
           docker cp intentverse-web-tests:/app/test-results/web-test-results.xml ./test-results/web.xml 2>/dev/null || true
+          docker cp intentverse-auth-tests:/app/test-results/web-test-results.xml ./test-results/auth.xml 2>/dev/null || true
+          docker cp intentverse-component-tests:/app/test-results/web-test-results.xml ./test-results/components.xml 2>/dev/null || true
+          docker cp intentverse-page-tests:/app/test-results/web-test-results.xml ./test-results/pages.xml 2>/dev/null || true
           
           echo "Core unit tests:"
           extract_counts "./test-results/core-unit.xml"
@@ -132,8 +183,17 @@ jobs:
           echo "MCP tests:"
           extract_counts "./test-results/mcp.xml"
           
-          echo "Web tests:"
+          echo "Web tests (comprehensive):"
           extract_counts "./test-results/web.xml"
+          
+          echo "Authentication tests:"
+          extract_counts "./test-results/auth.xml"
+          
+          echo "Component tests:"
+          extract_counts "./test-results/components.xml"
+          
+          echo "Page tests:"
+          extract_counts "./test-results/pages.xml"
           
           # Create a summary file
           echo "# Test Results Summary" > test-results/summary.md

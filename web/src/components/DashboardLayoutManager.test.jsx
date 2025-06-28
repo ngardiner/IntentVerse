@@ -55,21 +55,23 @@ describe('DashboardLayoutManager', () => {
       render(<DashboardLayoutManager {...defaultProps} />);
       
       const container = screen.getByTestId('widget1').parentElement;
-      expect(container).toHaveClass('dashboard-grid');
+      expect(container).toHaveClass('modules-grid');
     });
 
     it('handles empty children gracefully', () => {
       render(<DashboardLayoutManager {...defaultProps} children={[]} />);
       
-      // Should render without crashing
-      expect(screen.getByRole('main')).toBeInTheDocument();
+      // Should render without crashing - check for the main container
+      expect(document.querySelector('.dashboard-layout-manager')).toBeInTheDocument();
+      expect(document.querySelector('.modules-grid')).toBeInTheDocument();
     });
 
     it('handles null children gracefully', () => {
       render(<DashboardLayoutManager {...defaultProps} children={null} />);
       
-      // Should render without crashing
-      expect(screen.getByRole('main')).toBeInTheDocument();
+      // Should render without crashing - check for the main container
+      expect(document.querySelector('.dashboard-layout-manager')).toBeInTheDocument();
+      expect(document.querySelector('.modules-grid')).toBeInTheDocument();
     });
   });
 
@@ -279,24 +281,27 @@ describe('DashboardLayoutManager', () => {
       render(<DashboardLayoutManager {...defaultProps} isEditing={true} />);
       
       const widget1 = screen.getByTestId('widget1');
-      expect(widget1).toHaveAttribute('draggable', 'true');
+      const wrapper = widget1.parentElement;
+      expect(wrapper).toHaveAttribute('draggable', 'true');
     });
 
     it('disables drag and drop in view mode', () => {
       render(<DashboardLayoutManager {...defaultProps} isEditing={false} />);
       
       const widget1 = screen.getByTestId('widget1');
-      expect(widget1).not.toHaveAttribute('draggable', 'true');
+      const wrapper = widget1.parentElement;
+      expect(wrapper).not.toHaveAttribute('draggable', 'true');
     });
 
     it('handles drag start event', () => {
       render(<DashboardLayoutManager {...defaultProps} isEditing={true} />);
       
       const widget1 = screen.getByTestId('widget1');
-      fireEvent.dragStart(widget1);
+      const wrapper = widget1.parentElement;
+      fireEvent.dragStart(wrapper);
       
-      // Should set dragging state
-      expect(widget1).toHaveClass('dragging');
+      // Should set dragging state on wrapper
+      expect(wrapper).toHaveClass('dragging');
     });
 
     it('handles drop event', () => {
@@ -304,13 +309,15 @@ describe('DashboardLayoutManager', () => {
       
       const widget1 = screen.getByTestId('widget1');
       const widget2 = screen.getByTestId('widget2');
+      const wrapper1 = widget1.parentElement;
+      const wrapper2 = widget2.parentElement;
       
-      fireEvent.dragStart(widget1);
-      fireEvent.dragOver(widget2);
-      fireEvent.drop(widget2);
+      fireEvent.dragStart(wrapper1);
+      fireEvent.dragOver(wrapper2);
+      fireEvent.drop(wrapper2);
       
       // Should update layout
-      expect(widget1).not.toHaveClass('dragging');
+      expect(wrapper1).not.toHaveClass('dragging');
     });
   });
 

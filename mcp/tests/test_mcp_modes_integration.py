@@ -26,32 +26,65 @@ from app.core_client import CoreClient
 
 @pytest.mark.integration
 @pytest.mark.modes
+@pytest.mark.skipif(
+    os.getenv("SKIP_MCP_INTEGRATION", "false").lower() == "true",
+    reason="MCP integration tests skipped via SKIP_MCP_INTEGRATION environment variable"
+)
 class TestMCPModeIntegration:
     """Integration tests for MCP dual-mode operation."""
 
     @pytest.fixture(scope="class")
     async def core_service_url(self):
         """Get the Core service URL from environment or use default."""
-        return os.getenv("CORE_API_URL", "http://localhost:8000")
+        # In CI environments, use the service name for Docker networking
+        if os.getenv("CI") or os.getenv("GITHUB_ACTIONS"):
+            return os.getenv("CORE_API_URL", "http://core:8000")
+        else:
+            return os.getenv("CORE_API_URL", "http://localhost:8000")
 
     @pytest.fixture(scope="class")
     async def verify_core_service(self, core_service_url):
         """Verify that the Core service is accessible before running tests."""
         max_retries = 30
-        retry_delay = 1
+        retry_delay = 2
+        
+        print(f"Attempting to connect to Core service at {core_service_url}")
         
         for attempt in range(max_retries):
             try:
-                async with httpx.AsyncClient() as client:
-                    response = await client.get(f"{core_service_url}/", timeout=5.0)
+                # Use a more robust HTTP client configuration
+                timeout = httpx.Timeout(10.0, connect=5.0)
+                async with httpx.AsyncClient(timeout=timeout) as client:
+                    response = await client.get(f"{core_service_url}/")
                     if response.status_code == 200:
+                        print(f"Successfully connected to Core service on attempt {attempt + 1}")
                         return core_service_url
+            except (httpx.ConnectError, httpx.TimeoutException) as e:
+                print(f"Attempt {attempt + 1}/{max_retries}: Connection failed - {type(e).__name__}: {e}")
             except Exception as e:
-                if attempt == max_retries - 1:
-                    pytest.skip(f"Core service not available at {core_service_url}: {e}")
+                print(f"Attempt {attempt + 1}/{max_retries}: Unexpected error - {type(e).__name__}: {e}")
+            
+            if attempt < max_retries - 1:
                 await asyncio.sleep(retry_delay)
         
-        pytest.skip(f"Core service not available after {max_retries} attempts")
+        # Final diagnostic attempt
+        try:
+            import socket
+            host = core_service_url.replace("http://", "").replace("https://", "").split(":")[0]
+            port = int(core_service_url.split(":")[-1]) if ":" in core_service_url.split("//")[-1] else 80
+            print(f"Attempting direct socket connection to {host}:{port}")
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(5)
+            result = sock.connect_ex((host, port))
+            sock.close()
+            if result == 0:
+                print(f"Socket connection successful, but HTTP requests failed")
+            else:
+                print(f"Socket connection failed with error code: {result}")
+        except Exception as e:
+            print(f"Socket diagnostic failed: {e}")
+        
+        pytest.skip(f"Core service not available at {core_service_url} after {max_retries} attempts")
 
     @pytest.fixture
     def mcp_app_path(self):

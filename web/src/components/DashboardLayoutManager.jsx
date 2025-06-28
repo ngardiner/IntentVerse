@@ -161,13 +161,21 @@ const DashboardLayoutManager = ({
     onCancelEdit();
   };
   
+  // State for screen reader announcements
+  const [announcement, setAnnouncement] = useState('');
+
   // Toggle widget visibility
   const toggleWidgetVisibility = (moduleId) => {
     console.log('Toggling visibility for:', moduleId, 'Current state:', hiddenWidgets[moduleId]);
+    const wasHidden = hiddenWidgets[moduleId];
     setHiddenWidgets(prev => ({
       ...prev,
       [moduleId]: !prev[moduleId]
     }));
+    
+    // Announce the change to screen readers
+    setAnnouncement(wasHidden ? `Widget ${moduleId} shown` : `Widget ${moduleId} hidden`);
+    setTimeout(() => setAnnouncement(''), 1000);
   };
   
   // Update the position of a module
@@ -266,6 +274,10 @@ const DashboardLayoutManager = ({
   // Render the layout manager UI
   return (
     <div className="dashboard-layout-manager">
+      {/* Screen reader announcements */}
+      <div role="status" aria-live="polite" className="sr-only">
+        {announcement}
+      </div>
       {isEditing && (
         <div className="layout-edit-controls">
           <div className="layout-edit-message">
@@ -275,11 +287,17 @@ const DashboardLayoutManager = ({
             </p>
           </div>
           <div className="layout-edit-actions">
-            <button className="layout-save-button" onClick={handleSaveLayout}>
+            <button className="layout-save-button" onClick={handleSaveLayout} aria-label="Save layout changes">
               Save Layout
             </button>
-            <button className="layout-cancel-button" onClick={handleCancelEdit}>
+            <button className="layout-cancel-button" onClick={handleCancelEdit} aria-label="Cancel layout changes">
               Cancel
+            </button>
+            <button className="layout-reset-button" onClick={() => {
+              setCurrentLayout({...originalLayout});
+              setHiddenWidgets({...originalHiddenState});
+            }} aria-label="Reset layout to default">
+              Reset to Default
             </button>
           </div>
         </div>
@@ -377,7 +395,6 @@ const DashboardLayoutManager = ({
           
           // If in edit mode, add drag and drop handlers
           const editProps = isEditing ? {
-            draggable: true,
             onDragStart: (e) => {
               // Prevent dragging if the target is a control button
               if (e.target.closest('.module-control-buttons')) {
@@ -394,7 +411,10 @@ const DashboardLayoutManager = ({
           return (
             <div 
               style={gridStyle}
-              {...editProps}
+              className={editProps.className}
+              draggable={isEditing}
+              onDragStart={editProps.onDragStart}
+              onDragEnd={editProps.onDragEnd}
             >
               {isEditing && (
                 <div className="module-edit-controls">
@@ -409,13 +429,19 @@ const DashboardLayoutManager = ({
                       title={hiddenWidgets[moduleId] ? "Show widget" : "Hide widget"}
                     >
                       {hiddenWidgets[moduleId] ? (
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <path d="M3 3L21 21M10.5 10.677a2 2 0 002.823 2.823M7.362 7.561A7 7 0 0112 6c3.866 0 7 3.134 7 7 0 1.572-.518 3.02-1.39 4.185M15 15.73A7 7 0 015.268 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
+                        <>
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M3 3L21 21M10.5 10.677a2 2 0 002.823 2.823M7.362 7.561A7 7 0 0112 6c3.866 0 7 3.134 7 7 0 1.572-.518 3.02-1.39 4.185M15 15.73A7 7 0 015.268 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                          Show
+                        </>
                       ) : (
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <path d="M12 6a7 7 0 017 7 7 7 0 01-7 7 7 7 0 01-7-7 7 7 0 017-7zm0 3a4 4 0 100 8 4 4 0 000-8z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
+                        <>
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 6a7 7 0 017 7 7 7 0 01-7 7 7 7 0 01-7-7 7 7 0 017-7zm0 3a4 4 0 100 8 4 4 0 000-8z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                          Hide
+                        </>
                       )}
                     </button>
                     <span className="widget-title-label">{child.props?.title || child.props?.moduleSchema?.title || moduleId}</span>
