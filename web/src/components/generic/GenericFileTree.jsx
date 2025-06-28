@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { getModuleState, deleteFile } from '../../api/client';
 import FilePopout from './FilePopout';
+import DirectoryPopout from './DirectoryPopout';
 import ConfirmationPopup from './ConfirmationPopup';
 
 // A small, recursive helper component to render each node in the tree.
-const TreeNode = ({ node, path = '/', onFileClick, onCreateFile, onDeleteFile }) => {
+const TreeNode = ({ node, path = '/', onFileClick, onCreateFile, onCreateDirectory, onDeleteFile }) => {
   if (!node) {
     return null;
   }
@@ -24,6 +25,13 @@ const TreeNode = ({ node, path = '/', onFileClick, onCreateFile, onDeleteFile })
     e.stopPropagation();
     if (onCreateFile) {
       onCreateFile(currentPath);
+    }
+  };
+
+  const handleCreateDirectory = (e) => {
+    e.stopPropagation();
+    if (onCreateDirectory) {
+      onCreateDirectory(currentPath);
     }
   };
   
@@ -47,13 +55,22 @@ const TreeNode = ({ node, path = '/', onFileClick, onCreateFile, onDeleteFile })
         {isHovering && (
           <div className={isDirectory ? "directory-actions" : "file-actions"}>
             {isDirectory && (
-              <button 
-                className="create-file-btn" 
-                title="Create new file"
-                onClick={handleCreateFile}
-              >
-                +
-              </button>
+              <>
+                <button 
+                  className="create-file-btn" 
+                  title="Create new file"
+                  onClick={handleCreateFile}
+                >
+                  📄
+                </button>
+                <button 
+                  className="create-directory-btn" 
+                  title="Create new directory"
+                  onClick={handleCreateDirectory}
+                >
+                  📁
+                </button>
+              </>
             )}
             {!isDirectory && (
               <button 
@@ -77,6 +94,7 @@ const TreeNode = ({ node, path = '/', onFileClick, onCreateFile, onDeleteFile })
               path={currentPath}
               onFileClick={onFileClick}
               onCreateFile={onCreateFile}
+              onCreateDirectory={onCreateDirectory}
               onDeleteFile={onDeleteFile}
             />
           ))}
@@ -94,6 +112,8 @@ const GenericFileTree = ({ title, data_source_api, sizeClass = '', module_id = '
   const [selectedFilePath, setSelectedFilePath] = useState(null);
   const [isCreatingFile, setIsCreatingFile] = useState(false);
   const [newFileDirectory, setNewFileDirectory] = useState(null);
+  const [isCreatingDirectory, setIsCreatingDirectory] = useState(false);
+  const [newDirectoryParent, setNewDirectoryParent] = useState(null);
   const [fileToDelete, setFileToDelete] = useState(null);
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const [deleteStatus, setDeleteStatus] = useState(null);
@@ -137,12 +157,21 @@ const GenericFileTree = ({ title, data_source_api, sizeClass = '', module_id = '
   const handleFileClick = (filePath) => {
     setSelectedFilePath(filePath);
     setIsCreatingFile(false);
+    setIsCreatingDirectory(false);
   };
 
   const handleCreateFile = (directoryPath) => {
     setNewFileDirectory(directoryPath);
     setIsCreatingFile(true);
     setSelectedFilePath(null);
+    setIsCreatingDirectory(false);
+  };
+
+  const handleCreateDirectory = (parentPath) => {
+    setNewDirectoryParent(parentPath);
+    setIsCreatingDirectory(true);
+    setSelectedFilePath(null);
+    setIsCreatingFile(false);
   };
 
   const handleDeleteFile = (filePath) => {
@@ -182,6 +211,8 @@ const GenericFileTree = ({ title, data_source_api, sizeClass = '', module_id = '
     setSelectedFilePath(null);
     setIsCreatingFile(false);
     setNewFileDirectory(null);
+    setIsCreatingDirectory(false);
+    setNewDirectoryParent(null);
   };
 
   const renderContent = () => {
@@ -200,6 +231,7 @@ const GenericFileTree = ({ title, data_source_api, sizeClass = '', module_id = '
           node={treeData} 
           onFileClick={handleFileClick}
           onCreateFile={handleCreateFile}
+          onCreateDirectory={handleCreateDirectory}
           onDeleteFile={handleDeleteFile}
         />
       </ul>
@@ -224,6 +256,12 @@ const GenericFileTree = ({ title, data_source_api, sizeClass = '', module_id = '
           filePath={newFileDirectory} 
           onClose={handleClosePopout} 
           isNewFile={true}
+        />
+      )}
+      {isCreatingDirectory && (
+        <DirectoryPopout 
+          parentPath={newDirectoryParent} 
+          onClose={handleClosePopout} 
         />
       )}
       {showDeleteConfirmation && (

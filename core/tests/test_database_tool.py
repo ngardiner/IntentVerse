@@ -77,7 +77,7 @@ class TestDatabaseTool:
         # Check initial values
         assert db_state['tables'] == {}
         assert db_state['last_query'] == ""
-        assert db_state['last_query_result'] == []
+        assert db_state['last_query_result'] == {"columns": [], "rows": []}
         assert db_state['query_history'] == []
         
         # Check connection info
@@ -91,7 +91,7 @@ class TestDatabaseTool:
         existing_state = {
             'tables': {'existing_table': {'columns': [], 'row_count': 0}},
             'last_query': 'SELECT 1',
-            'last_query_result': [],
+            'last_query_result': {"columns": [], "rows": []},
             'query_history': [],
             'connection_info': {'type': 'SQLite', 'location': 'in-memory', 'created_at': None}
         }
@@ -122,7 +122,13 @@ class TestDatabaseTool:
         # Verify state was updated
         db_state = state_manager.get('database')
         assert db_state["last_query"] == query
-        assert db_state["last_query_result"] == result
+        
+        # Convert result to expected structured format
+        expected_result = {
+            "columns": list(result[0].keys()) if result else [],
+            "rows": [[row.get(col) for col in result[0].keys()] for row in result] if result else []
+        }
+        assert db_state["last_query_result"] == expected_result
     
     def test_query_case_insensitive_select(self, database_tool_with_data):
         """Test that SELECT queries are case-insensitive."""
@@ -462,7 +468,13 @@ class TestDatabaseTool:
         
         # Check last query tracking
         assert db_state["last_query"] == "SELECT * FROM state_test"
-        assert db_state["last_query_result"] == result
+        
+        # Convert result to expected structured format
+        expected_result = {
+            "columns": list(result[0].keys()) if result else [],
+            "rows": [[row.get(col) for col in result[0].keys()] for row in result] if result else []
+        }
+        assert db_state["last_query_result"] == expected_result
         
         # Check table info was updated
         assert "state_test" in db_state["tables"]
@@ -485,14 +497,22 @@ class TestDatabaseTool:
         
         # Check state after first query
         db_state = state_manager.get('database')
-        assert db_state["last_query_result"] == result1
+        expected_result1 = {
+            "columns": list(result1[0].keys()) if result1 else [],
+            "rows": [[row.get(col) for col in result1[0].keys()] for row in result1] if result1 else []
+        }
+        assert db_state["last_query_result"] == expected_result1
         
         # Second query
         result2 = database_tool_with_data.query("SELECT id FROM products")
         
         # Check state after second query
         db_state = state_manager.get('database')
-        assert db_state["last_query_result"] == result2
+        expected_result2 = {
+            "columns": list(result2[0].keys()) if result2 else [],
+            "rows": [[row.get(col) for col in result2[0].keys()] for row in result2] if result2 else []
+        }
+        assert db_state["last_query_result"] == expected_result2
         
         # Check query history contains both
         history = database_tool_with_data.get_query_history()

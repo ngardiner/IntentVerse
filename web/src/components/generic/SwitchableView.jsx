@@ -81,13 +81,32 @@ const SwitchableView = ({
     setIsDropdownOpen(false);
   };
 
-  const handleQueryExecuted = () => {
+  const handleQueryExecuted = async () => {
+    console.log('SwitchableView handleQueryExecuted called');
+    
     // Switch to the "Last Query Result" view (index 2 in the database schema)
     const lastQueryResultIndex = views.findIndex(view => 
       view.title === "Last Query Result"
     );
+    console.log('Found Last Query Result index:', lastQueryResultIndex);
+    
     if (lastQueryResultIndex !== -1) {
       setActiveViewIndex(lastQueryResultIndex);
+      
+      // Immediately refresh the module state to get the latest query results
+      const moduleName = data_source_api?.split('/')[3];
+      console.log('Module name for refresh:', moduleName);
+      
+      if (moduleName) {
+        try {
+          console.log('Fetching updated module state...');
+          const response = await getModuleState(moduleName);
+          console.log('Got updated module state:', response.data);
+          setModuleState(response.data);
+        } catch (err) {
+          console.error('Failed to refresh module state after query execution:', err);
+        }
+      }
     }
   };
 
@@ -112,7 +131,9 @@ const SwitchableView = ({
       // Don't pass title as we're handling it in this component
       title: undefined,
       // Add a key to prevent unnecessary re-renders
-      key: `${module_id}-view-${activeViewIndex}`
+      key: `${module_id}-view-${activeViewIndex}`,
+      // Pass the shared module state to avoid duplicate fetching
+      moduleState: moduleState
     };
 
     // Add row click handler for email module
