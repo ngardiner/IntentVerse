@@ -36,12 +36,12 @@ async def lifespan(app: FastAPI):
         logging.info("Skipping database initialization during tests")
     
     # Discover and load all modules from the 'modules' directory
-    from .database import engine
-    with Session(engine) as session:
-        if not is_testing:
+    if not is_testing:
+        from .database import engine
+        with Session(engine) as session:
             module_loader.load_modules(session)
-        else:
-            logging.info("Skipping module loading during tests")
+    else:
+        logging.info("Skipping module loading during tests")
     
     # Load default content pack after modules are loaded
     if not is_testing:

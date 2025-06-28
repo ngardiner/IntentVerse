@@ -2,6 +2,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import create_engine, Session, SQLModel
 from sqlalchemy import text
+from sqlalchemy.pool import StaticPool
 from pathlib import Path
 import os
 
@@ -14,7 +15,24 @@ TEST_SERVICE_API_KEY = "test-service-key-12345"
 if "SERVICE_API_KEY" not in os.environ:
     os.environ["SERVICE_API_KEY"] = TEST_SERVICE_API_KEY
 
-# Adjust imports to match the new structure
+# Use an in-memory SQLite database for testing
+TEST_DATABASE_URL = "sqlite:///:memory:"  # Use in-memory SQLite for test isolation
+test_engine = create_engine(
+    TEST_DATABASE_URL, 
+    connect_args={"check_same_thread": False},
+    poolclass=StaticPool,  # Use StaticPool to share the same connection
+    pool_pre_ping=True
+)
+
+# Override the engine used in the database module BEFORE importing the app
+from app import database
+database.engine = test_engine
+
+# Override the init_db module to use the test engine
+from app import init_db
+init_db.engine = test_engine
+
+# Now import the app and other modules
 from app.main import app
 from app.database import get_session
 from app.state_manager import StateManager
@@ -27,10 +45,6 @@ from app.models import (
 )
 from app.security import get_password_hash, create_access_token
 
-# Use an in-memory SQLite database for testing
-TEST_DATABASE_URL = "sqlite:///:memory:"  # Use in-memory SQLite for test isolation
-test_engine = create_engine(TEST_DATABASE_URL, connect_args={"check_same_thread": False})
-
 def get_session_override():
     """Dependency override to use the test database session."""
     with Session(test_engine) as session:
@@ -38,14 +52,6 @@ def get_session_override():
 
 # Override the database session dependency
 app.dependency_overrides[get_session] = get_session_override
-
-# Also override the engine used in the database module
-from app import database
-database.engine = test_engine
-
-# Override the init_db module to use the test engine
-from app import init_db
-init_db.engine = test_engine
 
 # Test user data
 TEST_USER_DATA = {
@@ -150,8 +156,6 @@ def client_fixture():
     
     # This context manager will run the startup events before yielding
     with TestClient(app) as client:
-        # Ensure tables are still there after app startup
-        create_test_db_and_tables()
         yield client
         
     # Clean up by dropping tables after tests are done

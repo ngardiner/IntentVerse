@@ -312,6 +312,7 @@ DEFAULT_PERMISSIONS = [
     ("users.update", "Update user information", "user", "update"),
     ("users.delete", "Delete users", "user", "delete"),
     ("users.manage_roles", "Manage user roles", "user", "manage_roles"),
+    ("users.*", "Full user management access", "user", "*"),
     
     # Group management permissions
     ("groups.create", "Create new groups", "group", "create"),
@@ -319,6 +320,7 @@ DEFAULT_PERMISSIONS = [
     ("groups.update", "Update group information", "group", "update"),
     ("groups.delete", "Delete groups", "group", "delete"),
     ("groups.manage_members", "Manage group members", "group", "manage_members"),
+    ("groups.*", "Full group management access", "group", "*"),
     
     # Role and permission management
     ("roles.create", "Create new roles", "role", "create"),

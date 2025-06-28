@@ -354,7 +354,6 @@ def create_user(
     session.refresh(db_user)
     
     # Assign appropriate roles to the new user
-    from sqlmodel import select
     from .models import UserRoleLink, Role
     
     if db_user.is_admin:
