@@ -254,6 +254,32 @@ const UsersPage = () => {
     }
   };
 
+  const handleTabKeyDown = (e, currentTab) => {
+    const tabs = ['users', 'groups', 'audit'];
+    const currentIndex = tabs.indexOf(currentTab);
+    
+    if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      const nextIndex = (currentIndex + 1) % tabs.length;
+      const nextTab = tabs[nextIndex];
+      const nextButton = document.querySelector(`.tab:nth-child(${nextIndex + 1})`);
+      if (nextButton) {
+        nextButton.focus();
+      }
+    } else if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      const prevIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+      const prevTab = tabs[prevIndex];
+      const prevButton = document.querySelector(`.tab:nth-child(${prevIndex + 1})`);
+      if (prevButton) {
+        prevButton.focus();
+      }
+    } else if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      handleTabChange(currentTab);
+    }
+  };
+
   const handleAuditFilterChange = (field, value) => {
     setAuditFilters(prev => ({
       ...prev,
@@ -306,18 +332,21 @@ const UsersPage = () => {
         <button 
           className={`tab ${activeTab === 'users' ? 'active' : ''}`}
           onClick={() => handleTabChange('users')}
+          onKeyDown={(e) => handleTabKeyDown(e, 'users')}
         >
           Users ({users.length})
         </button>
         <button 
           className={`tab ${activeTab === 'groups' ? 'active' : ''}`}
           onClick={() => handleTabChange('groups')}
+          onKeyDown={(e) => handleTabKeyDown(e, 'groups')}
         >
           Groups ({groups.length})
         </button>
         <button 
           className={`tab ${activeTab === 'audit' ? 'active' : ''}`}
           onClick={() => handleTabChange('audit')}
+          onKeyDown={(e) => handleTabKeyDown(e, 'audit')}
         >
           Audit Logs
         </button>

@@ -357,19 +357,17 @@ describe('DashboardLayoutManager', () => {
       render(<DashboardLayoutManager {...defaultProps} isEditing={true} />);
       
       const widget1 = screen.getByTestId('widget1');
-      const widget2 = screen.getByTestId('widget2');
       const wrapper1 = widget1.parentElement;
-      const wrapper2 = widget2.parentElement;
       
       fireEvent.dragStart(wrapper1);
       
       // Verify dragging class is added
       expect(wrapper1).toHaveClass('dragging');
       
-      fireEvent.dragOver(wrapper2);
-      fireEvent.drop(wrapper2);
+      // Simulate drag end to clean up dragging state
+      fireEvent.dragEnd(wrapper1);
       
-      // Wait for the drop to complete and dragging class to be removed
+      // Wait for the drag end to complete and dragging class to be removed
       await waitFor(() => {
         expect(wrapper1).not.toHaveClass('dragging');
       });

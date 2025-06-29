@@ -97,8 +97,15 @@ const DashboardLayoutManager = ({
       }
     });
 
-    const savedLayoutJSON = localStorage.getItem(`dashboard-layout-${currentDashboard}`);
-    const savedHiddenJSON = localStorage.getItem(`dashboard-hidden-${currentDashboard}`);
+    let savedLayoutJSON, savedHiddenJSON;
+    try {
+      savedLayoutJSON = localStorage.getItem(`dashboard-layout-${currentDashboard}`);
+      savedHiddenJSON = localStorage.getItem(`dashboard-hidden-${currentDashboard}`);
+    } catch (error) {
+      console.warn('Error accessing localStorage:', error);
+      savedLayoutJSON = null;
+      savedHiddenJSON = null;
+    }
 
     // Process saved layout
     let mergedLayout = { ...generatedLayout };
@@ -149,8 +156,13 @@ const DashboardLayoutManager = ({
   
   // Handle saving the layout
   const handleSaveLayout = () => {
-    localStorage.setItem(`dashboard-layout-${currentDashboard}`, JSON.stringify(currentLayout));
-    localStorage.setItem(`dashboard-hidden-${currentDashboard}`, JSON.stringify(hiddenWidgets));
+    try {
+      localStorage.setItem(`dashboard-layout-${currentDashboard}`, JSON.stringify(currentLayout));
+      localStorage.setItem(`dashboard-hidden-${currentDashboard}`, JSON.stringify(hiddenWidgets));
+    } catch (error) {
+      console.warn('Error saving to localStorage:', error);
+    }
+    // Always call onSaveLayout even if localStorage fails
     onSaveLayout();
   };
   
@@ -196,12 +208,6 @@ const DashboardLayoutManager = ({
     // Add a class to the body to indicate dragging
     document.body.classList.add('dragging-module');
     
-    // Get the module element
-    const moduleElement = e.currentTarget;
-    
-    // Add a class to highlight the module being dragged
-    moduleElement.classList.add('dragging');
-    
     // Set ghost image (optional)
     const dragImage = document.createElement('div');
     dragImage.textContent = 'Moving Module';
@@ -209,9 +215,13 @@ const DashboardLayoutManager = ({
     dragImage.style.top = '-1000px';
     document.body.appendChild(dragImage);
     
-    // Check if setDragImage is available (not available in some test environments)
-    if (e.dataTransfer.setDragImage) {
-      e.dataTransfer.setDragImage(dragImage, 0, 0);
+    // Check if dataTransfer and setDragImage are available (not available in some test environments)
+    if (e.dataTransfer) {
+      if (e.dataTransfer.setDragImage) {
+        e.dataTransfer.setDragImage(dragImage, 0, 0);
+      }
+      // Make sure the dataTransfer object has the moduleId
+      e.dataTransfer.setData('text/plain', moduleId);
     }
     
     // Clean up after drag image is set
@@ -220,9 +230,6 @@ const DashboardLayoutManager = ({
         document.body.removeChild(dragImage);
       }
     }, 0);
-    
-    // Make sure the dataTransfer object has the moduleId
-    e.dataTransfer.setData('text/plain', moduleId);
   };
   
   // Handle drag over
@@ -257,12 +264,6 @@ const DashboardLayoutManager = ({
     // Update the position of the dragged module
     updateModulePosition(draggedItem, { row, col });
     
-    // Remove the dragging class from all module wrappers
-    const draggingElements = document.querySelectorAll('.module-wrapper.dragging');
-    draggingElements.forEach(element => {
-      element.classList.remove('dragging');
-    });
-    
     // Reset drag state
     setIsDragging(false);
     setDraggedItem(null);
@@ -274,12 +275,6 @@ const DashboardLayoutManager = ({
   // Handle drag end
   const handleDragEnd = () => {
     if (!isEditing) return;
-    
-    // Remove the dragging class from all module wrappers
-    const draggingElements = document.querySelectorAll('.module-wrapper.dragging');
-    draggingElements.forEach(element => {
-      element.classList.remove('dragging');
-    });
     
     // Reset drag state
     setIsDragging(false);
@@ -422,14 +417,16 @@ const DashboardLayoutManager = ({
               handleDragStart(e, moduleId);
             },
             onDragEnd: handleDragEnd,
-            className: `module-wrapper ${isEditing ? 'editing' : ''} ${draggedItem === moduleId ? 'dragging' : ''} ${hiddenWidgets[moduleId] ? 'hidden-widget' : ''}`,
           } : {};
+          
+          // Build className for both editing and non-editing modes
+          const className = `module-wrapper ${isEditing ? 'editing' : ''} ${draggedItem === moduleId ? 'dragging' : ''} ${hiddenWidgets[moduleId] ? 'hidden-widget' : ''}`;
           
           // Wrap the child in a div with the appropriate grid positioning
           return (
             <div 
               style={gridStyle}
-              className={editProps.className}
+              className={className}
               draggable={isEditing}
               onDragStart={editProps.onDragStart}
               onDragEnd={editProps.onDragEnd}
