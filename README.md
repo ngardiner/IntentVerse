@@ -22,7 +22,8 @@ IntentVerse solves these problems by creating a high-fidelity mock environment. 
 
 ---
 
-### [ Placeholder for Screenshot of the IntentVerse UI ]
+### Screenshot
+![v1.0 Screenshot](docs/images/screenshot-v1.0.png)
 
 ---
 
