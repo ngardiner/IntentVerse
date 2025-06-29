@@ -53,7 +53,7 @@ describe('GenericTable', () => {
   });
 
   it('renders table with data after loading', async () => {
-    getModuleState.mockResolvedValue(mockTableData);
+    getModuleState.mockResolvedValue({ data: mockTableData });
     
     render(
       <GenericTable

@@ -146,7 +146,7 @@ describe('UsersPage', () => {
       });
 
       // Switch to Groups tab
-      const groupsTab = screen.getByText(/Groups/);
+      const groupsTab = screen.getByRole('button', { name: /Groups/ });
       await user.click(groupsTab);
       
       // Wait for the groups tab to become active and content to render
@@ -161,7 +161,7 @@ describe('UsersPage', () => {
       });
 
       // Switch to Audit tab
-      const auditTab = screen.getByText(/Audit Logs/);
+      const auditTab = screen.getByRole('button', { name: /Audit Logs/ });
       await user.click(auditTab);
       
       await waitFor(() => {
@@ -178,7 +178,7 @@ describe('UsersPage', () => {
         expect(screen.getByText('admin')).toBeInTheDocument();
       });
 
-      const auditTab = screen.getByText('Audit Logs');
+      const auditTab = screen.getByRole('button', { name: /Audit Logs/ });
       await user.click(auditTab);
       
       await waitFor(() => {
@@ -354,7 +354,7 @@ describe('UsersPage', () => {
         expect(screen.getByText('Groups')).toBeInTheDocument();
       });
 
-      const groupsTab = screen.getByText('Groups');
+      const groupsTab = screen.getByRole('button', { name: /Groups/ });
       await user.click(groupsTab);
       
       expect(screen.getByText('administrators')).toBeInTheDocument();
@@ -369,7 +369,7 @@ describe('UsersPage', () => {
       render(<UsersPage />);
       
       // Switch to groups tab
-      const groupsTab = screen.getByText('Groups');
+      const groupsTab = screen.getByRole('button', { name: /Groups/ });
       await user.click(groupsTab);
       
       // Open create modal
@@ -399,7 +399,7 @@ describe('UsersPage', () => {
       render(<UsersPage />);
       
       // Switch to groups tab
-      const groupsTab = screen.getByText('Groups');
+      const groupsTab = screen.getByRole('button', { name: /Groups/ });
       await user.click(groupsTab);
       
       // Find manage members button
@@ -420,7 +420,7 @@ describe('UsersPage', () => {
         expect(screen.getByText('Audit Logs')).toBeInTheDocument();
       });
 
-      const auditTab = screen.getByText('Audit Logs');
+      const auditTab = screen.getByRole('button', { name: /Audit Logs/ });
       await user.click(auditTab);
       
       await waitFor(() => {
@@ -433,7 +433,7 @@ describe('UsersPage', () => {
       const user = userEvent.setup();
       render(<UsersPage />);
       
-      const auditTab = screen.getByText('Audit Logs');
+      const auditTab = screen.getByRole('button', { name: /Audit Logs/ });
       await user.click(auditTab);
       
       await waitFor(() => {
@@ -446,7 +446,7 @@ describe('UsersPage', () => {
       const user = userEvent.setup();
       render(<UsersPage />);
       
-      const auditTab = screen.getByText('Audit Logs');
+      const auditTab = screen.getByRole('button', { name: /Audit Logs/ });
       await user.click(auditTab);
       
       await waitFor(() => {
@@ -620,12 +620,12 @@ describe('UsersPage', () => {
         expect(screen.getByText('Users')).toBeInTheDocument();
       });
 
-      const usersTab = screen.getByText('Users');
+      const usersTab = screen.getByRole('button', { name: /Users/ });
       usersTab.focus();
       
       await user.keyboard('{ArrowRight}');
       
-      const groupsTab = screen.getByText('Groups');
+      const groupsTab = screen.getByRole('button', { name: /Groups/ });
       expect(groupsTab).toHaveFocus();
     });
   });

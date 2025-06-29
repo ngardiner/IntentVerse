@@ -142,8 +142,10 @@ describe('SettingsPage', () => {
       const filesystemToggle = screen.getAllByRole('checkbox')[0];
       await user.click(filesystemToggle);
       
-      expect(screen.getByText('Updating...')).toBeInTheDocument();
-      expect(filesystemToggle).toBeDisabled();
+      await waitFor(() => {
+        expect(screen.getByText('Updating...')).toBeInTheDocument();
+        expect(filesystemToggle).toBeDisabled();
+      });
       
       // Resolve the toggle operation
       resolveToggle({ success: true });
@@ -280,7 +282,9 @@ describe('SettingsPage', () => {
       await user.click(refreshButton);
       
       // The button should now be disabled during the refresh
-      expect(refreshButton).toBeDisabled();
+      await waitFor(() => {
+        expect(refreshButton).toBeDisabled();
+      });
       
       // Resolve the refresh
       resolveRefresh({ data: { modules: mockModulesData } });

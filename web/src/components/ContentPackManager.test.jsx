@@ -18,7 +18,9 @@ jest.mock('../api/client');
 
 // Mock the ContentPackPreview component
 jest.mock('./ContentPackPreview', () => {
-  return function MockContentPackPreview({ filename, onClose }) {
+  return function MockContentPackPreview({ filename, isOpen, onClose }) {
+    if (!isOpen) return null;
+    
     return (
       <div data-testid="content-pack-preview">
         <div>Preview for {filename}</div>

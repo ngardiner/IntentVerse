@@ -268,6 +268,11 @@ describe('App', () => {
 
 describe('AuthProvider', () => {
   it('provides authentication context to children', () => {
+    // Mock getCurrentUser to avoid the useEffect call
+    getCurrentUser.mockResolvedValue({
+      data: { username: 'testuser', id: 1 }
+    });
+
     let authContext;
     
     function TestComponent() {
@@ -288,6 +293,11 @@ describe('AuthProvider', () => {
   });
 
   it('updates authentication state when login is called', async () => {
+    // Mock getCurrentUser to avoid the useEffect call
+    getCurrentUser.mockResolvedValue({
+      data: { username: 'testuser', id: 1 }
+    });
+
     apiLogin.mockResolvedValue({
       data: { access_token: 'new-token' }
     });
