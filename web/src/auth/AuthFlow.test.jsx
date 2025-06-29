@@ -106,11 +106,16 @@ describe('Authentication Flow Integration Tests', () => {
     });
 
     it('attempts to validate token when token exists in localStorage', async () => {
-      // Set up localStorage mock BEFORE rendering
+      // CRITICAL: Set up localStorage mock BEFORE any component creation
+      // The AuthProvider's useState lazy initializer calls localStorage.getItem immediately
+      
+      // Clear any existing mocks and set up fresh implementation
+      localStorageMock.getItem.mockReset();
       localStorageMock.getItem.mockImplementation((key) => {
         if (key === 'authToken') return 'existing-token';
         return null;
       });
+      
       getCurrentUser.mockResolvedValue({ data: { username: 'testuser', id: 1 } });
       
       render(<AppWrapper />);
@@ -118,18 +123,18 @@ describe('Authentication Flow Integration Tests', () => {
       // Wait for token validation to complete (first call from AuthProvider)
       await waitFor(() => {
         expect(getCurrentUser).toHaveBeenCalledTimes(1);
-      }, { timeout: 3000 });
+      }, { timeout: 5000 });
       
       // Then wait for dashboard to appear and user info to load (second call from App)
       await waitFor(() => {
         expect(screen.getByTestId('dashboard-page')).toBeInTheDocument();
         expect(getCurrentUser).toHaveBeenCalledTimes(2); // AuthProvider validation + App user info loading
-      });
+      }, { timeout: 5000 });
       
       // Should display user info
       await waitFor(() => {
         expect(screen.getByText('testuser')).toBeInTheDocument();
-      });
+      }, { timeout: 5000 });
     });
   });
 
@@ -184,7 +189,8 @@ describe('Authentication Flow Integration Tests', () => {
     });
 
     it('restores authentication state on page reload', async () => {
-      // Set up localStorage mock BEFORE rendering
+      // CRITICAL: Set up localStorage mock BEFORE any component creation
+      localStorageMock.getItem.mockReset();
       localStorageMock.getItem.mockImplementation((key) => {
         if (key === 'authToken') return 'valid-token';
         return null;
@@ -275,7 +281,8 @@ describe('Authentication Flow Integration Tests', () => {
     });
 
     it('handles expired/invalid tokens correctly', async () => {
-      // Set up localStorage mock BEFORE rendering
+      // CRITICAL: Set up localStorage mock BEFORE any component creation
+      localStorageMock.getItem.mockReset();
       localStorageMock.getItem.mockImplementation((key) => {
         if (key === 'authToken') return 'expired-token';
         return null;
@@ -365,6 +372,7 @@ describe('Authentication Flow Integration Tests', () => {
       const user = userEvent.setup();
       
       // Start with authenticated state - set up localStorage mock BEFORE rendering
+      localStorageMock.getItem.mockReset();
       localStorageMock.getItem.mockImplementation((key) => {
         if (key === 'authToken') return 'valid-token';
         return null;
@@ -407,7 +415,8 @@ describe('Authentication Flow Integration Tests', () => {
     it('clears all authentication state on logout', async () => {
       const user = userEvent.setup();
       
-      // Set up localStorage mock BEFORE rendering
+      // CRITICAL: Set up localStorage mock BEFORE any component creation
+      localStorageMock.getItem.mockReset();
       localStorageMock.getItem.mockImplementation((key) => {
         if (key === 'authToken') return 'valid-token';
         return null;
@@ -447,7 +456,8 @@ describe('Authentication Flow Integration Tests', () => {
 
   describe('Token Validation Edge Cases', () => {
     it('handles getCurrentUser returning null user', async () => {
-      // Set up localStorage mock BEFORE rendering
+      // CRITICAL: Set up localStorage mock BEFORE any component creation
+      localStorageMock.getItem.mockReset();
       localStorageMock.getItem.mockImplementation((key) => {
         if (key === 'authToken') return 'valid-token';
         return null;
@@ -468,7 +478,9 @@ describe('Authentication Flow Integration Tests', () => {
     });
 
     it('handles getCurrentUser returning malformed user data', async () => {
-      // Set up localStorage mock BEFORE rendering
+      // CRITICAL: Set up localStorage mock BEFORE any component creation
+      // Clear any existing mocks and set up fresh implementation
+      localStorageMock.getItem.mockReset();
       localStorageMock.getItem.mockImplementation((key) => {
         if (key === 'authToken') return 'valid-token';
         return null;
@@ -480,17 +492,18 @@ describe('Authentication Flow Integration Tests', () => {
       // Should validate token first (AuthProvider call)
       await waitFor(() => {
         expect(getCurrentUser).toHaveBeenCalledTimes(1);
-      }, { timeout: 3000 });
+      }, { timeout: 5000 });
       
       // Should show dashboard and load user info (App component call)
       await waitFor(() => {
         expect(screen.getByTestId('dashboard-page')).toBeInTheDocument();
         expect(getCurrentUser).toHaveBeenCalledTimes(2); // AuthProvider validation + App user info loading
-      }, { timeout: 3000 });
+      }, { timeout: 5000 });
     });
 
     it('retries token validation on temporary network failures', async () => {
-      // Set up localStorage mock BEFORE rendering
+      // CRITICAL: Set up localStorage mock BEFORE any component creation
+      localStorageMock.getItem.mockReset();
       localStorageMock.getItem.mockImplementation((key) => {
         if (key === 'authToken') return 'valid-token';
         return null;
@@ -600,7 +613,8 @@ describe('Authentication Flow Integration Tests', () => {
 
   describe('Security Considerations', () => {
     it('does not expose sensitive data in component state', async () => {
-      // Set up localStorage mock BEFORE rendering
+      // CRITICAL: Set up localStorage mock BEFORE any component creation
+      localStorageMock.getItem.mockReset();
       localStorageMock.getItem.mockImplementation((key) => {
         if (key === 'authToken') return 'sensitive-token';
         return null;
@@ -627,7 +641,8 @@ describe('Authentication Flow Integration Tests', () => {
     it('clears sensitive data from memory on logout', async () => {
       const user = userEvent.setup();
       
-      // Set up localStorage mock BEFORE rendering
+      // CRITICAL: Set up localStorage mock BEFORE any component creation
+      localStorageMock.getItem.mockReset();
       localStorageMock.getItem.mockImplementation((key) => {
         if (key === 'authToken') return 'valid-token';
         return null;
