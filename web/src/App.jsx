@@ -17,6 +17,7 @@ const AuthContext = createContext(null);
 const AuthProvider = ({ children }) => {
   const [authToken, setAuthToken] = useState(() => localStorage.getItem('authToken'));
   const [tokenValidated, setTokenValidated] = useState(false);
+  const [isValidating, setIsValidating] = useState(false);
   
   useEffect(() => {
     // Sync token changes to localStorage
@@ -29,7 +30,8 @@ const AuthProvider = ({ children }) => {
 
   // Validate token when the provider mounts or token changes
   useEffect(() => {
-    if (authToken && !tokenValidated) {
+    if (authToken && !tokenValidated && !isValidating) {
+      setIsValidating(true);
       getCurrentUser()
         .then(response => {
           // Check if we got valid user data
@@ -47,18 +49,23 @@ const AuthProvider = ({ children }) => {
           // Token is invalid, clear it
           setAuthToken(null);
           setTokenValidated(true);
+        })
+        .finally(() => {
+          setIsValidating(false);
         });
-    } else if (!authToken && !tokenValidated) {
+    } else if (!authToken) {
       // No token exists, mark as validated (no need to validate nothing)
       setTokenValidated(true);
+      setIsValidating(false);
     }
-  }, [authToken, tokenValidated]);
+  }, [authToken, tokenValidated, isValidating]);
 
   const login = async (credentials) => {
     try {
       const response = await apiLogin(credentials);
       if (response.data.access_token) {
         setTokenValidated(false); // Reset validation flag
+        setIsValidating(false); // Reset validating flag
         setAuthToken(response.data.access_token);
       }
     } catch (error) {
@@ -71,6 +78,7 @@ const AuthProvider = ({ children }) => {
     // The backend will see this as an unauthorized request
     // In a production system, you might want to call a logout endpoint first
     setTokenValidated(false); // Reset validation flag
+    setIsValidating(false); // Reset validating flag
     setAuthToken(null);
   };
   
@@ -78,6 +86,7 @@ const AuthProvider = ({ children }) => {
     isAuthenticated: !!authToken && tokenValidated,
     token: authToken,
     tokenValidated,
+    isValidating,
     login,
     logout,
   };
@@ -92,7 +101,7 @@ export const useAuth = () => {
 
 // 4. The Main App Component
 function App() {
-  const { isAuthenticated, tokenValidated, logout } = useAuth();
+  const { isAuthenticated, tokenValidated, isValidating, logout } = useAuth();
   const [currentPage, setCurrentPage] = useState('dashboard');
   const [currentDashboard, setCurrentDashboard] = useState('state');
   const [isEditingLayout, setIsEditingLayout] = useState(false);
@@ -214,7 +223,7 @@ function App() {
   };
 
   // Show loading state while token validation is in progress
-  if (!tokenValidated) {
+  if (!tokenValidated || isValidating) {
     return (
       <div className="app-container">
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
@@ -247,11 +256,20 @@ function App() {
               )}
               <div className="user-menu">
                 <div ref={userIconRef} className="user-icon" onClick={toggleDropdown}>
-                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <circle cx="12" cy="10" r="3"></circle>
-                    <path d="M12 13c-2.67 0-8 1.34-8 4v3h16v-3c0-2.66-5.33-4-8-4z"></path>
-                  </svg>
+                  <div className="user-icon-circle">
+                    <svg 
+                        xmlns="http://www.w3.org/2000/svg" 
+                        viewBox="0 0 24 24" 
+                        fill="none" 
+                        stroke="currentColor" 
+                        strokeWidth="1.5"  /* A stroke of 1.5 is a good starting point */
+                        strokeLinecap="round" 
+                        strokeLinejoin="round"
+                      >
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="12" cy="7" r="4"></circle>
+                      </svg>
+                  </div>
                   {currentUser && <span className="username">{currentUser.username}</span>}
                 </div>
                 <div 
