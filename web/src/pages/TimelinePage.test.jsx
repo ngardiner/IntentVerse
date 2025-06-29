@@ -9,7 +9,7 @@ jest.mock('../api/client');
 
 // Mock DashboardLayoutManager
 jest.mock('../components/DashboardLayoutManager', () => {
-  return function MockDashboardLayoutManager({ isEditing, onSaveLayout, onCancelEdit }) {
+  return function MockDashboardLayoutManager({ isEditing, onSaveLayout, onCancelEdit, children }) {
     return (
       <div data-testid="dashboard-layout-manager">
         <div>Dashboard Layout Manager</div>
@@ -20,6 +20,7 @@ jest.mock('../components/DashboardLayoutManager', () => {
             <button onClick={onCancelEdit}>Cancel Edit</button>
           </>
         )}
+        {children}
       </div>
     );
   };

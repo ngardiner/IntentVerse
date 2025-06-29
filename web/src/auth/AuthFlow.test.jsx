@@ -101,7 +101,11 @@ describe('Authentication Flow Integration Tests', () => {
       });
       getCurrentUser.mockResolvedValue({ data: { username: 'testuser', id: 1 } });
       
-      render(<App />);
+      render(
+        <AuthProvider>
+          <App />
+        </AuthProvider>
+      );
       
       await waitFor(() => {
         expect(getCurrentUser).toHaveBeenCalledTimes(1);

@@ -281,9 +281,10 @@ describe('SettingsPage', () => {
       // Click the refresh button to trigger loading state
       await user.click(refreshButton);
       
-      // The button should now be disabled during the refresh
+      // The button should now be disabled during the refresh and show "Refreshing..."
       await waitFor(() => {
         expect(refreshButton).toBeDisabled();
+        expect(refreshButton).toHaveTextContent('Refreshing...');
       });
       
       // Resolve the refresh
@@ -292,6 +293,7 @@ describe('SettingsPage', () => {
       // Wait for the refresh to complete and button to be enabled again
       await waitFor(() => {
         expect(refreshButton).not.toBeDisabled();
+        expect(refreshButton).toHaveTextContent('Refresh Status');
       });
     });
   });

@@ -4,7 +4,7 @@ const ConfirmationPopup = ({ message, onConfirm, onCancel, status }) => {
   const isProcessing = status === 'deleting';
   const isSuccess = status === 'success';
   const isError = status === 'error';
-  const showButtons = !isProcessing && !isSuccess;
+  const showButtons = !isProcessing && !isSuccess && !isError;
 
   return (
     <div className="confirmation-popup-overlay" onClick={showButtons ? onCancel : null}>

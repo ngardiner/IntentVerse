@@ -84,8 +84,8 @@ describe('EditButton', () => {
     expect(path).toHaveAttribute('d', 'M 4 4 L 14 14 M 14 4 L 4 14');
     expect(path).toHaveAttribute('fill', 'none');
     expect(path).toHaveAttribute('stroke', 'currentColor');
-    expect(path).toHaveAttribute('strokeWidth', '2');
-    expect(path).toHaveAttribute('strokeLinecap', 'round');
+    expect(path).toHaveAttribute('stroke-width', '2');
+    expect(path).toHaveAttribute('stroke-linecap', 'round');
   });
 
   it('toggles between states correctly', () => {

@@ -257,6 +257,12 @@ const DashboardLayoutManager = ({
     // Update the position of the dragged module
     updateModulePosition(draggedItem, { row, col });
     
+    // Remove the dragging class from all module wrappers
+    const draggingElements = document.querySelectorAll('.module-wrapper.dragging');
+    draggingElements.forEach(element => {
+      element.classList.remove('dragging');
+    });
+    
     // Reset drag state
     setIsDragging(false);
     setDraggedItem(null);
@@ -268,6 +274,12 @@ const DashboardLayoutManager = ({
   // Handle drag end
   const handleDragEnd = () => {
     if (!isEditing) return;
+    
+    // Remove the dragging class from all module wrappers
+    const draggingElements = document.querySelectorAll('.module-wrapper.dragging');
+    draggingElements.forEach(element => {
+      element.classList.remove('dragging');
+    });
     
     // Reset drag state
     setIsDragging(false);

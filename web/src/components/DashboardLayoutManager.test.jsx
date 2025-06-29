@@ -10,7 +10,12 @@ const localStorageMock = {
   removeItem: jest.fn(),
   clear: jest.fn(),
 };
-global.localStorage = localStorageMock;
+
+// Properly mock localStorage
+Object.defineProperty(window, 'localStorage', {
+  value: localStorageMock,
+  writable: true
+});
 
 describe('DashboardLayoutManager', () => {
   const mockChildren = [
@@ -37,7 +42,10 @@ describe('DashboardLayoutManager', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    localStorageMock.clear();
+    localStorageMock.getItem.mockClear();
+    localStorageMock.setItem.mockClear();
+    localStorageMock.removeItem.mockClear();
+    localStorageMock.clear.mockClear();
     localStorageMock.getItem.mockReturnValue(null);
     defaultProps = createDefaultProps();
   });
@@ -236,15 +244,22 @@ describe('DashboardLayoutManager', () => {
         widget3: { row: 2, col: 1, colSpan: 9 }
       });
       
-      localStorageMock.getItem.mockReturnValue(savedLayout);
+      // Mock getItem to return saved layout for layout key, null for hidden key
+      localStorageMock.getItem.mockImplementation((key) => {
+        if (key === 'dashboard-layout-test-dashboard') {
+          return savedLayout;
+        }
+        return null;
+      });
       
       render(<DashboardLayoutManager {...defaultProps} />);
       
       // Wait for the component to load and call localStorage for both layout and hidden state
       await waitFor(() => {
         expect(localStorageMock.getItem).toHaveBeenCalledWith('dashboard-layout-test-dashboard');
-        expect(localStorageMock.getItem).toHaveBeenCalledWith('dashboard-hidden-test-dashboard');
       });
+      
+      expect(localStorageMock.getItem).toHaveBeenCalledWith('dashboard-hidden-test-dashboard');
     });
 
     it('handles invalid localStorage data gracefully', () => {
@@ -338,7 +353,7 @@ describe('DashboardLayoutManager', () => {
       expect(wrapper).toHaveClass('dragging');
     });
 
-    it('handles drop event', () => {
+    it('handles drop event', async () => {
       render(<DashboardLayoutManager {...defaultProps} isEditing={true} />);
       
       const widget1 = screen.getByTestId('widget1');
@@ -347,11 +362,17 @@ describe('DashboardLayoutManager', () => {
       const wrapper2 = widget2.parentElement;
       
       fireEvent.dragStart(wrapper1);
+      
+      // Verify dragging class is added
+      expect(wrapper1).toHaveClass('dragging');
+      
       fireEvent.dragOver(wrapper2);
       fireEvent.drop(wrapper2);
       
-      // Should update layout
-      expect(wrapper1).not.toHaveClass('dragging');
+      // Wait for the drop to complete and dragging class to be removed
+      await waitFor(() => {
+        expect(wrapper1).not.toHaveClass('dragging');
+      });
     });
   });
 

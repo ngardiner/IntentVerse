@@ -248,14 +248,27 @@ describe('SwitchableView', () => {
       expect(screen.getByTestId('generic-table')).toBeInTheDocument();
     });
 
+    // Open the view selector dropdown
+    const viewSelectorButton = screen.getByLabelText('Switch view');
+    await user.click(viewSelectorButton);
+
     // Switch to key-value view
-    const keyValueTab = screen.getByText('Key-Value View');
-    await user.click(keyValueTab);
-    expect(screen.getByTestId('generic-key-value')).toBeInTheDocument();
+    const keyValueOption = screen.getByText('Key-Value View');
+    await user.click(keyValueOption);
+    
+    await waitFor(() => {
+      expect(screen.getByTestId('generic-key-value')).toBeInTheDocument();
+    });
+
+    // Open the dropdown again to switch back
+    await user.click(viewSelectorButton);
 
     // Switch back to table view
-    const tableTab = screen.getByText('Table View');
-    await user.click(tableTab);
-    expect(screen.getByTestId('generic-table')).toBeInTheDocument();
+    const tableOption = screen.getByText('Table View');
+    await user.click(tableOption);
+    
+    await waitFor(() => {
+      expect(screen.getByTestId('generic-table')).toBeInTheDocument();
+    });
   });
 });

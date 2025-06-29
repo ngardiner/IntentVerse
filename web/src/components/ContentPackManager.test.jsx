@@ -303,7 +303,7 @@ describe('ContentPackManager', () => {
     render(<ContentPackManager />);
 
     await waitFor(() => {
-      expect(screen.getByText(/error loading content packs/i)).toBeInTheDocument();
+      expect(screen.getByText(/failed to fetch content packs/i)).toBeInTheDocument();
     });
   });
 
@@ -326,14 +326,16 @@ describe('ContentPackManager', () => {
     const loadButton = screen.getByText('Load Pack');
     await user.click(loadButton);
 
-    // Should show loading state
-    expect(screen.getByText('Loading content packs...')).toBeInTheDocument();
+    // Should show loading state on the button
+    await waitFor(() => {
+      expect(screen.getByText('Loading...')).toBeInTheDocument();
+    });
 
     // Resolve the promise
     resolveLoad({ data: { success: true } });
     
     await waitFor(() => {
-      expect(screen.queryByText('Loading content packs...')).not.toBeInTheDocument();
+      expect(screen.queryByText('Loading...')).not.toBeInTheDocument();
     });
   });
 

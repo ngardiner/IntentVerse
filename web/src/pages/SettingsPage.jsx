@@ -4,6 +4,7 @@ import { getModulesStatus, toggleModule } from '../api/client';
 const SettingsPage = () => {
   const [modules, setModules] = useState({});
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const [toggleLoading, setToggleLoading] = useState({});
 
@@ -11,9 +12,13 @@ const SettingsPage = () => {
     loadModulesStatus();
   }, []);
 
-  const loadModulesStatus = async () => {
+  const loadModulesStatus = async (isRefresh = false) => {
     try {
-      setLoading(true);
+      if (isRefresh) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
       const response = await getModulesStatus();
       setModules(response.data.modules);
       setError(null);
@@ -21,7 +26,11 @@ const SettingsPage = () => {
       console.error('Failed to load modules status:', err);
       setError('Failed to load modules status');
     } finally {
-      setLoading(false);
+      if (isRefresh) {
+        setRefreshing(false);
+      } else {
+        setLoading(false);
+      }
     }
   };
 
@@ -129,8 +138,8 @@ const SettingsPage = () => {
       
       <div className="settings-actions">
         <button className="cancel-button" onClick={handleCancel}>Back to Dashboard</button>
-        <button className="refresh-button" onClick={loadModulesStatus} disabled={loading}>
-          Refresh Status
+        <button className="refresh-button" onClick={() => loadModulesStatus(true)} disabled={refreshing}>
+          {refreshing ? 'Refreshing...' : 'Refresh Status'}
         </button>
       </div>
     </div>

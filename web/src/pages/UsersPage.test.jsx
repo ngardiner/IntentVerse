@@ -37,6 +37,7 @@ describe('UsersPage', () => {
       email: 'admin@example.com',
       full_name: 'Administrator',
       is_admin: true,
+      is_active: true,
       created_at: '2024-01-01T00:00:00Z'
     },
     {
@@ -45,6 +46,7 @@ describe('UsersPage', () => {
       email: 'user1@example.com',
       full_name: 'User One',
       is_admin: false,
+      is_active: true,
       created_at: '2024-01-02T00:00:00Z'
     }
   ];
@@ -310,9 +312,15 @@ describe('UsersPage', () => {
         expect(screen.getByText('user1')).toBeInTheDocument();
       });
 
+      // Wait for all delete buttons to be rendered
+      await waitFor(() => {
+        const deleteButtons = screen.getAllByText('Delete');
+        expect(deleteButtons).toHaveLength(1); // Only user1 should have delete button (admin can't delete themselves)
+      });
+
       // Find and click delete button for user1
       const deleteButtons = screen.getAllByText('Delete');
-      await user.click(deleteButtons[1]); // Second delete button (for user1)
+      await user.click(deleteButtons[0]); // First (and only) delete button (for user1)
       
       expect(confirmSpy).toHaveBeenCalledWith('Are you sure you want to delete user "user1"?');
       
@@ -335,8 +343,14 @@ describe('UsersPage', () => {
         expect(screen.getByText('user1')).toBeInTheDocument();
       });
 
+      // Wait for all delete buttons to be rendered
+      await waitFor(() => {
+        const deleteButtons = screen.getAllByText('Delete');
+        expect(deleteButtons).toHaveLength(1); // Only user1 should have delete button (admin can't delete themselves)
+      });
+
       const deleteButtons = screen.getAllByText('Delete');
-      await user.click(deleteButtons[1]);
+      await user.click(deleteButtons[0]); // First (and only) delete button (for user1)
       
       expect(confirmSpy).toHaveBeenCalled();
       expect(deleteUser).not.toHaveBeenCalled();
@@ -367,6 +381,11 @@ describe('UsersPage', () => {
       createGroup.mockResolvedValue({ data: { id: 3, name: 'newgroup' } });
       
       render(<UsersPage />);
+      
+      // Wait for component to load first
+      await waitFor(() => {
+        expect(screen.getByText('admin')).toBeInTheDocument();
+      });
       
       // Switch to groups tab
       const groupsTab = screen.getByRole('button', { name: /Groups/ });
@@ -433,6 +452,11 @@ describe('UsersPage', () => {
       const user = userEvent.setup();
       render(<UsersPage />);
       
+      // Wait for component to load first
+      await waitFor(() => {
+        expect(screen.getByText('admin')).toBeInTheDocument();
+      });
+      
       const auditTab = screen.getByRole('button', { name: /Audit Logs/ });
       await user.click(auditTab);
       
@@ -445,6 +469,11 @@ describe('UsersPage', () => {
     it('filters audit logs correctly', async () => {
       const user = userEvent.setup();
       render(<UsersPage />);
+      
+      // Wait for component to load first
+      await waitFor(() => {
+        expect(screen.getByText('admin')).toBeInTheDocument();
+      });
       
       const auditTab = screen.getByRole('button', { name: /Audit Logs/ });
       await user.click(auditTab);

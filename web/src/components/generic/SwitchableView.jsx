@@ -170,8 +170,8 @@ const SwitchableView = ({
       ...activeView,
       module_id,
       data_source_api,
-      // Don't pass title as we're handling it in this component
-      title: undefined,
+      // Pass the view title to the component
+      title: activeView.title,
       // Add a key to prevent unnecessary re-renders
       key: `${module_id}-view-${activeViewIndex}`,
       // Pass the shared module state to avoid duplicate fetching

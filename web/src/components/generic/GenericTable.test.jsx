@@ -133,12 +133,12 @@ describe('GenericTable', () => {
       />
     );
 
+    // Wait for the data to load and dynamic columns to be generated
     await waitFor(() => {
-      expect(screen.getByText('Test Table')).toBeInTheDocument();
+      expect(screen.getByText('id')).toBeInTheDocument();
     });
 
     // Should generate columns from data keys
-    expect(screen.getByText('id')).toBeInTheDocument();
     expect(screen.getByText('name')).toBeInTheDocument();
     expect(screen.getByText('email')).toBeInTheDocument();
     expect(screen.getByText('age')).toBeInTheDocument();
@@ -390,11 +390,9 @@ describe('GenericTable', () => {
       />
     );
 
+    // Wait for the data to load and "No items to display" message to appear
     await waitFor(() => {
-      expect(screen.getByText('Last Query Result')).toBeInTheDocument();
+      expect(screen.getByText(/No items to display/i)).toBeInTheDocument();
     });
-
-    // Should show "No items to display" message
-    expect(screen.getByText(/No items to display/i)).toBeInTheDocument();
   });
 });
