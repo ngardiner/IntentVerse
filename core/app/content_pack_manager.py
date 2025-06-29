@@ -8,6 +8,7 @@ import tempfile
 from urllib.parse import urljoin
 import time
 from .config import Config
+from .version_utils import get_app_version, check_compatibility_conditions
 
 class ContentPackManager:
     """
@@ -69,6 +70,13 @@ class ContentPackManager:
             # Validate content pack structure
             if not self._validate_content_pack(content_pack):
                 logging.error(f"Invalid content pack structure: {pack_path}")
+                return False
+            
+            # Check compatibility
+            if not self._is_pack_compatible(content_pack):
+                pack_name = content_pack.get("metadata", {}).get("name", str(pack_path))
+                reason = self._get_incompatibility_reason(content_pack)
+                logging.error(f"Content pack '{pack_name}' is incompatible with IntentVerse {get_app_version()}: {reason}")
                 return False
             
             # Load database content
@@ -362,6 +370,49 @@ class ContentPackManager:
         """
         validation_result = self.validate_content_pack_detailed(content_pack)
         return validation_result["is_valid"]
+    
+    def _is_pack_compatible(self, content_pack: Dict[str, Any]) -> bool:
+        """
+        Check if a content pack is compatible with the current IntentVerse version.
+        
+        Args:
+            content_pack: The content pack dictionary to check
+            
+        Returns:
+            True if compatible, False otherwise
+        """
+        metadata = content_pack.get("metadata", {})
+        compatibility_conditions = metadata.get("compatibility_conditions", [])
+        
+        app_version = get_app_version()
+        is_compatible, failure_reasons = check_compatibility_conditions(app_version, compatibility_conditions)
+        
+        if not is_compatible:
+            pack_name = metadata.get("name", "Unknown")
+            logging.info(f"Content pack '{pack_name}' is incompatible: {'; '.join(failure_reasons)}")
+        
+        return is_compatible
+    
+    def _get_incompatibility_reason(self, content_pack: Dict[str, Any]) -> str:
+        """
+        Get the reason why a content pack is incompatible.
+        
+        Args:
+            content_pack: The content pack dictionary to check
+            
+        Returns:
+            Human-readable incompatibility reason
+        """
+        metadata = content_pack.get("metadata", {})
+        compatibility_conditions = metadata.get("compatibility_conditions", [])
+        
+        app_version = get_app_version()
+        is_compatible, failure_reasons = check_compatibility_conditions(app_version, compatibility_conditions)
+        
+        if not is_compatible and failure_reasons:
+            return failure_reasons[0]  # Return first reason
+        
+        return "Unknown compatibility issue"
     
     def preview_content_pack(self, filename: str) -> Dict[str, Any]:
         """
@@ -824,30 +875,40 @@ class ContentPackManager:
     
     def list_remote_content_packs(self, force_refresh: bool = False) -> List[Dict[str, Any]]:
         """
-        List all available remote content packs.
+        List all available remote content packs that are compatible with current version.
         
         Args:
             force_refresh: If True, bypass cache and fetch fresh data
             
         Returns:
-            List of remote content pack information
+            List of compatible remote content pack information
         """
         manifest = self.fetch_remote_manifest(force_refresh)
         if not manifest:
             logging.warning("Could not fetch remote manifest")
             return []
         
-        content_packs = manifest.get("content_packs", [])
+        all_content_packs = manifest.get("content_packs", [])
+        compatible_packs = []
         
-        # Add remote-specific metadata
-        for pack in content_packs:
-            pack["source"] = "remote"
-            pack["download_url"] = urljoin(
-                self.remote_repo_url, 
-                f"content-packs/{pack.get('relative_path', pack.get('filename', ''))}"
-            )
+        for pack in all_content_packs:
+            # Check compatibility
+            if self._is_pack_compatible(pack):
+                # Add remote-specific metadata
+                pack["source"] = "remote"
+                pack["download_url"] = urljoin(
+                    self.remote_repo_url, 
+                    f"content-packs/{pack.get('relative_path', pack.get('filename', ''))}"
+                )
+                compatible_packs.append(pack)
+            else:
+                # Log why this pack was excluded
+                pack_name = pack.get("name", pack.get("filename", "Unknown"))
+                reason = self._get_incompatibility_reason(pack)
+                logging.info(f"Excluding incompatible remote pack '{pack_name}': {reason}")
         
-        return content_packs
+        logging.info(f"Filtered {len(all_content_packs)} remote packs to {len(compatible_packs)} compatible packs")
+        return compatible_packs
     
     def download_remote_content_pack(self, pack_filename: str) -> Optional[Path]:
         """
@@ -986,7 +1047,7 @@ class ContentPackManager:
     
     def search_remote_content_packs(self, query: str = "", category: str = "", tags: List[str] = None) -> List[Dict[str, Any]]:
         """
-        Search remote content packs by query, category, or tags.
+        Search compatible remote content packs by query, category, or tags.
         
         Args:
             query: Search query to match against name, summary, or description
@@ -994,12 +1055,13 @@ class ContentPackManager:
             tags: Filter by tags (must contain all specified tags)
             
         Returns:
-            List of matching content packs
+            List of matching compatible content packs
         """
-        all_packs = self.list_remote_content_packs()
+        # list_remote_content_packs already filters for compatibility
+        all_compatible_packs = self.list_remote_content_packs()
         filtered_packs = []
         
-        for pack in all_packs:
+        for pack in all_compatible_packs:
             # Category filter
             if category and pack.get("category", "").lower() != category.lower():
                 continue

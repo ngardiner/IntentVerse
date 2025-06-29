@@ -76,7 +76,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="IntentVerse Core Engine",
     description="Manages state, tools, and logic for the IntentVerse simulation.",
-    version="0.1.0",
+    version="1.0.0",
     lifespan=lifespan,
 )
 
