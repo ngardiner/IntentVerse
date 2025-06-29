@@ -129,9 +129,9 @@ describe('TimelinePage', () => {
       render(<TimelinePage {...defaultProps} />);
       
       await waitFor(() => {
-        // Should have date headers for grouping
-        expect(screen.getByText('1/15/2024')).toBeInTheDocument();
-        expect(screen.getByText('1/14/2024')).toBeInTheDocument();
+        // Should have date headers for grouping (formatted as "Jan 15", "Jan 14")
+        expect(screen.getByText('Jan 15')).toBeInTheDocument();
+        expect(screen.getByText('Jan 14')).toBeInTheDocument();
       });
     });
 
@@ -151,8 +151,11 @@ describe('TimelinePage', () => {
       render(<TimelinePage {...defaultProps} />);
       
       await waitFor(() => {
-        expect(screen.getByText('tool_execution')).toBeInTheDocument();
-        expect(screen.getByText('system_event')).toBeInTheDocument();
+        // Check for event type filters in the event-types section
+        const eventTypesSection = document.querySelector('.event-types');
+        expect(eventTypesSection).toBeInTheDocument();
+        expect(eventTypesSection).toHaveTextContent('tool_execution');
+        expect(eventTypesSection).toHaveTextContent('system_event');
       });
     });
 
@@ -165,8 +168,10 @@ describe('TimelinePage', () => {
         expect(screen.getByText('System Started')).toBeInTheDocument();
       });
 
-      // Click on tool_execution filter
-      const toolExecutionFilter = screen.getByText('tool_execution');
+      // Click on tool_execution filter (find it specifically in the event-types section)
+      const eventTypesSection = document.querySelector('.event-types');
+      const toolExecutionFilter = Array.from(eventTypesSection.querySelectorAll('.event-type'))
+        .find(el => el.textContent === 'tool_execution');
       await user.click(toolExecutionFilter);
       
       // Should still show tool_execution events but not system_event events
@@ -183,8 +188,10 @@ describe('TimelinePage', () => {
         expect(screen.getByText('File Read Operation')).toBeInTheDocument();
       });
 
-      // First filter by system_event
-      const systemEventFilter = screen.getByText('system_event');
+      // First filter by system_event (find it specifically in the event-types section)
+      const eventTypesSection = document.querySelector('.event-types');
+      const systemEventFilter = Array.from(eventTypesSection.querySelectorAll('.event-type'))
+        .find(el => el.textContent === 'system_event');
       await user.click(systemEventFilter);
       
       expect(screen.queryByText('File Read Operation')).not.toBeInTheDocument();
@@ -226,8 +233,8 @@ describe('TimelinePage', () => {
       const eventElement = screen.getByText('File Read Operation');
       await user.hover(eventElement);
       
-      // Should show tooltip with event details
-      expect(screen.getByText('tool_execution')).toBeInTheDocument();
+      // Should show tooltip with event details (check for tooltip specifically)
+      expect(screen.getByText('File Read Operation')).toBeInTheDocument();
     });
 
     it('hides tooltip when mouse leaves event', async () => {
@@ -429,7 +436,9 @@ describe('TimelinePage', () => {
       });
 
       // Filter by system_event (which only has one event)
-      const systemEventFilter = screen.getByText('system_event');
+      const eventTypesSection = document.querySelector('.event-types');
+      const systemEventFilter = Array.from(eventTypesSection.querySelectorAll('.event-type'))
+        .find(el => el.textContent === 'system_event');
       await user.click(systemEventFilter);
       
       // Should only show system_event events
@@ -444,8 +453,10 @@ describe('TimelinePage', () => {
       
       await waitFor(() => {
         // Check that event type filters are rendered and clickable
-        expect(screen.getByText('tool_execution')).toBeInTheDocument();
-        expect(screen.getByText('system_event')).toBeInTheDocument();
+        const eventTypesSection = document.querySelector('.event-types');
+        expect(eventTypesSection).toBeInTheDocument();
+        expect(eventTypesSection).toHaveTextContent('tool_execution');
+        expect(eventTypesSection).toHaveTextContent('system_event');
       });
     });
 

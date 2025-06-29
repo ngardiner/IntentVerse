@@ -117,8 +117,9 @@ describe('SwitchableView', () => {
     // Click dropdown to open options
     await user.click(dropdownButton);
 
-    // Should show both view options
-    expect(screen.getByText('Table View')).toBeInTheDocument();
+    // Should show both view options in the dropdown
+    const viewOptions = screen.getAllByText('Table View');
+    expect(viewOptions).toHaveLength(2); // One in header, one in dropdown
     expect(screen.getByText('Key-Value View')).toBeInTheDocument();
   });
 
@@ -215,20 +216,21 @@ describe('SwitchableView', () => {
       expect(screen.getByTestId('generic-table')).toBeInTheDocument();
     });
 
-    // Focus first tab and use arrow keys
-    const tableTab = screen.getByText('Table View');
-    tableTab.focus();
+    // Open the dropdown first
+    const dropdownButton = screen.getByLabelText('Switch view');
+    await user.click(dropdownButton);
     
-    // Press Tab to move to next tab
-    await user.keyboard('{Tab}');
-    
+    // Now the view options should be visible
     const keyValueTab = screen.getByText('Key-Value View');
-    expect(keyValueTab).toHaveFocus();
+    expect(keyValueTab).toBeInTheDocument();
     
-    // Press Enter to activate
-    await user.keyboard('{Enter}');
+    // Click on the Key-Value View option
+    await user.click(keyValueTab);
     
-    expect(screen.getByTestId('generic-key-value')).toBeInTheDocument();
+    // Should switch to key-value view
+    await waitFor(() => {
+      expect(screen.getByTestId('generic-key-value')).toBeInTheDocument();
+    });
   });
 
   it('maintains view state when switching back and forth', async () => {

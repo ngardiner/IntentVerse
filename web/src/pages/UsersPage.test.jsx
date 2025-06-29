@@ -417,9 +417,19 @@ describe('UsersPage', () => {
       
       render(<UsersPage />);
       
+      // Wait for component to load first
+      await waitFor(() => {
+        expect(screen.getByText('admin')).toBeInTheDocument();
+      });
+      
       // Switch to groups tab
       const groupsTab = screen.getByRole('button', { name: /Groups/ });
       await user.click(groupsTab);
+      
+      // Wait for groups content to load
+      await waitFor(() => {
+        expect(screen.getByText('administrators')).toBeInTheDocument();
+      });
       
       // Find manage members button
       const manageButtons = screen.getAllByText('Manage Members');
@@ -484,7 +494,7 @@ describe('UsersPage', () => {
 
       // Apply filter
       const actionFilter = screen.getByLabelText('Action');
-      await user.selectOptions(actionFilter, 'user.create');
+      await user.type(actionFilter, 'user.create');
       
       const applyButton = screen.getByText('Apply Filters');
       await user.click(applyButton);

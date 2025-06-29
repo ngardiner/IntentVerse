@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import App, { AuthProvider, useAuth } from '../App';
+import AppWrapper, { AuthProvider, useAuth } from '../App';
 import LoginPage from '../pages/LoginPage';
 import { login as apiLogin, getCurrentUser } from '../api/client';
 
@@ -78,7 +78,7 @@ describe('Authentication Flow Integration Tests', () => {
 
   describe('Initial Authentication State', () => {
     it('shows login page when no token exists', () => {
-      render(<App />);
+      render(<AppWrapper />);
       
       expect(screen.getByTestId('login-page')).toBeInTheDocument();
       expect(screen.queryByTestId('dashboard-page')).not.toBeInTheDocument();
@@ -87,7 +87,7 @@ describe('Authentication Flow Integration Tests', () => {
     it('shows login page when localStorage is empty', () => {
       localStorageMock.getItem.mockReturnValue(null);
       
-      render(<App />);
+      render(<AppWrapper />);
       
       expect(screen.getByTestId('login-page')).toBeInTheDocument();
     });
@@ -101,14 +101,16 @@ describe('Authentication Flow Integration Tests', () => {
       });
       getCurrentUser.mockResolvedValue({ data: { username: 'testuser', id: 1 } });
       
-      render(
-        <AuthProvider>
-          <App />
-        </AuthProvider>
-      );
+      render(<AppWrapper />);
       
+      // Wait for token validation to complete
       await waitFor(() => {
         expect(getCurrentUser).toHaveBeenCalledTimes(1);
+      }, { timeout: 3000 });
+      
+      // Then wait for dashboard to appear
+      await waitFor(() => {
+        expect(screen.getByTestId('dashboard-page')).toBeInTheDocument();
       });
     });
   });
@@ -125,7 +127,7 @@ describe('Authentication Flow Integration Tests', () => {
         data: { username: 'testuser', id: 1, email: 'test@example.com' }
       });
       
-      render(<App />);
+      render(<AppWrapper />);
       
       // Should start with login page
       expect(screen.getByTestId('login-page')).toBeInTheDocument();
@@ -170,17 +172,22 @@ describe('Authentication Flow Integration Tests', () => {
         data: { username: 'testuser', id: 1 }
       });
       
-      render(<App />);
+      render(<AppWrapper />);
       
-      // Should validate existing token
+      // Should validate existing token first
       await waitFor(() => {
         expect(getCurrentUser).toHaveBeenCalledTimes(1);
+      }, { timeout: 3000 });
+      
+      // Should show dashboard
+      await waitFor(() => {
         expect(screen.getByTestId('dashboard-page')).toBeInTheDocument();
       });
       
-      // Should display user info
+      // Should display user info (second call to getCurrentUser)
       await waitFor(() => {
         expect(screen.getByText('testuser')).toBeInTheDocument();
+        expect(getCurrentUser).toHaveBeenCalledTimes(2); // AuthProvider validation + App user info loading
       });
     });
 
@@ -196,14 +203,14 @@ describe('Authentication Flow Integration Tests', () => {
         data: { username: 'testuser', id: 1 }
       });
       
-      const { rerender } = render(<App />);
+      const { rerender } = render(<AppWrapper />);
       
       await waitFor(() => {
         expect(screen.getByTestId('dashboard-page')).toBeInTheDocument();
       });
       
       // Re-render component
-      rerender(<App />);
+      rerender(<AppWrapper />);
       
       // Should still be authenticated
       expect(screen.getByTestId('dashboard-page')).toBeInTheDocument();
@@ -219,7 +226,7 @@ describe('Authentication Flow Integration Tests', () => {
         response: { status: 401, data: { detail: 'Invalid credentials' } }
       });
       
-      render(<App />);
+      render(<AppWrapper />);
       
       const usernameInput = screen.getByLabelText(/username/i);
       const passwordInput = screen.getByLabelText(/password/i);
@@ -246,7 +253,7 @@ describe('Authentication Flow Integration Tests', () => {
         response: { status: 401, data: { detail: 'Token expired' } }
       });
       
-      render(<App />);
+      render(<AppWrapper />);
       
       // Should attempt to validate token
       await waitFor(() => {
@@ -265,7 +272,7 @@ describe('Authentication Flow Integration Tests', () => {
       
       apiLogin.mockRejectedValue(new Error('Network error'));
       
-      render(<App />);
+      render(<AppWrapper />);
       
       const usernameInput = screen.getByLabelText(/username/i);
       const passwordInput = screen.getByLabelText(/password/i);
@@ -288,7 +295,7 @@ describe('Authentication Flow Integration Tests', () => {
         data: { message: 'Login successful' } // Missing access_token
       });
       
-      render(<App />);
+      render(<AppWrapper />);
       
       const usernameInput = screen.getByLabelText(/username/i);
       const passwordInput = screen.getByLabelText(/password/i);
@@ -318,7 +325,7 @@ describe('Authentication Flow Integration Tests', () => {
         data: { username: 'testuser', id: 1 }
       });
       
-      render(<App />);
+      render(<AppWrapper />);
       
       await waitFor(() => {
         expect(screen.getByTestId('dashboard-page')).toBeInTheDocument();
@@ -351,7 +358,7 @@ describe('Authentication Flow Integration Tests', () => {
         data: { username: 'testuser', id: 1 }
       });
       
-      render(<App />);
+      render(<AppWrapper />);
       
       await waitFor(() => {
         expect(screen.getByText('testuser')).toBeInTheDocument();
@@ -380,7 +387,7 @@ describe('Authentication Flow Integration Tests', () => {
       });
       getCurrentUser.mockResolvedValue({ data: null });
       
-      render(<App />);
+      render(<AppWrapper />);
       
       await waitFor(() => {
         expect(getCurrentUser).toHaveBeenCalledTimes(1);
@@ -396,14 +403,18 @@ describe('Authentication Flow Integration Tests', () => {
       });
       getCurrentUser.mockResolvedValue({ data: { invalid: 'data' } });
       
-      render(<App />);
+      render(<AppWrapper />);
       
+      // Should validate token first
       await waitFor(() => {
         expect(getCurrentUser).toHaveBeenCalledTimes(1);
-      });
+      }, { timeout: 3000 });
       
-      // Should handle gracefully, possibly showing login page
-      expect(screen.getByTestId('dashboard-page')).toBeInTheDocument();
+      // Should show dashboard and load user info
+      await waitFor(() => {
+        expect(screen.getByTestId('dashboard-page')).toBeInTheDocument();
+        expect(getCurrentUser).toHaveBeenCalledTimes(2); // AuthProvider validation + App user info loading
+      });
     });
 
     it('retries token validation on temporary network failures', async () => {
@@ -416,7 +427,7 @@ describe('Authentication Flow Integration Tests', () => {
         .mockRejectedValueOnce(new Error('Network timeout'))
         .mockResolvedValue({ data: { username: 'testuser', id: 1 } });
       
-      render(<App />);
+      render(<AppWrapper />);
       
       // Should eventually succeed after retry
       await waitFor(() => {
@@ -523,7 +534,7 @@ describe('Authentication Flow Integration Tests', () => {
         data: { username: 'testuser', id: 1, password: 'should-not-be-exposed' }
       });
       
-      render(<App />);
+      render(<AppWrapper />);
       
       await waitFor(() => {
         expect(screen.getByTestId('dashboard-page')).toBeInTheDocument();
@@ -545,7 +556,7 @@ describe('Authentication Flow Integration Tests', () => {
         data: { username: 'testuser', id: 1 }
       });
       
-      render(<App />);
+      render(<AppWrapper />);
       
       await waitFor(() => {
         expect(screen.getByText('testuser')).toBeInTheDocument();

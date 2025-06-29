@@ -164,8 +164,9 @@ describe('GenericTable', () => {
       />
     );
 
+    // Wait for the data to load and table to render
     await waitFor(() => {
-      expect(screen.getByText('Test Table')).toBeInTheDocument();
+      expect(screen.getByText('ID')).toBeInTheDocument();
     });
 
     // Should only show first 5 rows plus header
@@ -317,8 +318,9 @@ describe('GenericTable', () => {
       />
     );
 
+    // Wait for the data to load and table to render
     await waitFor(() => {
-      expect(screen.getByText('Test Table')).toBeInTheDocument();
+      expect(screen.getByText('John Doe')).toBeInTheDocument();
     });
 
     // Clear the mock to verify it's called again
@@ -355,12 +357,12 @@ describe('GenericTable', () => {
       />
     );
 
+    // Wait for the data to load and dynamic columns to be generated
     await waitFor(() => {
-      expect(screen.getByText('Last Query Result')).toBeInTheDocument();
+      expect(screen.getByText('id')).toBeInTheDocument();
     });
 
     // Check dynamic headers from columns array
-    expect(screen.getByText('id')).toBeInTheDocument();
     expect(screen.getByText('name')).toBeInTheDocument();
     expect(screen.getByText('email')).toBeInTheDocument();
 
