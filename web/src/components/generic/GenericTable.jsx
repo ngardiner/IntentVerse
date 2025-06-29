@@ -46,6 +46,17 @@ const GenericTable = ({
       if (Array.isArray(extractedData)) {
         dataArray = extractedData;
         
+        // Generate dynamic headers for array data when dynamic_columns is true
+        if (dynamic_columns && dataArray.length > 0) {
+          if (typeof dataArray[0] === 'object' && dataArray[0] !== null) {
+            newDynamicHeaders = Object.keys(dataArray[0]);
+          } else if (Array.isArray(dataArray[0])) {
+            newDynamicHeaders = dataArray[0].map((_, index) => `Column ${index + 1}`);
+          } else {
+            newDynamicHeaders = ['Value'];
+          }
+        }
+        
         // Special handling for email module to ensure data is properly formatted
         if (isEmailModule && dataArray.length > 0) {
           // Process email data to ensure all required fields are present
@@ -62,6 +73,11 @@ const GenericTable = ({
             // Ensure body exists
             body: email.body || ""
           }));
+          
+          // Regenerate dynamic headers after email processing if needed
+          if (dynamic_columns && dataArray.length > 0 && typeof dataArray[0] === 'object' && dataArray[0] !== null) {
+            newDynamicHeaders = Object.keys(dataArray[0]);
+          }
         }
       } else if (typeof extractedData === 'object' && extractedData !== null) {
         // Convert object to array if it's not already an array

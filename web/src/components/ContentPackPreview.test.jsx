@@ -118,7 +118,7 @@ describe('ContentPackPreview', () => {
       render(<ContentPackPreview {...defaultProps} />);
       
       expect(screen.getByText('Content Pack Preview: test-pack.json')).toBeInTheDocument();
-      expect(screen.getByText('×')).toBeInTheDocument(); // Close button
+      expect(document.querySelector('.modal-close')).toBeInTheDocument(); // Close button
     });
   });
 
@@ -189,7 +189,7 @@ describe('ContentPackPreview', () => {
       const user = userEvent.setup();
       render(<ContentPackPreview {...defaultProps} />);
       
-      const closeButton = screen.getByText('×');
+      const closeButton = document.querySelector('.modal-close');
       await user.click(closeButton);
       
       expect(defaultProps.onClose).toHaveBeenCalled();

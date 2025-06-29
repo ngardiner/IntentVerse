@@ -60,6 +60,7 @@ describe('EditButton', () => {
     expect(svg).toBeInTheDocument();
     expect(svg).toHaveAttribute('width', '18');
     expect(svg).toHaveAttribute('height', '18');
+    expect(svg).toHaveAttribute('viewBox', '0 0 18 18');
     expect(svg).toHaveAttribute('fill', 'currentColor');
     
     // Check for the grid icon path (4 squares)
@@ -76,13 +77,15 @@ describe('EditButton', () => {
     expect(svg).toBeInTheDocument();
     expect(svg).toHaveAttribute('width', '18');
     expect(svg).toHaveAttribute('height', '18');
-    expect(svg).toHaveAttribute('fill', 'none');
+    expect(svg).toHaveAttribute('viewBox', '0 0 18 18');
     
     // Check for the X icon path
     const path = svg.querySelector('path');
     expect(path).toHaveAttribute('d', 'M 4 4 L 14 14 M 14 4 L 4 14');
+    expect(path).toHaveAttribute('fill', 'none');
     expect(path).toHaveAttribute('stroke', 'currentColor');
     expect(path).toHaveAttribute('strokeWidth', '2');
+    expect(path).toHaveAttribute('strokeLinecap', 'round');
   });
 
   it('toggles between states correctly', () => {

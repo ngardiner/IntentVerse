@@ -53,13 +53,13 @@ describe('SwitchableView', () => {
     );
 
     await waitFor(() => {
-      // The component shows the view title, not the main title when views are provided
-      expect(screen.getByText('Table View')).toBeInTheDocument();
+      // Wait for loading to finish and the table to be rendered
+      expect(screen.getByTestId('generic-table')).toBeInTheDocument();
     });
 
     // Should show first view by default
-    expect(screen.getByTestId('generic-table')).toBeInTheDocument();
     expect(screen.getByText('Table: Table View')).toBeInTheDocument();
+    expect(screen.getByText('Table View')).toBeInTheDocument();
   });
 
   it('switches between views when dropdown options are clicked', async () => {
@@ -75,11 +75,9 @@ describe('SwitchableView', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText('Table View')).toBeInTheDocument();
+      // Wait for loading to finish and the table to be rendered
+      expect(screen.getByTestId('generic-table')).toBeInTheDocument();
     });
-
-    // Should show table view initially
-    expect(screen.getByTestId('generic-table')).toBeInTheDocument();
 
     // Click on dropdown button to open view selector
     const dropdownButton = screen.getByLabelText('Switch view');
@@ -108,7 +106,8 @@ describe('SwitchableView', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText('Table View')).toBeInTheDocument();
+      // Wait for loading to finish and the table to be rendered
+      expect(screen.getByTestId('generic-table')).toBeInTheDocument();
     });
 
     // Should have dropdown button for multiple views
@@ -136,11 +135,9 @@ describe('SwitchableView', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText('Table View')).toBeInTheDocument();
+      // Wait for loading to finish and the table to be rendered
+      expect(screen.getByTestId('generic-table')).toBeInTheDocument();
     });
-
-    // Should show the view
-    expect(screen.getByTestId('generic-table')).toBeInTheDocument();
     
     // Should not show dropdown for single view
     expect(screen.queryByLabelText('Switch view')).not.toBeInTheDocument();
@@ -174,7 +171,8 @@ describe('SwitchableView', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText('Table View')).toBeInTheDocument();
+      // Wait for loading to finish and the table to be rendered
+      expect(screen.getByTestId('generic-table')).toBeInTheDocument();
     });
 
     const switchableContainer = container.querySelector('.module-container');
@@ -192,6 +190,7 @@ describe('SwitchableView', () => {
     );
 
     await waitFor(() => {
+      // Wait for loading to finish and the table to be rendered
       expect(screen.getByTestId('generic-table')).toBeInTheDocument();
     });
 
@@ -212,7 +211,8 @@ describe('SwitchableView', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText('Table View')).toBeInTheDocument();
+      // Wait for loading to finish and the table to be rendered
+      expect(screen.getByTestId('generic-table')).toBeInTheDocument();
     });
 
     // Focus first tab and use arrow keys
@@ -244,11 +244,9 @@ describe('SwitchableView', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText('Table View')).toBeInTheDocument();
+      // Wait for loading to finish and the table to be rendered
+      expect(screen.getByTestId('generic-table')).toBeInTheDocument();
     });
-
-    // Start with table view
-    expect(screen.getByTestId('generic-table')).toBeInTheDocument();
 
     // Switch to key-value view
     const keyValueTab = screen.getByText('Key-Value View');

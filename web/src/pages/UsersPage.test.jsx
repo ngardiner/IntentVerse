@@ -269,7 +269,7 @@ describe('UsersPage', () => {
 
     it('updates user successfully', async () => {
       const user = userEvent.setup();
-      updateUser.mockResolvedValue({ data: { id: 2, username: 'user1_updated' } });
+      updateUser.mockResolvedValue({ data: { id: 2, email: 'user1_updated@example.com' } });
       
       render(<UsersPage />);
       
@@ -281,10 +281,10 @@ describe('UsersPage', () => {
       const editButtons = screen.getAllByText('Edit');
       await user.click(editButtons[1]);
       
-      // Update username
-      const usernameInput = screen.getByDisplayValue('user1');
-      await user.clear(usernameInput);
-      await user.type(usernameInput, 'user1_updated');
+      // Update email (username is disabled when editing)
+      const emailInput = screen.getByDisplayValue('user1@example.com');
+      await user.clear(emailInput);
+      await user.type(emailInput, 'user1_updated@example.com');
       
       // Submit form
       const updateButton = screen.getByText('Update');
@@ -292,7 +292,7 @@ describe('UsersPage', () => {
       
       await waitFor(() => {
         expect(updateUser).toHaveBeenCalledWith(2, expect.objectContaining({
-          username: 'user1_updated'
+          email: 'user1_updated@example.com'
         }));
       });
     });

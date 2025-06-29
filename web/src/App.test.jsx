@@ -267,6 +267,12 @@ describe('App', () => {
 });
 
 describe('AuthProvider', () => {
+  beforeEach(() => {
+    // Ensure localStorage is clean before each AuthProvider test
+    localStorage.clear();
+    jest.clearAllMocks();
+  });
+
   it('provides authentication context to children', () => {
     // Mock getCurrentUser to avoid the useEffect call
     getCurrentUser.mockResolvedValue({

@@ -9,3 +9,4 @@ python-multipart
 python-json-logger
 pytest-asyncio
 respx
+packaging

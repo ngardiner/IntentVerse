@@ -146,7 +146,28 @@ describe('QueryExecutor', () => {
     });
   });
 
-  it('shows error when trying to execute empty query', () => {
+  it('shows error when trying to execute empty query via keyboard shortcut', () => {
+    render(
+      <QueryExecutor
+        title="Execute Query"
+        module_id="database"
+        onQueryExecuted={mockOnQueryExecuted}
+      />
+    );
+
+    const textarea = screen.getByPlaceholderText(/Enter your SQL query here/);
+
+    // Add some whitespace
+    fireEvent.change(textarea, { target: { value: '   ' } });
+    
+    // Use keyboard shortcut to trigger execution (since button is disabled for empty queries)
+    fireEvent.keyDown(textarea, { key: 'Enter', ctrlKey: true });
+
+    expect(screen.getByText('Please enter a query to execute')).toBeInTheDocument();
+    expect(apiClient.executeQuery).not.toHaveBeenCalled();
+  });
+
+  it('disables execute button for whitespace-only queries', () => {
     render(
       <QueryExecutor
         title="Execute Query"
@@ -160,10 +181,9 @@ describe('QueryExecutor', () => {
 
     // Add some whitespace
     fireEvent.change(textarea, { target: { value: '   ' } });
-    fireEvent.click(executeButton);
-
-    expect(screen.getByText('Please enter a query to execute')).toBeInTheDocument();
-    expect(apiClient.executeQuery).not.toHaveBeenCalled();
+    
+    // Button should remain disabled for whitespace-only content
+    expect(executeButton).toBeDisabled();
   });
 
   it('executes query with Ctrl+Enter keyboard shortcut', async () => {

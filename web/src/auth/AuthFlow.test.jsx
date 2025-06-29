@@ -93,7 +93,12 @@ describe('Authentication Flow Integration Tests', () => {
     });
 
     it('attempts to validate token when token exists in localStorage', async () => {
-      localStorageMock.getItem.mockReturnValue('existing-token');
+      // Clear the default mock from beforeEach and set up the specific mock for this test
+      localStorageMock.getItem.mockClear();
+      localStorageMock.getItem.mockImplementation((key) => {
+        if (key === 'authToken') return 'existing-token';
+        return null;
+      });
       getCurrentUser.mockResolvedValue({ data: { username: 'testuser', id: 1 } });
       
       render(<App />);
@@ -152,7 +157,11 @@ describe('Authentication Flow Integration Tests', () => {
     });
 
     it('restores authentication state on page reload', async () => {
-      localStorageMock.getItem.mockReturnValue('valid-token');
+      localStorageMock.getItem.mockClear();
+      localStorageMock.getItem.mockImplementation((key) => {
+        if (key === 'authToken') return 'valid-token';
+        return null;
+      });
       getCurrentUser.mockResolvedValue({
         data: { username: 'testuser', id: 1 }
       });
@@ -174,7 +183,11 @@ describe('Authentication Flow Integration Tests', () => {
     it('maintains authentication state across component re-renders', async () => {
       const user = userEvent.setup();
       
-      localStorageMock.getItem.mockReturnValue('valid-token');
+      localStorageMock.getItem.mockClear();
+      localStorageMock.getItem.mockImplementation((key) => {
+        if (key === 'authToken') return 'valid-token';
+        return null;
+      });
       getCurrentUser.mockResolvedValue({
         data: { username: 'testuser', id: 1 }
       });
@@ -220,7 +233,11 @@ describe('Authentication Flow Integration Tests', () => {
     });
 
     it('handles expired/invalid tokens correctly', async () => {
-      localStorageMock.getItem.mockReturnValue('expired-token');
+      localStorageMock.getItem.mockClear();
+      localStorageMock.getItem.mockImplementation((key) => {
+        if (key === 'authToken') return 'expired-token';
+        return null;
+      });
       getCurrentUser.mockRejectedValue({
         response: { status: 401, data: { detail: 'Token expired' } }
       });
@@ -288,7 +305,11 @@ describe('Authentication Flow Integration Tests', () => {
       const user = userEvent.setup();
       
       // Start with authenticated state
-      localStorageMock.getItem.mockReturnValue('valid-token');
+      localStorageMock.getItem.mockClear();
+      localStorageMock.getItem.mockImplementation((key) => {
+        if (key === 'authToken') return 'valid-token';
+        return null;
+      });
       getCurrentUser.mockResolvedValue({
         data: { username: 'testuser', id: 1 }
       });
@@ -317,7 +338,11 @@ describe('Authentication Flow Integration Tests', () => {
     it('clears all authentication state on logout', async () => {
       const user = userEvent.setup();
       
-      localStorageMock.getItem.mockReturnValue('valid-token');
+      localStorageMock.getItem.mockClear();
+      localStorageMock.getItem.mockImplementation((key) => {
+        if (key === 'authToken') return 'valid-token';
+        return null;
+      });
       getCurrentUser.mockResolvedValue({
         data: { username: 'testuser', id: 1 }
       });
@@ -344,7 +369,11 @@ describe('Authentication Flow Integration Tests', () => {
 
   describe('Token Validation Edge Cases', () => {
     it('handles getCurrentUser returning null user', async () => {
-      localStorageMock.getItem.mockReturnValue('valid-token');
+      localStorageMock.getItem.mockClear();
+      localStorageMock.getItem.mockImplementation((key) => {
+        if (key === 'authToken') return 'valid-token';
+        return null;
+      });
       getCurrentUser.mockResolvedValue({ data: null });
       
       render(<App />);
@@ -356,7 +385,11 @@ describe('Authentication Flow Integration Tests', () => {
     });
 
     it('handles getCurrentUser returning malformed user data', async () => {
-      localStorageMock.getItem.mockReturnValue('valid-token');
+      localStorageMock.getItem.mockClear();
+      localStorageMock.getItem.mockImplementation((key) => {
+        if (key === 'authToken') return 'valid-token';
+        return null;
+      });
       getCurrentUser.mockResolvedValue({ data: { invalid: 'data' } });
       
       render(<App />);
@@ -370,7 +403,11 @@ describe('Authentication Flow Integration Tests', () => {
     });
 
     it('retries token validation on temporary network failures', async () => {
-      localStorageMock.getItem.mockReturnValue('valid-token');
+      localStorageMock.getItem.mockClear();
+      localStorageMock.getItem.mockImplementation((key) => {
+        if (key === 'authToken') return 'valid-token';
+        return null;
+      });
       getCurrentUser
         .mockRejectedValueOnce(new Error('Network timeout'))
         .mockResolvedValue({ data: { username: 'testuser', id: 1 } });
@@ -473,7 +510,11 @@ describe('Authentication Flow Integration Tests', () => {
 
   describe('Security Considerations', () => {
     it('does not expose sensitive data in component state', async () => {
-      localStorageMock.getItem.mockReturnValue('sensitive-token');
+      localStorageMock.getItem.mockClear();
+      localStorageMock.getItem.mockImplementation((key) => {
+        if (key === 'authToken') return 'sensitive-token';
+        return null;
+      });
       getCurrentUser.mockResolvedValue({
         data: { username: 'testuser', id: 1, password: 'should-not-be-exposed' }
       });
@@ -491,7 +532,11 @@ describe('Authentication Flow Integration Tests', () => {
     it('clears sensitive data from memory on logout', async () => {
       const user = userEvent.setup();
       
-      localStorageMock.getItem.mockReturnValue('valid-token');
+      localStorageMock.getItem.mockClear();
+      localStorageMock.getItem.mockImplementation((key) => {
+        if (key === 'authToken') return 'valid-token';
+        return null;
+      });
       getCurrentUser.mockResolvedValue({
         data: { username: 'testuser', id: 1 }
       });

@@ -71,7 +71,7 @@ describe('ConfirmationPopup', () => {
       />
     );
 
-    const closeButton = screen.getByText('×');
+    const closeButton = document.querySelector('.confirmation-popup-close');
     await user.click(closeButton);
 
     expect(mockOnCancel).toHaveBeenCalledTimes(1);
@@ -127,7 +127,7 @@ describe('ConfirmationPopup', () => {
     // Buttons should not be visible during processing
     expect(screen.queryByText('Cancel')).not.toBeInTheDocument();
     expect(screen.queryByText('Delete')).not.toBeInTheDocument();
-    expect(screen.queryByText('×')).not.toBeInTheDocument();
+    expect(document.querySelector('.confirmation-popup-close')).not.toBeInTheDocument();
   });
 
   it('shows success state correctly', () => {
@@ -146,7 +146,7 @@ describe('ConfirmationPopup', () => {
     // Buttons should not be visible in success state
     expect(screen.queryByText('Cancel')).not.toBeInTheDocument();
     expect(screen.queryByText('Delete')).not.toBeInTheDocument();
-    expect(screen.queryByText('×')).not.toBeInTheDocument();
+    expect(document.querySelector('.confirmation-popup-close')).not.toBeInTheDocument();
   });
 
   it('shows error state correctly', () => {
@@ -165,7 +165,7 @@ describe('ConfirmationPopup', () => {
     // Buttons should not be visible in error state
     expect(screen.queryByText('Cancel')).not.toBeInTheDocument();
     expect(screen.queryByText('Delete')).not.toBeInTheDocument();
-    expect(screen.queryByText('×')).not.toBeInTheDocument();
+    expect(document.querySelector('.confirmation-popup-close')).not.toBeInTheDocument();
   });
 
   it('applies correct CSS classes based on status', () => {

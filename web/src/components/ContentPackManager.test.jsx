@@ -194,6 +194,10 @@ describe('ContentPackManager', () => {
     const user = userEvent.setup();
     clearAllLoadedPacks.mockResolvedValue({ data: { success: true } });
     
+    // Mock window.confirm to return true
+    const originalConfirm = window.confirm;
+    window.confirm = jest.fn(() => true);
+    
     render(<ContentPackManager />);
 
     // Switch to loaded packs tab
@@ -212,7 +216,44 @@ describe('ContentPackManager', () => {
     const clearAllButton = screen.getByText('Clear All');
     await user.click(clearAllButton);
 
+    expect(window.confirm).toHaveBeenCalledWith('Are you sure you want to clear all loaded content packs from tracking? This will not revert state or database changes.');
     expect(clearAllLoadedPacks).toHaveBeenCalled();
+    
+    // Restore original confirm
+    window.confirm = originalConfirm;
+  });
+
+  it('does not clear loaded packs when confirmation is cancelled', async () => {
+    const user = userEvent.setup();
+    clearAllLoadedPacks.mockResolvedValue({ data: { success: true } });
+    
+    // Mock window.confirm to return false (user cancels)
+    const originalConfirm = window.confirm;
+    window.confirm = jest.fn(() => false);
+    
+    render(<ContentPackManager />);
+
+    // Switch to loaded packs tab
+    await waitFor(() => {
+      expect(screen.getByText('Test Pack')).toBeInTheDocument();
+    });
+
+    const loadedTab = screen.getByText('Loaded (1)');
+    await user.click(loadedTab);
+
+    await waitFor(() => {
+      expect(screen.getByText('Loaded Pack')).toBeInTheDocument();
+    });
+
+    // Click clear all button
+    const clearAllButton = screen.getByText('Clear All');
+    await user.click(clearAllButton);
+
+    expect(window.confirm).toHaveBeenCalledWith('Are you sure you want to clear all loaded content packs from tracking? This will not revert state or database changes.');
+    expect(clearAllLoadedPacks).not.toHaveBeenCalled();
+    
+    // Restore original confirm
+    window.confirm = originalConfirm;
   });
 
   it('handles export form submission', async () => {
