@@ -88,47 +88,48 @@ class TestMCPProxyEngine:
     @pytest.fixture
     def mock_config(self):
         """Create a mock proxy configuration."""
-        return ProxyConfig(
-            version="1.0",
-            servers={
-                "test_server1": ServerConfig(
-                    name="test_server1",
-                    enabled=True,
-                    description="Test server 1",
-                    type="stdio",
-                    settings=ServerSettings(
-                        timeout=30,
-                        retry_attempts=3,
-                        retry_delay=5,
-                        tool_prefix="test1_",
-                        health_check_interval=60
-                    ),
-                    command="test_command1",
-                    args=[]
+        config = ProxyConfig()
+        config.version = "1.0"
+        config.servers = {
+            "test_server1": ServerConfig(
+                name="test_server1",
+                enabled=True,
+                description="Test server 1",
+                type="stdio",
+                settings=ServerSettings(
+                    timeout=30,
+                    retry_attempts=3,
+                    retry_delay=5,
+                    tool_prefix="test1_",
+                    health_check_interval=60
                 ),
-                "test_server2": ServerConfig(
-                    name="test_server2",
-                    enabled=False,  # Disabled server
-                    description="Test server 2",
-                    type="sse",
-                    settings=ServerSettings(
-                        timeout=60,
-                        retry_attempts=5,
-                        retry_delay=10,
-                        tool_prefix="test2_",
-                        health_check_interval=60
-                    ),
-                    url="http://localhost:3000/sse"
-                )
-            },
-            global_settings=GlobalSettings(
-                discovery_interval=300,
-                health_check_interval=60,
-                max_concurrent_calls=10,
-                enable_timeline_logging=True,
-                log_level="INFO"
+                command="test_command1",
+                args=[]
+            ),
+            "test_server2": ServerConfig(
+                name="test_server2",
+                enabled=False,  # Disabled server
+                description="Test server 2",
+                type="sse",
+                settings=ServerSettings(
+                    timeout=60,
+                    retry_attempts=5,
+                    retry_delay=10,
+                    tool_prefix="test2_",
+                    health_check_interval=60
+                ),
+                url="http://localhost:3000/sse"
             )
+        }
+        config.global_settings = GlobalSettings(
+            discovery_interval=300,
+            health_check_interval=60,
+            max_concurrent_calls=10,
+            enable_timeline_logging=True,
+            log_level="INFO"
         )
+        config._loaded = True
+        return config
     
     @pytest.fixture
     def engine(self):
@@ -522,11 +523,11 @@ class TestCreateAndStartProxyEngine:
     @pytest.mark.asyncio
     async def test_create_and_start_success(self):
         """Test successfully creating and starting a proxy engine."""
-        mock_config = ProxyConfig(
-            version="1.0",
-            servers={},
-            global_settings=GlobalSettings()
-        )
+        mock_config = ProxyConfig()
+        mock_config.version = "1.0"
+        mock_config.servers = {}
+        mock_config.global_settings = GlobalSettings()
+        mock_config._loaded = True
         
         with patch('app.proxy.engine.load_proxy_config', return_value=mock_config), \
              patch.object(MCPProxyEngine, 'initialize') as mock_init, \
@@ -544,11 +545,11 @@ class TestCreateAndStartProxyEngine:
     @pytest.mark.asyncio
     async def test_create_and_start_with_config_path(self):
         """Test creating and starting with custom config path."""
-        mock_config = ProxyConfig(
-            version="1.0",
-            servers={},
-            global_settings=GlobalSettings()
-        )
+        mock_config = ProxyConfig()
+        mock_config.version = "1.0"
+        mock_config.servers = {}
+        mock_config.global_settings = GlobalSettings()
+        mock_config._loaded = True
         
         with patch('app.proxy.engine.load_proxy_config', return_value=mock_config) as mock_load, \
              patch.object(MCPProxyEngine, 'initialize') as mock_init, \

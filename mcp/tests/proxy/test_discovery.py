@@ -51,9 +51,8 @@ class TestToolRegistry:
             name="test_tool",
             description="A test tool",
             input_schema={"type": "object", "properties": {}},
-            metadata={}
+            server_name="test_server"
         )
-        tool.server_name = "test_server"  # Add server name
         
         final_name = registry.add_tool(tool)
         assert final_name == "test_tool"
@@ -247,7 +246,7 @@ class TestToolDiscoveryService:
         """Test stopping the discovery service."""
         # Start the service first
         discovery_service._running = True
-        discovery_service._health_check_task = Mock()
+        discovery_service._health_check_task = AsyncMock()
         discovery_service._health_check_task.cancel = Mock()
         
         await discovery_service.stop()
@@ -283,11 +282,13 @@ class TestToolDiscoveryService:
                 server_name="test_server"
             )
         ]
-        mock_client.list_tools = AsyncMock(return_value=mock_tools)
+        mock_client.discover_tools = AsyncMock(return_value=mock_tools)
+        mock_client.connect = AsyncMock()
+        mock_client.initialize_server = AsyncMock()
         
         # Discover tools
         start_time = time.time()
-        result = await discovery_service._discover_tools_from_client(mock_client)
+        result = await discovery_service._discover_server_tools("test_server", mock_client)
         
         assert isinstance(result, DiscoveryResult)
         assert result.server_name == "test_server"
@@ -311,10 +312,10 @@ class TestToolDiscoveryService:
         mock_client = Mock(spec=MCPClient)
         mock_client.server_name = "test_server"
         mock_client.is_connected = True
-        mock_client.list_tools = AsyncMock(side_effect=Exception("Connection error"))
+        mock_client.discover_tools = AsyncMock(side_effect=Exception("Connection error"))
         mock_client.get_server_info = AsyncMock(side_effect=Exception("Info error"))
         
-        result = await discovery_service._discover_tools_from_client(mock_client)
+        result = await discovery_service._discover_server_tools("test_server", mock_client)
         
         assert isinstance(result, DiscoveryResult)
         assert result.server_name == "test_server"
@@ -328,8 +329,10 @@ class TestToolDiscoveryService:
         mock_client = Mock(spec=MCPClient)
         mock_client.server_name = "test_server"
         mock_client.is_connected = False
+        mock_client.connect = AsyncMock(side_effect=Exception("Connection failed"))
+        mock_client.initialize_server = AsyncMock()
         
-        result = await discovery_service._discover_tools_from_client(mock_client)
+        result = await discovery_service._discover_server_tools("test_server", mock_client)
         
         assert isinstance(result, DiscoveryResult)
         assert result.server_name == "test_server"
@@ -341,30 +344,17 @@ class TestToolDiscoveryService:
     # Conflicts are handled directly in the add_tool method of ToolRegistry
     # We already tested this behavior in test_add_duplicate_tool_conflict_resolution
     
-    def test_get_server_prefix(self, discovery_service):
-        """Test getting tool prefix from server configuration."""
-        # Test with prefix configured
-        prefix = discovery_service._get_server_prefix("test_server")
-        assert prefix == "test_"
-        
-        # Test with server that has no prefix configured
-        settings = ServerSettings(tool_prefix="")
-        server_config = ServerConfig(
-            name="no_prefix_server",
-            enabled=True,
-            description="Server without prefix",
-            type="stdio",
-            settings=settings,
-            command="test_command"
-        )
-        discovery_service.config.servers["no_prefix_server"] = server_config
-        
-        no_prefix = discovery_service._get_server_prefix("no_prefix_server")
-        assert no_prefix == ""
+    def test_get_server_config(self, discovery_service):
+        """Test getting server configuration."""
+        # Test with existing server
+        server_config = discovery_service.config.get_server("test_server")
+        assert server_config is not None
+        assert server_config.name == "test_server"
+        assert server_config.settings.tool_prefix == "test_"
         
         # Test with nonexistent server
-        unknown_prefix = discovery_service._get_server_prefix("unknown_server")
-        assert unknown_prefix == ""
+        unknown_config = discovery_service.config.get_server("unknown_server")
+        assert unknown_config is None
     
     # Note: The actual implementation doesn't have a separate schema validation method
     # Schema validation is handled by the MCPTool class constructor
@@ -380,8 +370,8 @@ class TestToolDiscoveryService:
         mock_client.is_connected = True
         discovery_service.clients = {"test_server": mock_client}
         
-        # Mock the _discover_tools_from_client method
-        with patch.object(discovery_service, '_discover_tools_from_client') as mock_discover:
+        # Mock the _discover_server_tools method
+        with patch.object(discovery_service, '_discover_server_tools') as mock_discover:
             mock_discover.return_value = DiscoveryResult(
                 server_name="test_server",
                 success=True,
@@ -402,7 +392,7 @@ class TestToolDiscoveryService:
             assert results[0].server_name == "test_server"
             assert results[0].success is True
             assert results[0].tools_discovered == 2
-            mock_discover.assert_called_once_with(mock_client)
+            mock_discover.assert_called_once_with("test_server", mock_client)
 
 
 class TestToolConflict:
