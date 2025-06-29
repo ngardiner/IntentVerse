@@ -17,6 +17,7 @@ from fastmcp.tools import FunctionTool
 from .config import ProxyConfig, load_proxy_config
 from .discovery import ToolDiscoveryService, DiscoveryResult
 from .generator import ProxyToolGenerator
+from .timeline import log_engine_event
 
 logger = logging.getLogger(__name__)
 
@@ -108,7 +109,18 @@ class MCPProxyEngine:
             
             logger.info("MCP Proxy Engine initialized successfully")
             
+            # Log engine event (non-critical)
+            try:
+                log_engine_event("initialization", "MCP Proxy Engine Initialized", 
+                               f"Successfully initialized with {len(self.config.servers)} servers configured")
+            except Exception as e:
+                logger.warning(f"Failed to log engine event: {e}")
+            
         except Exception as e:
+            # Reset state on failure
+            self.config = None
+            self.discovery_service = None
+            self.proxy_generator = None
             logger.error(f"Failed to initialize MCP Proxy Engine: {e}")
             raise RuntimeError(f"Proxy engine initialization failed: {e}")
     
@@ -121,7 +133,7 @@ class MCPProxyEngine:
         Raises:
             RuntimeError: If engine is not initialized or start fails
         """
-        if not self.config or not self.discovery_service or not self.proxy_generator:
+        if self.config is None or self.discovery_service is None or self.proxy_generator is None:
             raise RuntimeError("Proxy engine not initialized. Call initialize() first.")
         
         if self._running:
@@ -144,6 +156,8 @@ class MCPProxyEngine:
                 self._discovery_task = asyncio.create_task(self._periodic_discovery_loop())
             
             logger.info("MCP Proxy Engine started successfully")
+            log_engine_event("startup", "MCP Proxy Engine Started", 
+                           "Proxy engine is now running and ready to handle tool calls")
             
         except Exception as e:
             self._running = False
@@ -185,6 +199,8 @@ class MCPProxyEngine:
             self.proxy_generator.clear_all_functions()
         
         logger.info("MCP Proxy Engine stopped")
+        log_engine_event("shutdown", "MCP Proxy Engine Stopped", 
+                       "Proxy engine has been shut down and all resources cleaned up")
     
     async def register_proxy_tools(self, fastmcp_server: FastMCP) -> int:
         """
@@ -199,7 +215,7 @@ class MCPProxyEngine:
         Raises:
             RuntimeError: If engine not running or registration fails
         """
-        if not self._running or not self.proxy_generator:
+        if not self._running or self.proxy_generator is None:
             raise RuntimeError("Proxy engine not running")
         
         logger.info("Registering proxy tools with FastMCP server")
@@ -247,7 +263,7 @@ class MCPProxyEngine:
         Raises:
             RuntimeError: If engine not running
         """
-        if not self._running or not self.discovery_service or not self.proxy_generator:
+        if not self._running or self.discovery_service is None or self.proxy_generator is None:
             raise RuntimeError("Proxy engine not running")
         
         logger.info("Refreshing proxy tools")
@@ -300,7 +316,7 @@ class MCPProxyEngine:
             RuntimeError: If engine not running
             ValueError: If server not found
         """
-        if not self._running or not self.discovery_service:
+        if not self._running or self.discovery_service is None:
             raise RuntimeError("Proxy engine not running")
         
         logger.info(f"Refreshing tools from server: {server_name}")
@@ -441,7 +457,7 @@ class MCPProxyEngine:
         Returns:
             Tool information if found, None otherwise
         """
-        if not self.discovery_service or not self.proxy_generator:
+        if self.discovery_service is None or self.proxy_generator is None:
             return None
         
         tool = self.discovery_service.get_tool(tool_name)
@@ -468,7 +484,7 @@ class MCPProxyEngine:
         Returns:
             List of tool information
         """
-        if not self.discovery_service:
+        if self.discovery_service is None:
             return []
         
         tools = self.discovery_service.get_all_tools()
@@ -484,7 +500,7 @@ class MCPProxyEngine:
         Returns:
             Server information if found, None otherwise
         """
-        if not self.discovery_service:
+        if self.discovery_service is None:
             return None
         
         server_info = self.discovery_service.get_server_info(server_name)
@@ -509,7 +525,7 @@ class MCPProxyEngine:
         Returns:
             List of server information
         """
-        if not self.config:
+        if self.config is None:
             return []
         
         server_info = []
@@ -535,7 +551,7 @@ class MCPProxyEngine:
             RuntimeError: If engine not running
             ValueError: If tool not found
         """
-        if not self._running or not self.discovery_service:
+        if not self._running or self.discovery_service is None:
             raise RuntimeError("Proxy engine not running")
         
         return await self.discovery_service.call_tool(tool_name, kwargs)

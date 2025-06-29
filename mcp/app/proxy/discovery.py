@@ -14,6 +14,7 @@ from collections import defaultdict
 
 from .config import ProxyConfig, ServerConfig
 from .client import MCPClient, MCPTool, MCPServerInfo, ConnectionState
+from .timeline import log_discovery_event, log_server_connection_event
 
 logger = logging.getLogger(__name__)
 
@@ -432,6 +433,9 @@ class ToolDiscoveryService:
             
             discovery_time = time.time() - start_time
             
+            # Log successful discovery to timeline
+            log_discovery_event(server_name, len(tools), True)
+            
             return DiscoveryResult(
                 server_name=server_name,
                 success=True,
@@ -443,6 +447,9 @@ class ToolDiscoveryService:
         except Exception as e:
             discovery_time = time.time() - start_time
             logger.error(f"Failed to discover tools from {server_name}: {e}")
+            
+            # Log failed discovery to timeline
+            log_discovery_event(server_name, 0, False, str(e))
             
             return DiscoveryResult(
                 server_name=server_name,
@@ -522,10 +529,12 @@ class ToolDiscoveryService:
                             # Attempt reconnection
                             if await client.reconnect():
                                 logger.info(f"Successfully reconnected to {server_name}")
+                                log_server_connection_event(server_name, "reconnect", True)
                                 # Rediscover tools after reconnection
                                 await self._discover_server_tools(server_name, client, force_refresh=True)
                             else:
                                 logger.error(f"Failed to reconnect to {server_name}")
+                                log_server_connection_event(server_name, "reconnect", False, "Reconnection failed")
                                 # Remove tools from unhealthy server
                                 removed = self.registry.remove_server_tools(server_name)
                                 if removed > 0:

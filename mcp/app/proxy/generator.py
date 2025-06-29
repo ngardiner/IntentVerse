@@ -15,6 +15,7 @@ from functools import wraps
 
 from .client import MCPTool
 from .discovery import ToolDiscoveryService
+from .timeline import log_proxy_call_start, log_proxy_call_end
 
 logger = logging.getLogger(__name__)
 
@@ -471,6 +472,8 @@ class ProxyToolGenerator:
             This function validates parameters, calls the external MCP tool,
             and processes the result.
             """
+            # Start timeline logging
+            call_id = None
             try:
                 # Log the call
                 logger.debug(f"Calling proxy function for tool: {tool.name}")
@@ -478,16 +481,33 @@ class ProxyToolGenerator:
                 # Validate and convert parameters
                 validated_params = validator.validate_and_convert(kwargs)
                 
+                # Start timeline tracking
+                original_name = tool.to_core_tool_format()["metadata"]["original_name"]
+                call_id = log_proxy_call_start(
+                    tool_name=tool.name,
+                    server_name=tool.server_name,
+                    original_name=original_name,
+                    parameters=validated_params
+                )
+                
                 # Call the tool through the discovery service
                 result = await self.discovery_service.call_tool(tool.name, validated_params)
                 
                 # Process the result
                 processed_result = ResultProcessor.process_result_static(result, tool)
                 
+                # End timeline tracking with success
+                if call_id:
+                    log_proxy_call_end(call_id, result=processed_result)
+                
                 logger.debug(f"Proxy function call completed for: {tool.name}")
                 return processed_result
                 
             except Exception as e:
+                # End timeline tracking with error
+                if call_id:
+                    log_proxy_call_end(call_id, error=str(e))
+                
                 logger.error(f"Proxy function call failed for {tool.name}: {e}")
                 raise
         

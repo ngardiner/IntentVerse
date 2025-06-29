@@ -47,7 +47,7 @@ class MockMCPServer:
                 name=tool["name"],
                 description=tool["description"],
                 input_schema=tool["schema"],
-                metadata=tool.get("metadata", {})
+                server_name=self.name
             )
             for tool in self.tools
         ]
@@ -158,15 +158,32 @@ class TestProxyEngineIntegration:
         engine = MCPProxyEngine(temp_config_file)
         
         # Mock the MCP client creation to return our mock server
-        async def mock_client_factory(server_config):
+        def mock_client_factory(server_config):
             mock_client = Mock(spec=MCPClient)
             mock_client.server_name = server_config.name
             mock_client.is_connected = True
             mock_client.connect = AsyncMock(return_value=True)
             mock_client.disconnect = AsyncMock()
-            mock_client.list_tools = AsyncMock(return_value=await mock_server.list_tools())
+            mock_client.initialize_server = AsyncMock(return_value=MCPServerInfo(
+                name=server_config.name,
+                version="1.0",
+                protocol_version="1.0",
+                capabilities={}
+            ))
+            
+            # Create the tools synchronously for the mock
+            tools = []
+            for tool_data in mock_server.tools:
+                tools.append(MCPTool(
+                    name=tool_data["name"],
+                    description=tool_data["description"],
+                    input_schema=tool_data["schema"],
+                    server_name=mock_server.name
+                ))
+            
+            mock_client.discover_tools = AsyncMock(return_value=tools)
             mock_client.call_tool = AsyncMock(side_effect=mock_server.call_tool)
-            mock_client.health_check = AsyncMock(return_value=True)
+            mock_client.is_healthy = AsyncMock(return_value=True)
             mock_client.get_server_info = Mock(return_value=MCPServerInfo(
                 name=server_config.name,
                 version="1.0",
@@ -175,7 +192,7 @@ class TestProxyEngineIntegration:
             ))
             return mock_client
         
-        with patch('app.proxy.client.MCPClient', side_effect=mock_client_factory):
+        with patch('app.proxy.discovery.MCPClient', side_effect=mock_client_factory):
             # Initialize the engine
             await engine.initialize()
             assert engine.config is not None
@@ -300,9 +317,26 @@ class TestProxyEngineIntegration:
                 mock_client.is_connected = True
                 mock_client.connect = AsyncMock(return_value=True)
                 mock_client.disconnect = AsyncMock()
-                mock_client.list_tools = AsyncMock(return_value=asyncio.run(mock_server.list_tools()))
+                mock_client.initialize_server = AsyncMock(return_value=MCPServerInfo(
+                    name=server_config.name,
+                    version="1.0",
+                    protocol_version="1.0",
+                    capabilities={}
+                ))
+                
+                # Create the tools synchronously for the mock
+                tools = []
+                for tool_data in mock_server.tools:
+                    tools.append(MCPTool(
+                        name=tool_data["name"],
+                        description=tool_data["description"],
+                        input_schema=tool_data["schema"],
+                        server_name=mock_server.name
+                    ))
+                
+                mock_client.discover_tools = AsyncMock(return_value=tools)
                 mock_client.call_tool = AsyncMock(side_effect=mock_server.call_tool)
-                mock_client.health_check = AsyncMock(return_value=True)
+                mock_client.is_healthy = AsyncMock(return_value=True)
                 mock_client.get_server_info = Mock(return_value=MCPServerInfo(
                     name=server_config.name,
                     version="1.0",
@@ -311,7 +345,7 @@ class TestProxyEngineIntegration:
                 ))
                 return mock_client
             
-            with patch('app.proxy.client.MCPClient', side_effect=mock_client_factory):
+            with patch('app.proxy.discovery.MCPClient', side_effect=mock_client_factory):
                 await engine.initialize()
                 await engine.start()
                 
@@ -397,9 +431,26 @@ class TestProxyEngineIntegration:
                 mock_client.is_connected = True
                 mock_client.connect = AsyncMock(return_value=True)
                 mock_client.disconnect = AsyncMock()
-                mock_client.list_tools = AsyncMock(return_value=asyncio.run(mock_enabled_server.list_tools()))
+                mock_client.initialize_server = AsyncMock(return_value=MCPServerInfo(
+                    name=server_config.name,
+                    version="1.0",
+                    protocol_version="1.0",
+                    capabilities={}
+                ))
+                
+                # Create the tools synchronously for the mock
+                tools = []
+                for tool_data in mock_enabled_server.tools:
+                    tools.append(MCPTool(
+                        name=tool_data["name"],
+                        description=tool_data["description"],
+                        input_schema=tool_data["schema"],
+                        server_name=mock_enabled_server.name
+                    ))
+                
+                mock_client.discover_tools = AsyncMock(return_value=tools)
                 mock_client.call_tool = AsyncMock(side_effect=mock_enabled_server.call_tool)
-                mock_client.health_check = AsyncMock(return_value=True)
+                mock_client.is_healthy = AsyncMock(return_value=True)
                 mock_client.get_server_info = Mock(return_value=MCPServerInfo(
                     name=server_config.name,
                     version="1.0",
@@ -408,7 +459,7 @@ class TestProxyEngineIntegration:
                 ))
                 return mock_client
             
-            with patch('app.proxy.client.MCPClient', side_effect=mock_client_factory):
+            with patch('app.proxy.discovery.MCPClient', side_effect=mock_client_factory):
                 await engine.initialize()
                 await engine.start()
                 
@@ -442,10 +493,10 @@ class TestProxyEngineIntegration:
             mock_client.is_connected = False
             mock_client.connect = AsyncMock(return_value=False)  # Connection fails
             mock_client.disconnect = AsyncMock()
-            mock_client.health_check = AsyncMock(return_value=False)
+            mock_client.is_healthy = AsyncMock(return_value=False)
             return mock_client
         
-        with patch('app.proxy.client.MCPClient', side_effect=mock_failing_client_factory):
+        with patch('app.proxy.discovery.MCPClient', side_effect=mock_failing_client_factory):
             await engine.initialize()
             await engine.start()
             
@@ -470,15 +521,32 @@ class TestProxyEngineIntegration:
         mock_server = MockMCPServer("test-server", mock_server_tools)
         
         # Mock client creation
-        async def mock_client_factory(server_config):
+        def mock_client_factory(server_config):
             mock_client = Mock(spec=MCPClient)
             mock_client.server_name = server_config.name
             mock_client.is_connected = True
             mock_client.connect = AsyncMock(return_value=True)
             mock_client.disconnect = AsyncMock()
-            mock_client.list_tools = AsyncMock(return_value=await mock_server.list_tools())
+            mock_client.initialize_server = AsyncMock(return_value=MCPServerInfo(
+                name=server_config.name,
+                version="1.0",
+                protocol_version="1.0",
+                capabilities={}
+            ))
+            
+            # Create the tools synchronously for the mock
+            tools = []
+            for tool_data in mock_server.tools:
+                tools.append(MCPTool(
+                    name=tool_data["name"],
+                    description=tool_data["description"],
+                    input_schema=tool_data["schema"],
+                    server_name=mock_server.name
+                ))
+            
+            mock_client.discover_tools = AsyncMock(return_value=tools)
             mock_client.call_tool = AsyncMock(side_effect=mock_server.call_tool)
-            mock_client.health_check = AsyncMock(return_value=True)
+            mock_client.is_healthy = AsyncMock(return_value=True)
             mock_client.get_server_info = Mock(return_value=MCPServerInfo(
                 name=server_config.name,
                 version="1.0",
@@ -487,7 +555,7 @@ class TestProxyEngineIntegration:
             ))
             return mock_client
         
-        with patch('app.proxy.client.MCPClient', side_effect=mock_client_factory):
+        with patch('app.proxy.discovery.MCPClient', side_effect=mock_client_factory):
             # Create and start engine using utility function
             engine = await create_and_start_proxy_engine(temp_config_file)
             
@@ -534,15 +602,32 @@ class TestProxyEngineIntegration:
         mock_server = MockMCPServer("test-server", strict_tools)
         engine = MCPProxyEngine(temp_config_file)
         
-        async def mock_client_factory(server_config):
+        def mock_client_factory(server_config):
             mock_client = Mock(spec=MCPClient)
             mock_client.server_name = server_config.name
             mock_client.is_connected = True
             mock_client.connect = AsyncMock(return_value=True)
             mock_client.disconnect = AsyncMock()
-            mock_client.list_tools = AsyncMock(return_value=await mock_server.list_tools())
+            mock_client.initialize_server = AsyncMock(return_value=MCPServerInfo(
+                name=server_config.name,
+                version="1.0",
+                protocol_version="1.0",
+                capabilities={}
+            ))
+            
+            # Create the tools synchronously for the mock
+            tools = []
+            for tool_data in mock_server.tools:
+                tools.append(MCPTool(
+                    name=tool_data["name"],
+                    description=tool_data["description"],
+                    input_schema=tool_data["schema"],
+                    server_name=mock_server.name
+                ))
+            
+            mock_client.discover_tools = AsyncMock(return_value=tools)
             mock_client.call_tool = AsyncMock(side_effect=mock_server.call_tool)
-            mock_client.health_check = AsyncMock(return_value=True)
+            mock_client.is_healthy = AsyncMock(return_value=True)
             mock_client.get_server_info = Mock(return_value=MCPServerInfo(
                 name=server_config.name,
                 version="1.0",
@@ -551,7 +636,7 @@ class TestProxyEngineIntegration:
             ))
             return mock_client
         
-        with patch('app.proxy.client.MCPClient', side_effect=mock_client_factory):
+        with patch('app.proxy.discovery.MCPClient', side_effect=mock_client_factory):
             await engine.initialize()
             await engine.start()
             
