@@ -41,8 +41,9 @@ const AuthProvider = ({ children }) => {
           setAuthToken(null);
           setTokenValidated(true);
         });
-    } else if (!authToken) {
-      setTokenValidated(false);
+    } else if (!authToken && !tokenValidated) {
+      // No token exists, mark as validated (no need to validate nothing)
+      setTokenValidated(true);
     }
   }, [authToken, tokenValidated]);
 
@@ -50,6 +51,7 @@ const AuthProvider = ({ children }) => {
     try {
       const response = await apiLogin(credentials);
       if (response.data.access_token) {
+        setTokenValidated(false); // Reset validation flag
         setAuthToken(response.data.access_token);
       }
     } catch (error) {
@@ -61,12 +63,14 @@ const AuthProvider = ({ children }) => {
     // Note: We can't easily log the logout on the backend since we're removing the token
     // The backend will see this as an unauthorized request
     // In a production system, you might want to call a logout endpoint first
+    setTokenValidated(false); // Reset validation flag
     setAuthToken(null);
   };
   
   const value = {
-    isAuthenticated: !!authToken,
+    isAuthenticated: !!authToken && tokenValidated,
     token: authToken,
+    tokenValidated,
     login,
     logout,
   };
@@ -81,7 +85,7 @@ export const useAuth = () => {
 
 // 4. The Main App Component
 function App() {
-  const { isAuthenticated, logout } = useAuth();
+  const { isAuthenticated, tokenValidated, logout } = useAuth();
   const [currentPage, setCurrentPage] = useState('dashboard');
   const [currentDashboard, setCurrentDashboard] = useState('state');
   const [isEditingLayout, setIsEditingLayout] = useState(false);
@@ -201,6 +205,17 @@ function App() {
         );
     }
   };
+
+  // Show loading state while token validation is in progress
+  if (!tokenValidated) {
+    return (
+      <div className="app-container">
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+          <div>Loading...</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="app-container">
