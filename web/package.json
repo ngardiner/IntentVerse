@@ -20,10 +20,10 @@
     "test": "react-scripts test",
     "test:watch": "react-scripts test --watchAll=false",
     "test:coverage": "react-scripts test --coverage --watchAll=false",
-    "test:ci": "react-scripts test --coverage --watchAll=false --ci --silent --testResultsProcessor=jest-junit",
-    "test:auth": "JEST_JUNIT_OUTPUT_NAME=auth-test-results.xml react-scripts test --testPathPattern=auth --watchAll=false --ci --silent --testResultsProcessor=jest-junit",
-    "test:pages": "JEST_JUNIT_OUTPUT_NAME=pages-test-results.xml react-scripts test --testPathPattern=pages --watchAll=false --ci --silent --testResultsProcessor=jest-junit",
-    "test:components": "JEST_JUNIT_OUTPUT_NAME=components-test-results.xml react-scripts test --testPathPattern=components --watchAll=false --ci --silent --testResultsProcessor=jest-junit",
+    "test:ci": "JEST_JUNIT_OUTPUT_NAME=web-core-test-results.xml react-scripts test --testPathPattern='(App\\.test\\.|api/)' --coverage --watchAll=false --ci --silent --testResultsProcessor=jest-junit",
+    "test:web-auth": "JEST_JUNIT_OUTPUT_NAME=web-auth-test-results.xml react-scripts test --testPathPattern=auth --watchAll=false --ci --silent --testResultsProcessor=jest-junit",
+    "test:web-pages": "JEST_JUNIT_OUTPUT_NAME=web-pages-test-results.xml react-scripts test --testPathPattern=pages --watchAll=false --ci --silent --testResultsProcessor=jest-junit",
+    "test:web-components": "JEST_JUNIT_OUTPUT_NAME=web-components-test-results.xml react-scripts test --testPathPattern=components --watchAll=false --ci --silent --testResultsProcessor=jest-junit",
     "test:verbose": "react-scripts test --coverage --watchAll=false --verbose",
     "test:debug": "react-scripts test --watchAll=false --verbose --no-cache",
     "eject": "react-scripts eject"
@@ -62,7 +62,7 @@
   },
   "jest-junit": {
     "outputDirectory": "./test-results",
-    "outputName": "web-test-results.xml",
+    "outputName": "test-results.xml",
     "classNameTemplate": "{classname}",
     "titleTemplate": "{title}",
     "ancestorSeparator": " > ",

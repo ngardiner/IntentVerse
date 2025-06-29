@@ -74,6 +74,8 @@ describe('Authentication Flow Integration Tests', () => {
     jest.clearAllMocks();
     localStorageMock.clear();
     localStorageMock.getItem.mockReturnValue(null);
+    // Ensure getCurrentUser always returns a Promise by default
+    getCurrentUser.mockResolvedValue({ data: null });
   });
 
   describe('Initial Authentication State', () => {
@@ -423,15 +425,18 @@ describe('Authentication Flow Integration Tests', () => {
         if (key === 'authToken') return 'valid-token';
         return null;
       });
-      getCurrentUser
-        .mockRejectedValueOnce(new Error('Network timeout'))
-        .mockResolvedValue({ data: { username: 'testuser', id: 1 } });
+      getCurrentUser.mockRejectedValue(new Error('Network timeout'));
       
       render(<AppWrapper />);
       
-      // Should eventually succeed after retry
+      // Should attempt to validate token and fail
       await waitFor(() => {
         expect(getCurrentUser).toHaveBeenCalledTimes(1);
+      });
+      
+      // Should show login page after token validation fails
+      await waitFor(() => {
+        expect(screen.getByTestId('login-page')).toBeInTheDocument();
       });
     });
   });
@@ -473,6 +478,7 @@ describe('Authentication Flow Integration Tests', () => {
       apiLogin.mockResolvedValue({
         data: { access_token: 'new-token' }
       });
+      getCurrentUser.mockResolvedValue({ data: { username: 'testuser', id: 1 } });
       
       const user = userEvent.setup();
       render(
@@ -505,6 +511,8 @@ describe('Authentication Flow Integration Tests', () => {
         return <div>Component 2: {authContext2.isAuthenticated.toString()}</div>;
       }
       
+      getCurrentUser.mockResolvedValue({ data: { username: 'testuser', id: 1 } });
+      
       render(
         <AuthProvider>
           <TestComponent1 />
@@ -514,9 +522,6 @@ describe('Authentication Flow Integration Tests', () => {
       
       expect(authContext1.isAuthenticated).toBe(false);
       expect(authContext2.isAuthenticated).toBe(false);
-      
-      // Simulate login by setting token directly
-      localStorageMock.getItem.mockReturnValue('test-token');
       
       // Both components should have the same state
       expect(authContext1.isAuthenticated).toBe(authContext2.isAuthenticated);

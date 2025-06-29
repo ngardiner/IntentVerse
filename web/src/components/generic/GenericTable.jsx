@@ -44,7 +44,7 @@ const GenericTable = ({
       let newDynamicHeaders = [];
       
       if (Array.isArray(extractedData)) {
-        dataArray = extractedData;
+        dataArray = extractedData.slice(0, max_rows); // Apply max_rows limit to all arrays
         
         // Generate dynamic headers for array data when dynamic_columns is true
         if (dynamic_columns && dataArray.length > 0) {

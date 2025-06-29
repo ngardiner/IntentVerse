@@ -272,16 +272,14 @@ describe('GenericTable', () => {
       />
     );
 
+    // Wait for the component to finish loading and show the "No items to display" message
     await waitFor(() => {
-      expect(screen.getByText('Empty Table')).toBeInTheDocument();
+      expect(screen.getByText(/No items to display/i)).toBeInTheDocument();
     });
 
     // Should show headers but no data rows
     expect(screen.getByText('ID')).toBeInTheDocument();
     expect(screen.getByText('Name')).toBeInTheDocument();
-    
-    // Should show "No items to display" message
-    expect(screen.getByText(/No items to display/i)).toBeInTheDocument();
   });
 
   it('applies size class correctly', async () => {

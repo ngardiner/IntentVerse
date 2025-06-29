@@ -26,10 +26,10 @@ jest.mock('../components/DashboardLayoutManager', () => {
   };
 });
 
-// Mock timers for polling
-jest.useFakeTimers();
-
 describe('TimelinePage', () => {
+  // Increase timeout for these tests since they involve async operations
+  jest.setTimeout(10000);
+  
   const mockEvents = [
     {
       id: 1,
@@ -67,12 +67,6 @@ describe('TimelinePage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     getTimelineEvents.mockResolvedValue({ data: mockEvents });
-  });
-
-  afterEach(() => {
-    jest.runOnlyPendingTimers();
-    jest.useRealTimers();
-    jest.useFakeTimers();
   });
 
   describe('Initial Loading', () => {
@@ -168,16 +162,36 @@ describe('TimelinePage', () => {
         expect(screen.getByText('System Started')).toBeInTheDocument();
       });
 
-      // Click on tool_execution filter (find it specifically in the event-types section)
+      // Wait for the event types section to be available and click on tool_execution filter
+      await waitFor(() => {
+        const eventTypesSection = document.querySelector('.event-types');
+        expect(eventTypesSection).toBeInTheDocument();
+      });
+
       const eventTypesSection = document.querySelector('.event-types');
+      expect(eventTypesSection).toBeInTheDocument();
+      
+      // Wait for the specific event type to be available
+      await waitFor(() => {
+        const toolExecutionFilter = Array.from(eventTypesSection.querySelectorAll('.event-type'))
+          .find(el => el.textContent === 'tool_execution');
+        expect(toolExecutionFilter).toBeTruthy();
+        return toolExecutionFilter;
+      });
+      
       const toolExecutionFilter = Array.from(eventTypesSection.querySelectorAll('.event-type'))
         .find(el => el.textContent === 'tool_execution');
+      
       await user.click(toolExecutionFilter);
+      
+      // Wait for filtering to take effect
+      await waitFor(() => {
+        expect(screen.queryByText('System Started')).not.toBeInTheDocument();
+      });
       
       // Should still show tool_execution events but not system_event events
       expect(screen.getByText('File Read Operation')).toBeInTheDocument();
       expect(screen.getByText('Database Query')).toBeInTheDocument();
-      expect(screen.queryByText('System Started')).not.toBeInTheDocument();
     });
 
     it('resets filter when event type is clicked again', async () => {
@@ -188,19 +202,42 @@ describe('TimelinePage', () => {
         expect(screen.getByText('File Read Operation')).toBeInTheDocument();
       });
 
+      // Wait for the event types section to be available
+      await waitFor(() => {
+        const eventTypesSection = document.querySelector('.event-types');
+        expect(eventTypesSection).toBeInTheDocument();
+      });
+
       // First filter by system_event (find it specifically in the event-types section)
       const eventTypesSection = document.querySelector('.event-types');
+      expect(eventTypesSection).toBeInTheDocument();
+      
+      // Wait for the specific event type to be available
+      await waitFor(() => {
+        const systemEventFilter = Array.from(eventTypesSection.querySelectorAll('.event-type'))
+          .find(el => el.textContent === 'system_event');
+        expect(systemEventFilter).toBeTruthy();
+        return systemEventFilter;
+      });
+      
       const systemEventFilter = Array.from(eventTypesSection.querySelectorAll('.event-type'))
         .find(el => el.textContent === 'system_event');
+      
       await user.click(systemEventFilter);
       
-      expect(screen.queryByText('File Read Operation')).not.toBeInTheDocument();
+      // Wait for filtering to take effect
+      await waitFor(() => {
+        expect(screen.queryByText('File Read Operation')).not.toBeInTheDocument();
+      });
       expect(screen.getByText('System Started')).toBeInTheDocument();
 
       // Click again to reset filter
       await user.click(systemEventFilter);
       
-      expect(screen.getByText('File Read Operation')).toBeInTheDocument();
+      // Wait for filter reset to take effect
+      await waitFor(() => {
+        expect(screen.getByText('File Read Operation')).toBeInTheDocument();
+      });
       expect(screen.getByText('System Started')).toBeInTheDocument();
     });
   });
@@ -217,8 +254,10 @@ describe('TimelinePage', () => {
       const eventElement = screen.getByText('File Read Operation');
       await user.click(eventElement);
       
-      // Should show selected event indicator
-      expect(screen.getByText('Showing only the selected event.')).toBeInTheDocument();
+      // Wait for the selected event indicator to appear
+      await waitFor(() => {
+        expect(screen.getByText('Showing only the selected event.')).toBeInTheDocument();
+      });
       expect(screen.getByText('Show All')).toBeInTheDocument();
     });
 
@@ -260,6 +299,16 @@ describe('TimelinePage', () => {
   });
 
   describe('Polling and Real-time Updates', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.runOnlyPendingTimers();
+      jest.useRealTimers();
+      jest.clearAllMocks();
+    });
+
     it('sets up polling interval for events', async () => {
       render(<TimelinePage {...defaultProps} />);
       
@@ -322,6 +371,12 @@ describe('TimelinePage', () => {
   });
 
   describe('Error Handling', () => {
+    afterEach(() => {
+      // Reset mocks after error tests to avoid interference
+      jest.clearAllMocks();
+      getTimelineEvents.mockResolvedValue({ data: mockEvents });
+    });
+
     it('displays error message when API call fails', async () => {
       getTimelineEvents.mockRejectedValue(new Error('API Error'));
       
@@ -406,6 +461,10 @@ describe('TimelinePage', () => {
         />
       );
       
+      await waitFor(() => {
+        expect(screen.getByText('Cancel Edit')).toBeInTheDocument();
+      });
+      
       const cancelButton = screen.getByText('Cancel Edit');
       await user.click(cancelButton);
       
@@ -435,14 +494,35 @@ describe('TimelinePage', () => {
         expect(screen.getByText('System Started')).toBeInTheDocument();
       });
 
+      // Wait for the event types section to be available
+      await waitFor(() => {
+        const eventTypesSection = document.querySelector('.event-types');
+        expect(eventTypesSection).toBeInTheDocument();
+      });
+
       // Filter by system_event (which only has one event)
       const eventTypesSection = document.querySelector('.event-types');
+      expect(eventTypesSection).toBeInTheDocument();
+      
+      // Wait for the specific event type to be available
+      await waitFor(() => {
+        const systemEventFilter = Array.from(eventTypesSection.querySelectorAll('.event-type'))
+          .find(el => el.textContent === 'system_event');
+        expect(systemEventFilter).toBeTruthy();
+        return systemEventFilter;
+      });
+      
       const systemEventFilter = Array.from(eventTypesSection.querySelectorAll('.event-type'))
         .find(el => el.textContent === 'system_event');
+      
       await user.click(systemEventFilter);
       
+      // Wait for filtering to take effect
+      await waitFor(() => {
+        expect(screen.queryByText('File Read Operation')).not.toBeInTheDocument();
+      });
+      
       // Should only show system_event events
-      expect(screen.queryByText('File Read Operation')).not.toBeInTheDocument();
       expect(screen.getByText('System Started')).toBeInTheDocument();
     });
   });
@@ -471,7 +551,10 @@ describe('TimelinePage', () => {
       const eventElement = screen.getByText('File Read Operation');
       await user.click(eventElement);
       
-      expect(screen.getByText('Showing only the selected event.')).toBeInTheDocument();
+      // Wait for the selected event indicator to appear
+      await waitFor(() => {
+        expect(screen.getByText('Showing only the selected event.')).toBeInTheDocument();
+      });
     });
   });
 });
