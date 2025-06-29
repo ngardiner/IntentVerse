@@ -339,7 +339,39 @@ const GenericTable = ({
       );
     }
     if (data.length === 0) {
-      return <p>No items to display.</p>;
+      // Show table headers even when empty, but with a "no data" message in the tbody
+      const hasColumnsToRender = (columns && columns.length > 0) || (dynamic_columns && dynamicHeaders.length > 0);
+      
+      if (!hasColumnsToRender) {
+        return <p>No items to display.</p>;
+      }
+      
+      const usesDynamicColumns = dynamic_columns && dynamicHeaders.length > 0;
+      
+      return (
+        <div className="table-container">
+          <table className={`generic-table ${isDatabaseModule ? 'database-table' : ''}`}>
+            <thead>
+              <tr>
+                {usesDynamicColumns ? 
+                  dynamicHeaders.map((header, index) => <th key={index}>{header}</th>) :
+                  columns.map(col => <th key={col.header}>{col.header}</th>)
+                }
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td 
+                  colSpan={usesDynamicColumns ? dynamicHeaders.length : columns.length}
+                  style={{ textAlign: 'center', fontStyle: 'italic', color: '#666' }}
+                >
+                  No items to display.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      );
     }
     
     // Determine if we should use dynamic columns or predefined columns

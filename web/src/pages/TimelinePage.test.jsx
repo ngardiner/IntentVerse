@@ -368,6 +368,29 @@ describe('TimelinePage', () => {
         expect(screen.getByText('New Event')).toBeInTheDocument();
       });
     });
+
+    it('continues polling even after error', async () => {
+      getTimelineEvents.mockRejectedValueOnce(new Error('API Error'));
+      getTimelineEvents.mockResolvedValue({ data: mockEvents });
+      
+      render(<TimelinePage {...defaultProps} />);
+      
+      await waitFor(() => {
+        expect(screen.getByText('Failed to fetch timeline events. Please ensure the core service is running.')).toBeInTheDocument();
+      });
+
+      // Fast-forward to next poll
+      jest.advanceTimersByTime(5000);
+      
+      // Wait for the successful API call to complete and UI to update
+      await waitFor(() => {
+        expect(getTimelineEvents).toHaveBeenCalledTimes(2);
+      });
+      
+      await waitFor(() => {
+        expect(screen.getByText('File Read Operation')).toBeInTheDocument();
+      });
+    });
   });
 
   describe('Error Handling', () => {
@@ -387,23 +410,6 @@ describe('TimelinePage', () => {
       });
     });
 
-    it('continues polling even after error', async () => {
-      getTimelineEvents.mockRejectedValueOnce(new Error('API Error'));
-      getTimelineEvents.mockResolvedValue({ data: mockEvents });
-      
-      render(<TimelinePage {...defaultProps} />);
-      
-      await waitFor(() => {
-        expect(screen.getByText('Failed to fetch timeline events. Please ensure the core service is running.')).toBeInTheDocument();
-      });
-
-      // Fast-forward to next poll
-      jest.advanceTimersByTime(5000);
-      
-      await waitFor(() => {
-        expect(screen.getByText('File Read Operation')).toBeInTheDocument();
-      });
-    });
   });
 
   describe('Layout Management Integration', () => {

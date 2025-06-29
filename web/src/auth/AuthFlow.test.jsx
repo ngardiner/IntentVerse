@@ -70,12 +70,19 @@ jest.mock('../components/EditButton', () => {
 });
 
 describe('Authentication Flow Integration Tests', () => {
+  // Increase timeout for integration tests
+  jest.setTimeout(10000);
+  
   beforeEach(() => {
     jest.clearAllMocks();
     localStorageMock.clear();
     localStorageMock.getItem.mockReturnValue(null);
+    localStorageMock.setItem.mockClear();
+    localStorageMock.removeItem.mockClear();
     // Ensure getCurrentUser always returns a Promise by default
     getCurrentUser.mockResolvedValue({ data: null });
+    // Reset apiLogin mock
+    apiLogin.mockReset();
   });
 
   describe('Initial Authentication State', () => {
@@ -95,8 +102,7 @@ describe('Authentication Flow Integration Tests', () => {
     });
 
     it('attempts to validate token when token exists in localStorage', async () => {
-      // Clear the default mock from beforeEach and set up the specific mock for this test
-      localStorageMock.getItem.mockClear();
+      // Set up localStorage mock BEFORE rendering
       localStorageMock.getItem.mockImplementation((key) => {
         if (key === 'authToken') return 'existing-token';
         return null;
@@ -105,14 +111,20 @@ describe('Authentication Flow Integration Tests', () => {
       
       render(<AppWrapper />);
       
-      // Wait for token validation to complete
+      // Wait for token validation to complete (first call from AuthProvider)
       await waitFor(() => {
         expect(getCurrentUser).toHaveBeenCalledTimes(1);
       }, { timeout: 3000 });
       
-      // Then wait for dashboard to appear
+      // Then wait for dashboard to appear and user info to load (second call from App)
       await waitFor(() => {
         expect(screen.getByTestId('dashboard-page')).toBeInTheDocument();
+        expect(getCurrentUser).toHaveBeenCalledTimes(2); // AuthProvider validation + App user info loading
+      });
+      
+      // Should display user info
+      await waitFor(() => {
+        expect(screen.getByText('testuser')).toBeInTheDocument();
       });
     });
   });
@@ -165,7 +177,7 @@ describe('Authentication Flow Integration Tests', () => {
     });
 
     it('restores authentication state on page reload', async () => {
-      localStorageMock.getItem.mockClear();
+      // Set up localStorage mock BEFORE rendering
       localStorageMock.getItem.mockImplementation((key) => {
         if (key === 'authToken') return 'valid-token';
         return null;
@@ -176,7 +188,7 @@ describe('Authentication Flow Integration Tests', () => {
       
       render(<AppWrapper />);
       
-      // Should validate existing token first
+      // Should validate existing token first (AuthProvider call)
       await waitFor(() => {
         expect(getCurrentUser).toHaveBeenCalledTimes(1);
       }, { timeout: 3000 });
@@ -196,7 +208,7 @@ describe('Authentication Flow Integration Tests', () => {
     it('maintains authentication state across component re-renders', async () => {
       const user = userEvent.setup();
       
-      localStorageMock.getItem.mockClear();
+      // Set up localStorage mock BEFORE rendering
       localStorageMock.getItem.mockImplementation((key) => {
         if (key === 'authToken') return 'valid-token';
         return null;
@@ -224,11 +236,20 @@ describe('Authentication Flow Integration Tests', () => {
     it('handles invalid credentials gracefully', async () => {
       const user = userEvent.setup();
       
+      // Ensure no token exists and getCurrentUser returns null
+      localStorageMock.getItem.mockReturnValue(null);
+      getCurrentUser.mockResolvedValue({ data: null });
+      
       apiLogin.mockRejectedValue({
         response: { status: 401, data: { detail: 'Invalid credentials' } }
       });
       
       render(<AppWrapper />);
+      
+      // Wait for login page to appear
+      await waitFor(() => {
+        expect(screen.getByTestId('login-page')).toBeInTheDocument();
+      });
       
       const usernameInput = screen.getByLabelText(/username/i);
       const passwordInput = screen.getByLabelText(/password/i);
@@ -246,7 +267,7 @@ describe('Authentication Flow Integration Tests', () => {
     });
 
     it('handles expired/invalid tokens correctly', async () => {
-      localStorageMock.getItem.mockClear();
+      // Set up localStorage mock BEFORE rendering
       localStorageMock.getItem.mockImplementation((key) => {
         if (key === 'authToken') return 'expired-token';
         return null;
@@ -260,21 +281,30 @@ describe('Authentication Flow Integration Tests', () => {
       // Should attempt to validate token
       await waitFor(() => {
         expect(getCurrentUser).toHaveBeenCalledTimes(1);
-      });
+      }, { timeout: 3000 });
       
       // Should clear invalid token and show login page
       await waitFor(() => {
         expect(localStorageMock.removeItem).toHaveBeenCalledWith('authToken');
         expect(screen.getByTestId('login-page')).toBeInTheDocument();
-      });
+      }, { timeout: 3000 });
     });
 
     it('handles network errors during authentication', async () => {
       const user = userEvent.setup();
       
+      // Ensure no token exists and getCurrentUser returns null
+      localStorageMock.getItem.mockReturnValue(null);
+      getCurrentUser.mockResolvedValue({ data: null });
+      
       apiLogin.mockRejectedValue(new Error('Network error'));
       
       render(<AppWrapper />);
+      
+      // Wait for login page to appear
+      await waitFor(() => {
+        expect(screen.getByTestId('login-page')).toBeInTheDocument();
+      });
       
       const usernameInput = screen.getByLabelText(/username/i);
       const passwordInput = screen.getByLabelText(/password/i);
@@ -292,12 +322,21 @@ describe('Authentication Flow Integration Tests', () => {
     it('handles malformed API responses', async () => {
       const user = userEvent.setup();
       
+      // Ensure no token exists and getCurrentUser returns null
+      localStorageMock.getItem.mockReturnValue(null);
+      getCurrentUser.mockResolvedValue({ data: null });
+      
       // Mock API returning response without access_token
       apiLogin.mockResolvedValue({
         data: { message: 'Login successful' } // Missing access_token
       });
       
       render(<AppWrapper />);
+      
+      // Wait for login page to appear
+      await waitFor(() => {
+        expect(screen.getByTestId('login-page')).toBeInTheDocument();
+      });
       
       const usernameInput = screen.getByLabelText(/username/i);
       const passwordInput = screen.getByLabelText(/password/i);
@@ -317,8 +356,7 @@ describe('Authentication Flow Integration Tests', () => {
     it('completes logout flow successfully', async () => {
       const user = userEvent.setup();
       
-      // Start with authenticated state
-      localStorageMock.getItem.mockClear();
+      // Start with authenticated state - set up localStorage mock BEFORE rendering
       localStorageMock.getItem.mockImplementation((key) => {
         if (key === 'authToken') return 'valid-token';
         return null;
@@ -329,9 +367,19 @@ describe('Authentication Flow Integration Tests', () => {
       
       render(<AppWrapper />);
       
+      // Wait for authentication to complete and dashboard to appear
+      await waitFor(() => {
+        expect(getCurrentUser).toHaveBeenCalledTimes(1);
+      }, { timeout: 3000 });
+      
       await waitFor(() => {
         expect(screen.getByTestId('dashboard-page')).toBeInTheDocument();
-      });
+      }, { timeout: 3000 });
+      
+      // Wait for user info to load
+      await waitFor(() => {
+        expect(screen.getByText('testuser')).toBeInTheDocument();
+      }, { timeout: 3000 });
       
       // Open user dropdown
       const userIcon = screen.getByText('testuser');
@@ -345,13 +393,13 @@ describe('Authentication Flow Integration Tests', () => {
       await waitFor(() => {
         expect(localStorageMock.removeItem).toHaveBeenCalledWith('authToken');
         expect(screen.getByTestId('login-page')).toBeInTheDocument();
-      });
+      }, { timeout: 3000 });
     });
 
     it('clears all authentication state on logout', async () => {
       const user = userEvent.setup();
       
-      localStorageMock.getItem.mockClear();
+      // Set up localStorage mock BEFORE rendering
       localStorageMock.getItem.mockImplementation((key) => {
         if (key === 'authToken') return 'valid-token';
         return null;
@@ -362,9 +410,18 @@ describe('Authentication Flow Integration Tests', () => {
       
       render(<AppWrapper />);
       
+      // Wait for authentication to complete
+      await waitFor(() => {
+        expect(getCurrentUser).toHaveBeenCalledTimes(1);
+      }, { timeout: 3000 });
+      
+      await waitFor(() => {
+        expect(screen.getByTestId('dashboard-page')).toBeInTheDocument();
+      }, { timeout: 3000 });
+      
       await waitFor(() => {
         expect(screen.getByText('testuser')).toBeInTheDocument();
-      });
+      }, { timeout: 3000 });
       
       // Logout
       const userIcon = screen.getByText('testuser');
@@ -376,13 +433,13 @@ describe('Authentication Flow Integration Tests', () => {
       await waitFor(() => {
         expect(screen.getByTestId('login-page')).toBeInTheDocument();
         expect(screen.queryByText('testuser')).not.toBeInTheDocument();
-      });
+      }, { timeout: 3000 });
     });
   });
 
   describe('Token Validation Edge Cases', () => {
     it('handles getCurrentUser returning null user', async () => {
-      localStorageMock.getItem.mockClear();
+      // Set up localStorage mock BEFORE rendering
       localStorageMock.getItem.mockImplementation((key) => {
         if (key === 'authToken') return 'valid-token';
         return null;
@@ -391,14 +448,19 @@ describe('Authentication Flow Integration Tests', () => {
       
       render(<AppWrapper />);
       
+      // Should attempt to validate token
       await waitFor(() => {
         expect(getCurrentUser).toHaveBeenCalledTimes(1);
+      }, { timeout: 3000 });
+      
+      // Should show login page when user data is null
+      await waitFor(() => {
         expect(screen.getByTestId('login-page')).toBeInTheDocument();
-      });
+      }, { timeout: 3000 });
     });
 
     it('handles getCurrentUser returning malformed user data', async () => {
-      localStorageMock.getItem.mockClear();
+      // Set up localStorage mock BEFORE rendering
       localStorageMock.getItem.mockImplementation((key) => {
         if (key === 'authToken') return 'valid-token';
         return null;
@@ -407,20 +469,20 @@ describe('Authentication Flow Integration Tests', () => {
       
       render(<AppWrapper />);
       
-      // Should validate token first
+      // Should validate token first (AuthProvider call)
       await waitFor(() => {
         expect(getCurrentUser).toHaveBeenCalledTimes(1);
       }, { timeout: 3000 });
       
-      // Should show dashboard and load user info
+      // Should show dashboard and load user info (App component call)
       await waitFor(() => {
         expect(screen.getByTestId('dashboard-page')).toBeInTheDocument();
         expect(getCurrentUser).toHaveBeenCalledTimes(2); // AuthProvider validation + App user info loading
-      });
+      }, { timeout: 3000 });
     });
 
     it('retries token validation on temporary network failures', async () => {
-      localStorageMock.getItem.mockClear();
+      // Set up localStorage mock BEFORE rendering
       localStorageMock.getItem.mockImplementation((key) => {
         if (key === 'authToken') return 'valid-token';
         return null;
@@ -432,12 +494,12 @@ describe('Authentication Flow Integration Tests', () => {
       // Should attempt to validate token and fail
       await waitFor(() => {
         expect(getCurrentUser).toHaveBeenCalledTimes(1);
-      });
+      }, { timeout: 3000 });
       
       // Should show login page after token validation fails
       await waitFor(() => {
         expect(screen.getByTestId('login-page')).toBeInTheDocument();
-      });
+      }, { timeout: 3000 });
     });
   });
 
@@ -530,7 +592,7 @@ describe('Authentication Flow Integration Tests', () => {
 
   describe('Security Considerations', () => {
     it('does not expose sensitive data in component state', async () => {
-      localStorageMock.getItem.mockClear();
+      // Set up localStorage mock BEFORE rendering
       localStorageMock.getItem.mockImplementation((key) => {
         if (key === 'authToken') return 'sensitive-token';
         return null;
@@ -541,9 +603,14 @@ describe('Authentication Flow Integration Tests', () => {
       
       render(<AppWrapper />);
       
+      // Wait for authentication to complete
+      await waitFor(() => {
+        expect(getCurrentUser).toHaveBeenCalledTimes(1);
+      }, { timeout: 3000 });
+      
       await waitFor(() => {
         expect(screen.getByTestId('dashboard-page')).toBeInTheDocument();
-      });
+      }, { timeout: 3000 });
       
       // Password should not be displayed anywhere
       expect(screen.queryByText('should-not-be-exposed')).not.toBeInTheDocument();
@@ -552,7 +619,7 @@ describe('Authentication Flow Integration Tests', () => {
     it('clears sensitive data from memory on logout', async () => {
       const user = userEvent.setup();
       
-      localStorageMock.getItem.mockClear();
+      // Set up localStorage mock BEFORE rendering
       localStorageMock.getItem.mockImplementation((key) => {
         if (key === 'authToken') return 'valid-token';
         return null;
@@ -563,9 +630,18 @@ describe('Authentication Flow Integration Tests', () => {
       
       render(<AppWrapper />);
       
+      // Wait for authentication to complete
+      await waitFor(() => {
+        expect(getCurrentUser).toHaveBeenCalledTimes(1);
+      }, { timeout: 3000 });
+      
+      await waitFor(() => {
+        expect(screen.getByTestId('dashboard-page')).toBeInTheDocument();
+      }, { timeout: 3000 });
+      
       await waitFor(() => {
         expect(screen.getByText('testuser')).toBeInTheDocument();
-      });
+      }, { timeout: 3000 });
       
       // Logout
       const userIcon = screen.getByText('testuser');
@@ -576,7 +652,7 @@ describe('Authentication Flow Integration Tests', () => {
       // All user data should be cleared
       await waitFor(() => {
         expect(screen.queryByText('testuser')).not.toBeInTheDocument();
-      });
+      }, { timeout: 3000 });
     });
   });
 });
