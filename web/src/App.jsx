@@ -32,8 +32,15 @@ const AuthProvider = ({ children }) => {
     if (authToken && !tokenValidated) {
       getCurrentUser()
         .then(response => {
-          // Token is valid, mark as validated
-          setTokenValidated(true);
+          // Check if we got valid user data
+          if (response.data && response.data.id) {
+            // Token is valid, mark as validated
+            setTokenValidated(true);
+          } else {
+            // Token exists but user data is null/invalid, clear token
+            setAuthToken(null);
+            setTokenValidated(true);
+          }
         })
         .catch(error => {
           console.error('Token validation failed:', error);

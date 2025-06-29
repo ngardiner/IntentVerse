@@ -19,6 +19,103 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass
+class ToolInfo:
+    """Information about a discovered tool (alias for MCPTool for backward compatibility)."""
+    name: str
+    description: str
+    server_name: str
+    original_name: str
+    schema: Dict[str, Any]
+    metadata: Dict[str, Any] = field(default_factory=dict)
+    
+    @property
+    def input_schema(self) -> Dict[str, Any]:
+        """Get input schema (alias for schema for MCPTool compatibility)."""
+        return self.schema
+    
+    def __post_init__(self):
+        """Validate tool info after initialization."""
+        if not self.name:
+            raise ValueError("Tool name cannot be empty")
+        if not self.description:
+            raise ValueError("Tool description cannot be empty")
+        if not isinstance(self.schema, dict):
+            raise ValueError("Tool schema must be a dictionary")
+    
+    @classmethod
+    def from_mcp_tool(cls, tool: MCPTool) -> "ToolInfo":
+        """Create ToolInfo from MCPTool."""
+        core_format = tool.to_core_tool_format()
+        return cls(
+            name=tool.name,
+            description=tool.description,
+            server_name=tool.server_name,
+            original_name=core_format["metadata"]["original_name"],
+            schema=tool.input_schema,
+            metadata=core_format["metadata"]
+        )
+    
+    def to_mcp_tool(self) -> MCPTool:
+        """Convert to MCPTool."""
+        return MCPTool(
+            name=self.name,
+            description=self.description,
+            input_schema=self.schema,
+            server_name=self.server_name
+        )
+    
+    def to_core_tool_format(self, tool_prefix: str = "") -> Dict[str, Any]:
+        """Convert to core engine tool format (for compatibility with MCPTool)."""
+        prefixed_name = f"{tool_prefix}{self.name}" if tool_prefix else self.name
+        
+        # Convert schema to core tool format
+        parameters = []
+        properties = self.schema.get("properties", {})
+        required = self.schema.get("required", [])
+        
+        for param_name, param_info in properties.items():
+            param_type = param_info.get("type", "string")
+            param_desc = param_info.get("description", "")
+            
+            # Map JSON Schema types to Python types
+            type_mapping = {
+                "string": "str",
+                "integer": "int", 
+                "number": "float",
+                "boolean": "bool",
+                "array": "list",
+                "object": "dict"
+            }
+            
+            parameters.append({
+                "name": param_name,
+                "annotation": type_mapping.get(param_type, "str"),
+                "description": param_desc,
+                "required": param_name in required,
+                "default": param_info.get("default")
+            })
+        
+        return {
+            "name": prefixed_name,
+            "description": self.description,
+            "parameters": parameters,
+            "metadata": {
+                "source": "mcp_proxy",
+                "server_name": self.server_name,
+                "original_name": self.original_name,
+                "input_schema": self.schema,
+                **self.metadata
+            }
+        }
+    
+    def __str__(self) -> str:
+        return f"ToolInfo({self.name} from {self.server_name})"
+    
+    def __repr__(self) -> str:
+        return f"ToolInfo(name={self.name}, server={self.server_name})"
+
+
+@dataclass
 class ToolConflict:
     """Represents a tool name conflict between servers."""
     tool_name: str

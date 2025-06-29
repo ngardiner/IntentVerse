@@ -1,6 +1,11 @@
 import pytest
 import os
+import sys
 from unittest.mock import Mock, AsyncMock
+
+# Mock fastmcp modules before any imports
+sys.modules['fastmcp'] = Mock()
+sys.modules['fastmcp.tools'] = Mock()
 
 # Import logging configuration
 from tests.conftest_logging import configure_test_logging
