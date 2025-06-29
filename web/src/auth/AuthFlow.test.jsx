@@ -76,7 +76,8 @@ describe('Authentication Flow Integration Tests', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     localStorageMock.clear();
-    localStorageMock.getItem.mockReturnValue(null);
+    // Don't set a default mockReturnValue here as it overrides mockImplementation in tests
+    localStorageMock.getItem.mockReset();
     localStorageMock.setItem.mockClear();
     localStorageMock.removeItem.mockClear();
     // Ensure getCurrentUser always returns a Promise by default
@@ -87,6 +88,9 @@ describe('Authentication Flow Integration Tests', () => {
 
   describe('Initial Authentication State', () => {
     it('shows login page when no token exists', () => {
+      // Explicitly set localStorage to return null
+      localStorageMock.getItem.mockReturnValue(null);
+      
       render(<AppWrapper />);
       
       expect(screen.getByTestId('login-page')).toBeInTheDocument();
@@ -132,6 +136,9 @@ describe('Authentication Flow Integration Tests', () => {
   describe('Successful Authentication Flow', () => {
     it('completes full login flow successfully', async () => {
       const user = userEvent.setup();
+      
+      // Ensure no token exists initially
+      localStorageMock.getItem.mockReturnValue(null);
       
       // Mock successful login
       apiLogin.mockResolvedValue({
@@ -193,10 +200,11 @@ describe('Authentication Flow Integration Tests', () => {
         expect(getCurrentUser).toHaveBeenCalledTimes(1);
       }, { timeout: 3000 });
       
-      // Should show dashboard
+      // Should show dashboard and load user info (App component call)
       await waitFor(() => {
         expect(screen.getByTestId('dashboard-page')).toBeInTheDocument();
-      });
+        expect(getCurrentUser).toHaveBeenCalledTimes(2); // AuthProvider validation + App user info loading
+      }, { timeout: 3000 });
       
       // Should display user info (second call to getCurrentUser)
       await waitFor(() => {
