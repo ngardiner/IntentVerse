@@ -75,7 +75,7 @@ afterAll(() => {
 
 // Clean up after each test
 afterEach(() => {
-  jest.clearAllMocks();
+  // Clear localStorage and sessionStorage mocks specifically
   localStorageMock.getItem.mockClear();
   localStorageMock.setItem.mockClear();
   localStorageMock.removeItem.mockClear();
@@ -84,4 +84,7 @@ afterEach(() => {
   sessionStorageMock.setItem.mockClear();
   sessionStorageMock.removeItem.mockClear();
   sessionStorageMock.clear.mockClear();
+  
+  // Note: We don't use jest.clearAllMocks() here because it destroys
+  // the mock functions, making them unusable in subsequent tests
 });

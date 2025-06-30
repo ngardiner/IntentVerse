@@ -87,7 +87,7 @@ class TestTimelineCore:
             
             mock_uuid.return_value = Mock()
             mock_uuid.return_value.__str__ = Mock(return_value="test-uuid")
-            mock_datetime.utcnow.return_value.isoformat.return_value = "2023-01-01T00:00:00"
+            mock_datetime.now.return_value.isoformat.return_value = "2023-01-01T00:00:00"
             
             event = add_event(
                 event_type="test_type",
@@ -118,7 +118,7 @@ class TestTimelineCore:
             
             mock_uuid.return_value = Mock()
             mock_uuid.return_value.__str__ = Mock(return_value="test-uuid")
-            mock_datetime.utcnow.return_value.isoformat.return_value = "2023-01-01T00:00:00"
+            mock_datetime.now.return_value.isoformat.return_value = "2023-01-01T00:00:00"
             
             details = {"key": "value", "number": 42}
             
@@ -163,7 +163,7 @@ class TestTimelineCore:
             
             mock_uuid.return_value = Mock()
             mock_uuid.return_value.__str__ = Mock(return_value="new-event")
-            mock_datetime.utcnow.return_value.isoformat.return_value = "2023-01-02T00:00:00"
+            mock_datetime.now.return_value.isoformat.return_value = "2023-01-02T00:00:00"
             
             add_event(
                 event_type="new_type",
@@ -190,7 +190,7 @@ class TestTimelineCore:
             
             mock_uuid.return_value = Mock()
             mock_uuid.return_value.__str__ = Mock(return_value="tool-event")
-            mock_datetime.utcnow.return_value.isoformat.return_value = "2023-01-01T00:00:00"
+            mock_datetime.now.return_value.isoformat.return_value = "2023-01-01T00:00:00"
             
             parameters = {"param1": "value1", "param2": 42}
             result = {"status": "success", "data": "result_data"}
@@ -218,7 +218,7 @@ class TestTimelineCore:
             
             mock_uuid.return_value = Mock()
             mock_uuid.return_value.__str__ = Mock(return_value="tool-event")
-            mock_datetime.utcnow.return_value.isoformat.return_value = "2023-01-01T00:00:00"
+            mock_datetime.now.return_value.isoformat.return_value = "2023-01-01T00:00:00"
             
             parameters = {"param1": "value1"}
             result = {"status": "pending"}
@@ -250,7 +250,7 @@ class TestTimelineCore:
             
             mock_uuid.return_value = Mock()
             mock_uuid.return_value.__str__ = Mock(return_value="system-event")
-            mock_datetime.utcnow.return_value.isoformat.return_value = "2023-01-01T00:00:00"
+            mock_datetime.now.return_value.isoformat.return_value = "2023-01-01T00:00:00"
             
             details = {"component": "database", "version": "1.0"}
             
@@ -275,7 +275,7 @@ class TestTimelineCore:
             
             mock_uuid.return_value = Mock()
             mock_uuid.return_value.__str__ = Mock(return_value="error-event")
-            mock_datetime.utcnow.return_value.isoformat.return_value = "2023-01-01T00:00:00"
+            mock_datetime.now.return_value.isoformat.return_value = "2023-01-01T00:00:00"
             
             details = {"error_code": "404", "file": "/missing.txt"}
             

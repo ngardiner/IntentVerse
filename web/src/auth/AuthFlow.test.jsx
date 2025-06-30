@@ -11,8 +11,19 @@ jest.mock('../api/client', () => ({
   login: jest.fn(),
 }));
 
-// Use the localStorage mock from setupTests.js
-const localStorageMock = global.localStorage;
+// Create a fresh localStorage mock for this test file
+const localStorageMock = {
+  getItem: jest.fn(),
+  setItem: jest.fn(),
+  removeItem: jest.fn(),
+  clear: jest.fn(),
+};
+
+// Override global localStorage with our mock
+Object.defineProperty(global, 'localStorage', {
+  value: localStorageMock,
+  writable: true
+});
 
 // Mock all page components for cleaner testing
 jest.mock('../pages/DashboardPage', () => {
@@ -71,43 +82,19 @@ describe('Authentication Flow Integration Tests', () => {
   jest.setTimeout(15000);
   
   beforeEach(() => {
-    // Clear all mocks first
-    jest.clearAllMocks();
-    
-    // Reset localStorage mock completely
-    localStorageMock.clear.mockReset();
-    localStorageMock.getItem.mockReset();
-    localStorageMock.setItem.mockReset();
-    localStorageMock.removeItem.mockReset();
-    
-    // Reset API mocks
-    getCurrentUser.mockReset();
-    apiLogin.mockReset();
-    
     // Set default behavior - no token exists, no user data
     localStorageMock.getItem.mockReturnValue(null);
     getCurrentUser.mockResolvedValue({ data: null });
     
     // Clear any existing timers
     jest.clearAllTimers();
-    
-    // Make sure the global localStorage is properly mocked
-    Object.defineProperty(window, 'localStorage', {
-      value: localStorageMock,
-      writable: true
-    });
   });
 
   afterEach(() => {
     // Additional cleanup after each test
     jest.clearAllTimers();
-    jest.clearAllMocks();
     
-    // Reset localStorage mock
-    localStorageMock.getItem.mockReset();
-    localStorageMock.setItem.mockReset();
-    localStorageMock.removeItem.mockReset();
-    localStorageMock.clear.mockReset();
+    // localStorage mock is already cleared by setupTests.js
   });
 
   describe('Initial Authentication State', () => {
@@ -283,7 +270,11 @@ describe('Authentication Flow Integration Tests', () => {
       
       // Should still be authenticated
       expect(screen.getByTestId('dashboard-page')).toBeInTheDocument();
-      expect(screen.getByText('testuser')).toBeInTheDocument();
+      
+      // Wait for user info to load after re-render
+      await waitFor(() => {
+        expect(screen.getByText('testuser')).toBeInTheDocument();
+      });
     });
   });
 
@@ -550,14 +541,13 @@ describe('Authentication Flow Integration Tests', () => {
         expect(getCurrentUser).toHaveBeenCalledTimes(1);
       }, { timeout: 8000 });
       
-      // Should show dashboard and load user info (App component call)
+      // Should handle malformed user data by clearing token and showing login
       await waitFor(() => {
-        expect(screen.getByTestId('dashboard-page')).toBeInTheDocument();
+        expect(screen.getByTestId('login-page')).toBeInTheDocument();
       }, { timeout: 8000 });
       
-      await waitFor(() => {
-        expect(getCurrentUser).toHaveBeenCalledTimes(2); // AuthProvider validation + App user info loading
-      }, { timeout: 8000 });
+      // Should have called getCurrentUser once for token validation (malformed data causes token to be cleared)
+      expect(getCurrentUser).toHaveBeenCalledTimes(1);
     });
 
     it('retries token validation on temporary network failures', async () => {

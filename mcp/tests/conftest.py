@@ -42,18 +42,27 @@ def mcp_server():
     # Store registered tools for testing
     server._registered_tools = {}
     
+    # Configure FunctionTool.from_function to return a mock with the correct name
+    def mock_from_function(func, name=None, **kwargs):
+        mock_tool = Mock()
+        # Use the provided name or extract from function
+        if name:
+            mock_tool.name = name
+        elif hasattr(func, '__name__'):
+            mock_tool.name = func.__name__
+        else:
+            mock_tool.name = 'unknown_tool'
+        return mock_tool
+    
+    FunctionTool.from_function = Mock(side_effect=mock_from_function)
+    
     # Mock the add_tool method to track tool registrations
-    def mock_add_tool(function_tool):
-        # Extract tool name from the function tool
+    def mock_add_tool(function_tool, **kwargs):
+        # Extract tool name from the function_tool mock object
         if hasattr(function_tool, 'name'):
             tool_name = function_tool.name
-        elif hasattr(function_tool, '_name'):
-            tool_name = function_tool._name
-        elif hasattr(function_tool, 'func') and hasattr(function_tool.func, '__name__'):
-            tool_name = function_tool.func.__name__
         else:
-            # Fallback: try to get name from function
-            tool_name = getattr(function_tool, '__name__', 'unknown_tool')
+            tool_name = 'unknown_tool'
         
         server._registered_tools[tool_name] = function_tool
         return function_tool
