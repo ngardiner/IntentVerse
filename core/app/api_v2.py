@@ -64,7 +64,9 @@ def create_api_routes_v2(
         """
         # Check if the module exists
         if module_name not in module_loader.modules:
-            raise HTTPException(status_code=404, detail=f"Module {module_name} not found")
+            raise HTTPException(
+                status_code=404, detail=f"Module {module_name} not found"
+            )
 
         # Get the module state
         state = state_manager.get(module_name) or {}
@@ -81,7 +83,9 @@ def create_api_routes_v2(
         """
         # Check if the module exists
         if module_name not in module_loader.modules:
-            raise HTTPException(status_code=404, detail=f"Module {module_name} not found")
+            raise HTTPException(
+                status_code=404, detail=f"Module {module_name} not found"
+            )
 
         # Get the current state
         current_state = state_manager.get(module_name) or {}
@@ -128,12 +132,15 @@ def create_api_routes_v2(
         module_name, tool_method = tool_name.split(".", 1)
 
         if module_name not in module_loader.modules:
-            raise HTTPException(status_code=404, detail=f"Module {module_name} not found")
+            raise HTTPException(
+                status_code=404, detail=f"Module {module_name} not found"
+            )
 
         module = module_loader.modules[module_name]
         if not hasattr(module, tool_method):
             raise HTTPException(
-                status_code=404, detail=f"Tool {tool_method} not found in module {module_name}"
+                status_code=404,
+                detail=f"Tool {tool_method} not found in module {module_name}",
             )
 
         # Get the tool method
@@ -204,12 +211,13 @@ def create_api_routes_v2(
             "status": "healthy",
             "version": "v2",
             "modules": {
-                name: {"loaded": True, "schema_available": name in module_loader.schemas}
+                name: {
+                    "loaded": True,
+                    "schema_available": name in module_loader.schemas,
+                }
                 for name in module_loader.modules
             },
-            "state_manager": {
-                "keys": list(state_manager.get_all_keys())
-            }
+            "state_manager": {"keys": list(state_manager.get_all_keys())},
         }
 
     @router.get("/modules")
@@ -226,34 +234,47 @@ def create_api_routes_v2(
             for attr_name in dir(module):
                 if attr_name.startswith("_"):
                     continue
-                    
+
                 attr = getattr(module, attr_name)
                 if callable(attr):
                     # Get function signature
                     try:
                         sig = inspect.signature(attr)
-                        tools.append({
-                            "name": attr_name,
-                            "full_name": f"{name}.{attr_name}",
-                            "parameters": [
-                                {
-                                    "name": param_name,
-                                    "required": param.default == inspect.Parameter.empty,
-                                    "default": None if param.default == inspect.Parameter.empty else param.default,
-                                    "type": str(param.annotation) if param.annotation != inspect.Parameter.empty else "any"
-                                }
-                                for param_name, param in sig.parameters.items()
-                            ],
-                            "required_permission": getattr(attr, "required_permission", None)
-                        })
+                        tools.append(
+                            {
+                                "name": attr_name,
+                                "full_name": f"{name}.{attr_name}",
+                                "parameters": [
+                                    {
+                                        "name": param_name,
+                                        "required": param.default
+                                        == inspect.Parameter.empty,
+                                        "default": (
+                                            None
+                                            if param.default == inspect.Parameter.empty
+                                            else param.default
+                                        ),
+                                        "type": (
+                                            str(param.annotation)
+                                            if param.annotation
+                                            != inspect.Parameter.empty
+                                            else "any"
+                                        ),
+                                    }
+                                    for param_name, param in sig.parameters.items()
+                                ],
+                                "required_permission": getattr(
+                                    attr, "required_permission", None
+                                ),
+                            }
+                        )
                     except Exception as e:
-                        logging.warning(f"Failed to inspect function {name}.{attr_name}: {e}")
-            
-            modules[name] = {
-                "tools": tools,
-                "schema": module_loader.schemas.get(name)
-            }
-            
+                        logging.warning(
+                            f"Failed to inspect function {name}.{attr_name}: {e}"
+                        )
+
+            modules[name] = {"tools": tools, "schema": module_loader.schemas.get(name)}
+
         return {"modules": modules}
 
     return router
