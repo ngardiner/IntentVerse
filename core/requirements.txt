@@ -17,3 +17,5 @@ pylint
 # Rate limiting
 slowapi
 redis
+# WebSockets
+websockets
