@@ -1,0 +1,59 @@
+/* Timeline WebSocket Connection Status Styles */
+.timeline-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.connection-status {
+  display: flex;
+  align-items: center;
+  font-size: 0.8rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 1rem;
+  background-color: rgba(0, 0, 0, 0.2);
+  color: var(--text-color-secondary);
+}
+
+.connection-status.open {
+  color: #4caf50;
+}
+
+.connection-status.connecting {
+  color: #ff9800;
+}
+
+.connection-status.closed, .connection-status.error {
+  color: #f44336;
+}
+
+.status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #4caf50;
+  margin-right: 6px;
+}
+
+.status-dot.connecting {
+  background-color: #ff9800;
+  animation: pulse 1.5s infinite;
+}
+
+.status-dot.offline {
+  background-color: #f44336;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.5;
+  }
+}

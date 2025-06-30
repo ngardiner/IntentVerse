@@ -1,13 +1,15 @@
 import uuid
 import logging
+import asyncio
 from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional, Annotated, Union
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect, Query, status
 
 from ...state_manager import state_manager
-from ...auth import get_current_user_or_service
+from ...auth import get_current_user_or_service, get_token_from_cookie_or_header
 from ...models import User
 from ..base_tool import BaseTool
+from ...websocket_manager import manager as websocket_manager
 
 # Create a router for the timeline endpoints
 router = APIRouter(
@@ -27,6 +29,26 @@ def get_events() -> List[Dict[str, Any]]:
     """Get all timeline events."""
     state = state_manager.get("timeline") or {}
     return state.get("events", [])
+
+
+async def broadcast_event(event: Dict[str, Any]):
+    """
+    Broadcast an event to all connected WebSocket clients.
+    
+    Args:
+        event: The event to broadcast
+    """
+    try:
+        await websocket_manager.broadcast(
+            {
+                "type": "timeline_event",
+                "event": event
+            },
+            channel="timeline"
+        )
+        logging.debug(f"Broadcasted timeline event: {event['title']}")
+    except Exception as e:
+        logging.error(f"Failed to broadcast timeline event: {e}")
 
 
 def add_event(
@@ -80,6 +102,11 @@ def add_event(
     state_manager.set("timeline", state)
 
     logging.info(f"Added timeline event: {title}")
+    
+    # Broadcast the event via WebSockets asynchronously
+    # We need to run this in a separate task since this function is synchronous
+    asyncio.create_task(broadcast_event(event))
+    
     return event
 
 
@@ -117,6 +144,53 @@ async def get_timeline_events(
 
     # Limit the number of events
     return events[:limit]
+
+
+@router.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket, token: str = Query(None)):
+    """
+    WebSocket endpoint for real-time timeline events.
+    
+    Args:
+        websocket: The WebSocket connection
+        token: The authentication token (optional)
+    """
+    # Authenticate the WebSocket connection
+    user = None
+    if token:
+        try:
+            user = await get_token_from_cookie_or_header(token=token)
+        except Exception as e:
+            logging.warning(f"WebSocket authentication failed: {e}")
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+            return
+    
+    # Accept the connection
+    try:
+        await websocket_manager.connect(websocket, channel="timeline")
+        
+        # Send the last 10 events immediately after connection
+        events = get_events()
+        events.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
+        recent_events = events[:10]
+        
+        await websocket.send_json({
+            "type": "initial_events",
+            "events": recent_events
+        })
+        
+        # Keep the connection alive
+        while True:
+            # Wait for messages from the client (ping/pong)
+            data = await websocket.receive_text()
+            if data == "ping":
+                await websocket.send_text("pong")
+            
+    except WebSocketDisconnect:
+        websocket_manager.disconnect(websocket)
+    except Exception as e:
+        logging.error(f"WebSocket error: {e}")
+        websocket_manager.disconnect(websocket)
 
 
 # Function to log tool executions
