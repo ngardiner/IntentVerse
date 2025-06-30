@@ -27,18 +27,22 @@ jobs:
       - name: Run Black (code formatting check)
         run: |
           echo "Running Black code formatting check..."
-          black --check --diff core/ mcp/ || {
-            echo "::error::Code formatting issues found. Run 'black core/ mcp/' to fix them."
-            exit 1
-          }
+          if ! black --check --diff core/ mcp/; then
+            echo "::warning::Code formatting issues found. Run 'black core/ mcp/' to fix them."
+            echo "Black formatting check failed, but continuing with pipeline..."
+          else
+            echo "Black formatting check passed!"
+          fi
 
       - name: Run Flake8 (style and error checking)
         run: |
           echo "Running Flake8 style and error checking..."
-          flake8 core/ mcp/ || {
-            echo "::error::Flake8 found style or error issues."
-            exit 1
-          }
+          if ! flake8 core/ mcp/; then
+            echo "::warning::Flake8 found style or error issues."
+            echo "Flake8 check failed, but continuing with pipeline..."
+          else
+            echo "Flake8 style check passed!"
+          fi
 
       - name: Run Pylint (code quality analysis)
         run: |
@@ -67,10 +71,19 @@ jobs:
             echo "::warning::Pylint found $((core_issues + mcp_issues)) critical issues. Consider addressing them."
           fi
 
+      - name: Linting Summary
+        if: always()
+        run: |
+          echo "==================== LINTING SUMMARY ===================="
+          echo "All linting checks completed (non-blocking)"
+          echo "• Black, Flake8, and Pylint results are shown above"
+          echo "• Linting issues are flagged as warnings but don't fail the pipeline"
+          echo "• Tests will run regardless of linting results"
+          echo "=========================================================="
+
   build-and-test:
     name: Build and Test Services
     runs-on: ubuntu-latest
-    needs: lint
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4

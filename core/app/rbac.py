@@ -563,7 +563,7 @@ def assign_admin_role_to_admins(session: Session) -> None:
         logger.error("Admin role not found!")
         return
 
-    admin_users = session.exec(select(User).where(User.is_admin == True)).all()
+    admin_users = session.exec(select(User).where(User.is_admin.is_(True))).all()
     for user in admin_users:
         # Check if user already has admin role
         existing_link = session.exec(

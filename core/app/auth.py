@@ -552,7 +552,7 @@ def login_for_access_token(
         return {"access_token": access_token, "token_type": "bearer"}
     except HTTPException as e:
         raise e
-    except Exception as e:
+    except Exception:
         logging.exception("An unhandled exception occurred during login!")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -741,7 +741,7 @@ def delete_user(
         raise HTTPException(status_code=404, detail="User not found")
 
     # Prevent deleting the last admin user
-    admin_count = session.exec(select(User).where(User.is_admin == True)).all()
+    admin_count = session.exec(select(User).where(User.is_admin.is_(True))).all()
     if db_user.is_admin and len(admin_count) <= 1:
         log_audit_event(
             session=session,

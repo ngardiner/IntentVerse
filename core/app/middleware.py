@@ -8,7 +8,7 @@ import time
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 from .rate_limiter import rate_limit_request
-from .modules.timeline.tool import log_error
+from .modules.timeline.tool import log_error as timeline_log_error
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
@@ -47,14 +47,14 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             logging.exception(f"Error processing request: {e}")
             # Log the error to the timeline
             try:
-                log_error(
+                timeline_log_error(
                     title="API Request Error",
                     description=f"Error processing request to {request.url.path}: {str(e)}",
                     error_type=type(e).__name__,
                     error_details=str(e),
                 )
-            except Exception as log_error:
-                logging.error(f"Failed to log error to timeline: {log_error}")
+            except Exception as log_err:
+                logging.error(f"Failed to log error to timeline: {log_err}")
 
             # Return a 500 error response
             return Response(

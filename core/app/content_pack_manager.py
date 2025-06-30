@@ -229,7 +229,7 @@ class ContentPackManager:
                     break
 
             if pack_to_remove is not None:
-                removed_pack = self.loaded_packs.pop(pack_to_remove)
+                self.loaded_packs.pop(pack_to_remove)
                 logging.info(f"Unloaded content pack: {pack_identifier}")
                 return True
             else:
