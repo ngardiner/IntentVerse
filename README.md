@@ -201,7 +201,7 @@ cd mcp && python -m app.main --stdio
 docker run -i --rm --network intentverse-net intentverse-mcp --stdio
 ```
 
-For detailed mode documentation, see [docs/mcp-modes.md](docs/mcp-modes.md).
+For detailed mode documentation, see [docs/mcp/mcp-modes.md](docs/mcp/mcp-modes.md).
 
 #### Testing Both Modes
 
@@ -215,7 +215,7 @@ python test_mcp_modes.py
 cd mcp && python run_mode_tests.py
 ```
 
-See [docs/testing-mcp-modes.md](docs/testing-mcp-modes.md) for detailed testing information.
+See [docs/testing-mcp-modes.md](docs/mcp/testing-mcp-modes.md) for detailed testing information.
 
 ### Troubleshooting
 

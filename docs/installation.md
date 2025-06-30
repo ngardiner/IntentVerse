@@ -48,7 +48,7 @@ Once the containers are running, you can access the different parts of the appli
   - Default login: Username `admin`, Password `IntentVerse`
 * **Core Engine API (for direct testing):** The API is available at `http://localhost:8000`. You can access its interactive documentation (provided by FastAPI) at `http://localhost:8000/docs`.
 * **MCP Interface:** The MCP server will be listening for connections from AI models on port `8001` (HTTP mode)
-  - For stdio mode usage, see [MCP Modes Documentation](mcp-modes.md)
+  - For stdio mode usage, see [MCP Modes Documentation](mcp/mcp-modes.md)
 
 ## MCP Interface Modes
 
@@ -75,7 +75,7 @@ docker run -i --rm --network intentverse-net intentverse-mcp --stdio
 cd mcp && python -m app.main --stdio
 ```
 
-For detailed information about both modes, including Claude Desktop integration, see [MCP Modes Documentation](mcp-modes.md).
+For detailed information about both modes, including Claude Desktop integration, see [MCP Modes Documentation](mcp/mcp-modes.md).
 
 ## Stopping the Application
 
