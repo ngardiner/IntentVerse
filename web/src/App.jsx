@@ -15,7 +15,12 @@ const AuthContext = createContext(null);
 // 2. Create an AuthProvider Component
 // This component will wrap our application and provide auth state to all children.
 const AuthProvider = ({ children }) => {
-  const [authToken, setAuthToken] = useState(() => localStorage.getItem('authToken'));
+  // Get the localStorage reference once to ensure we use the same reference
+  // This helps with testing when localStorage is mocked
+  const [authToken, setAuthToken] = useState(() => {
+    const token = localStorage.getItem('authToken');
+    return token;
+  });
   const [tokenValidated, setTokenValidated] = useState(false);
   const [isValidating, setIsValidating] = useState(false);
   
