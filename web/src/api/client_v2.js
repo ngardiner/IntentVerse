@@ -4,7 +4,7 @@ import axios from 'axios';
 // Note: We use localhost:8000 because these requests are made from the user's
 // browser, which is outside the Docker network. The docker-compose.yml file
 // maps the host's port 8000 to the core service's port 8000.
-const BASE_URL = 'http://localhost:8000';
+const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
 // API version to use
 const API_VERSION = 'v2';

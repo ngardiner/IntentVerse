@@ -10,6 +10,7 @@ from fastapi import (
     WebSocket,
     WebSocketDisconnect,
     Query,
+    Request,
     status,
 )
 
@@ -18,6 +19,7 @@ from ...auth import get_current_user_or_service, get_token_from_cookie_or_header
 from ...models import User
 from ..base_tool import BaseTool
 from ...websocket_manager import manager as websocket_manager
+from ...rate_limiter import limiter
 
 # Create a router for the timeline endpoints
 router = APIRouter(
@@ -117,6 +119,7 @@ def add_event(
 # API endpoint to get all events
 @router.get("/events")
 async def get_timeline_events(
+    request: Request,
     current_user_or_service: Annotated[
         Union[User, str], Depends(get_current_user_or_service)
     ],

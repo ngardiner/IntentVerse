@@ -35,6 +35,7 @@ from .rbac import (
     get_permission_checker,
     PermissionChecker,
 )
+from .rate_limiter import limiter, create_rate_limit_function
 
 # --- API Router and Security Scheme ---
 
@@ -199,6 +200,63 @@ def get_current_user(
         raise credentials_exception
 
     return user
+
+
+async def get_token_from_cookie_or_header(
+    token: Optional[str] = None,
+) -> Optional[User]:
+    """
+    Async function to authenticate a user from a token (for WebSocket connections).
+    This function is used for WebSocket authentication where we can't use FastAPI dependencies.
+    
+    Args:
+        token: The JWT token to validate
+        
+    Returns:
+        User object if authentication is successful, None otherwise
+        
+    Raises:
+        HTTPException: If authentication fails
+    """
+    if not token:
+        return None
+        
+    try:
+        # Decode the token to get the username
+        username = decode_access_token(token)
+        if not username:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token",
+            )
+        
+        # Get a database session (we need to create one manually since we can't use dependencies)
+        from .database import get_session
+        session_gen = get_session()
+        session = next(session_gen)
+        
+        try:
+            # Look up the user
+            user = session.exec(select(User).where(User.username == username)).first()
+            if not user:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="User not found",
+                )
+            
+            return user
+        finally:
+            # Make sure to close the session
+            session.close()
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Error in get_token_from_cookie_or_header: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication failed",
+        )
 
 
 def get_current_user_or_service(
@@ -495,10 +553,11 @@ def create_user(
 
 
 @router.post("/auth/login", response_model=Token, tags=["Authentication"])
+@limiter.limit("30/minute")
 def login_for_access_token(
+    request: Request,
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
     session: Annotated[Session, Depends(get_session)],
-    request: Request,
 ):
     """
     Authenticates a user and returns a JWT access token.

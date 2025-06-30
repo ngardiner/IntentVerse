@@ -16,8 +16,9 @@ from .init_db import init_db
 from .content_pack_manager import ContentPackManager
 from .logging_config import setup_logging
 from .modules.timeline.tool import router as timeline_router
-from .middleware import RateLimitMiddleware, RequestLoggingMiddleware
-from .rate_limiter import limiter
+from .middleware import AuthenticationMiddleware, RateLimitHeaderMiddleware, RequestLoggingMiddleware
+from .rate_limiter import limiter, custom_rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 from .version_manager import VersionMiddleware, create_version_router
 
 # Apply the JSON logging configuration at the earliest point
@@ -101,8 +102,11 @@ app.add_middleware(
     allow_headers=["*"],  # Allow all headers
 )
 
-# Add rate limiting middleware
-app.add_middleware(RateLimitMiddleware)
+# Add authentication middleware (must be first to set user state)
+app.add_middleware(AuthenticationMiddleware)
+
+# Add rate limiting header middleware
+app.add_middleware(RateLimitHeaderMiddleware)
 
 # Add request logging middleware
 app.add_middleware(RequestLoggingMiddleware)
@@ -120,6 +124,9 @@ app.add_middleware(VersionMiddleware)
 # - RATE_LIMIT_AUTH: Rate limit for authenticated users (default: 100/minute)
 # - RATE_LIMIT_ADMIN: Rate limit for admin users and services (default: 200/minute)
 app.state.limiter = limiter
+
+# Add custom rate limit exceeded handler
+app.add_exception_handler(RateLimitExceeded, custom_rate_limit_exceeded_handler)
 
 module_loader = ModuleLoader(state_manager)
 content_pack_manager = ContentPackManager(state_manager, module_loader)

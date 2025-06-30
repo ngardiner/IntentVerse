@@ -16,6 +16,7 @@ from .auth import (
 from .rbac import require_permission, require_permission_or_service
 from .models import User
 from .database import get_session
+from .rate_limiter import limiter, create_rate_limit_function
 
 
 def create_api_routes(
@@ -38,6 +39,7 @@ def create_api_routes(
 
     @router.get("/ui/layout")
     def get_ui_layout(
+        request: Request,
         current_user: Annotated[User, Depends(get_current_user_or_service)],
     ) -> Dict[str, Any]:
         """
@@ -48,6 +50,7 @@ def create_api_routes(
 
     @router.get("/{module_name}/state")
     def get_module_state(
+        request: Request,
         current_user: Annotated[User, Depends(get_current_user_or_service)],
         module_name: str = Path(..., title="The name of the module"),
     ) -> Dict[str, Any]:
@@ -66,6 +69,7 @@ def create_api_routes(
 
     @router.get("/tools/manifest")
     def get_tools_manifest(
+        request: Request,
         current_user_or_service: Annotated[
             Union[User, str], Depends(get_current_user_or_service)
         ],
@@ -161,13 +165,14 @@ def create_api_routes(
         return manifest
 
     @router.post("/execute")
+    @limiter.limit("60/minute")
     def execute_tool(
+        request: Request,
         payload: Dict[str, Any],
         current_user_or_service: Annotated[
             Union[User, str], Depends(get_current_user_or_service)
         ],
         session: Annotated[Session, Depends(get_session)],
-        request: Request,
     ) -> Dict[str, Any]:
         """
         The main endpoint for executing a tool command from the MCP interface.
