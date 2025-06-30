@@ -1,6 +1,6 @@
 import uuid
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional, Annotated, Union
 from fastapi import APIRouter, Depends, HTTPException
 
@@ -50,7 +50,7 @@ def add_event(
         The newly created event
     """
     event_id = str(uuid.uuid4())
-    timestamp = datetime.utcnow().isoformat()
+    timestamp = datetime.now(timezone.utc).isoformat()
     
     event = {
         "id": event_id,

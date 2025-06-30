@@ -149,10 +149,12 @@ class TestMCPIntegration:
         assert mcp_server.add_tool.call_count == len(sample_tool_manifest)
         
         # Verify the names of the registered tools
-        call_args_list = mcp_server.add_tool.call_args_list
-        registered_tool_names = [call.args[0].name for call in call_args_list]
+        # Use the registered tools from our mock server
+        registered_tool_names = list(mcp_server._registered_tools.keys())
         expected_tool_names = [tool['name'] for tool in sample_tool_manifest]
-        assert sorted(registered_tool_names) == sorted(expected_tool_names)
+        
+        # Convert to sets for comparison
+        assert set(registered_tool_names) == set(expected_tool_names)
         
         # Additional verification: Check that tools can be retrieved from the server
         for tool_name in expected_tool_names:

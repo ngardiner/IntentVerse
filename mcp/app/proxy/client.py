@@ -81,6 +81,9 @@ class MCPTool:
                 "default": param_info.get("default")
             })
         
+        # Use the stored original name if available, otherwise use current name
+        original_name = getattr(self, '_original_name', self.name)
+        
         return {
             "name": prefixed_name,
             "description": self.description,
@@ -88,7 +91,7 @@ class MCPTool:
             "metadata": {
                 "source": "mcp_proxy",
                 "server_name": self.server_name,
-                "original_name": self.name,
+                "original_name": original_name,
                 "input_schema": self.input_schema
             }
         }

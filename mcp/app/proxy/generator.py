@@ -560,7 +560,7 @@ class ProxyToolGenerator:
                 
                 # Process the result
                 processor = ResultProcessor()
-                processed_result = processor.process_result(result, tool.name, tool.server_name)
+                processed_result = processor.process_result(result, original_name, tool.server_name)
                 
                 # End timeline tracking with success
                 if call_id:

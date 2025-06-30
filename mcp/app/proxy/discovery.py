@@ -180,6 +180,10 @@ class ToolRegistry:
         else:
             final_name = prefixed_name
         
+        # Store the original name before modifying the tool
+        if not hasattr(tool, '_original_name'):
+            tool._original_name = original_name
+        
         # Update tool name and add to registry
         tool.name = final_name
         self.tools_by_name[final_name] = tool

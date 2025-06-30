@@ -33,8 +33,8 @@ from app.core_client import CoreClient
 class TestMCPModeIntegration:
     """Integration tests for MCP dual-mode operation."""
 
-    @pytest.fixture(scope="class")
-    async def core_service_url(self):
+    @pytest.fixture
+    def core_service_url(self):
         """Get the Core service URL from environment or use default."""
         # In CI environments, use the service name for Docker networking
         if os.getenv("CI") or os.getenv("GITHUB_ACTIONS"):
@@ -42,7 +42,7 @@ class TestMCPModeIntegration:
         else:
             return os.getenv("CORE_API_URL", "http://localhost:8000")
 
-    @pytest.fixture(scope="class")
+    @pytest.fixture
     async def verify_core_service(self, core_service_url):
         """Verify that the Core service is accessible before running tests."""
         max_retries = 30

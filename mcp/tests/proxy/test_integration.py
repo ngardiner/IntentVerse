@@ -225,9 +225,15 @@ class TestProxyEngineIntegration:
             
             # Test calling a proxy tool
             proxy_functions = engine.proxy_generator.generate_all_proxy_functions()
-            assert "test_test_echo_tool" in proxy_functions  # Prefix applied
             
-            echo_func = proxy_functions["test_test_echo_tool"]  # Prefix applied
+            # Debug: Print all available proxy functions
+            print(f"DEBUG: Available proxy functions: {list(proxy_functions.keys())}")
+            
+            # The tool name should be prefixed with "test_" from the config
+            expected_tool_name = "test_test_echo_tool"  # Server prefix + tool prefix applied
+            assert expected_tool_name in proxy_functions, f"Expected tool {expected_tool_name} not found in {list(proxy_functions.keys())}"
+            
+            echo_func = proxy_functions[expected_tool_name]
             result = await echo_func(message="Hello, World!")
             
             print(f"DEBUG: Result = {result}")
@@ -236,7 +242,7 @@ class TestProxyEngineIntegration:
             
             assert result["success"] is True
             assert "Hello, World!" in result["result"]["message"]
-            assert result["metadata"]["tool_name"] == "test_echo_tool"
+            assert result["metadata"]["tool_name"] == "echo_tool"  # Original tool name
             assert result["metadata"]["server_name"] == "test-server"
             
             # Verify the mock server was called
@@ -357,12 +363,19 @@ class TestProxyEngineIntegration:
                 
                 # Check that both tools were registered with conflict resolution
                 proxy_functions = engine.proxy_generator.generate_all_proxy_functions()
-                assert "s1_s1_common_tool" in proxy_functions  # Conflict resolution adds server name
-                assert "s2_s2_common_tool" in proxy_functions
+                
+                # Debug: Print all available proxy functions
+                print(f"DEBUG: Available proxy functions for conflict test: {list(proxy_functions.keys())}")
+                
+                # With conflict resolution, tools should be named with server prefix
+                expected_tool1 = "s1_s1_common_tool"  # Server prefix + tool prefix applied
+                expected_tool2 = "s2_s2_common_tool"  # Server prefix + tool prefix applied
+                assert expected_tool1 in proxy_functions, f"Expected tool {expected_tool1} not found in {list(proxy_functions.keys())}"
+                assert expected_tool2 in proxy_functions, f"Expected tool {expected_tool2} not found in {list(proxy_functions.keys())}"
                 
                 # Test calling both tools
-                result1 = await proxy_functions["s1_s1_common_tool"](param1="test")
-                result2 = await proxy_functions["s2_s2_common_tool"](param2=42)
+                result1 = await proxy_functions[expected_tool1](param1="test")
+                result2 = await proxy_functions[expected_tool2](param2=42)
                 
                 assert result1["success"] is True
                 assert result2["success"] is True
@@ -476,7 +489,12 @@ class TestProxyEngineIntegration:
                 
                 # Check that only enabled server's tools are available
                 proxy_functions = engine.proxy_generator.generate_all_proxy_functions()
-                assert "enabled_enabled_enabled_tool" in proxy_functions  # Prefix applied
+                
+                # Debug: Print all available proxy functions
+                print(f"DEBUG: Available proxy functions for disabled server test: {list(proxy_functions.keys())}")
+                
+                expected_tool = "enabled_enabled_enabled_tool"  # Server prefix + tool prefix applied
+                assert expected_tool in proxy_functions, f"Expected tool {expected_tool} not found in {list(proxy_functions.keys())}"
                 assert len(proxy_functions) == 1  # Only one tool
                 
                 await engine.stop()
@@ -647,7 +665,13 @@ class TestProxyEngineIntegration:
             await asyncio.sleep(0.1)
             
             proxy_functions = engine.proxy_generator.generate_all_proxy_functions()
-            strict_func = proxy_functions["test_test_strict_tool"]  # Prefix applied
+            
+            # Debug: Print all available proxy functions
+            print(f"DEBUG: Available proxy functions for strict validation test: {list(proxy_functions.keys())}")
+            
+            expected_tool = "test_test_strict_tool"  # Server prefix + tool prefix applied
+            assert expected_tool in proxy_functions, f"Expected tool {expected_tool} not found in {list(proxy_functions.keys())}"
+            strict_func = proxy_functions[expected_tool]
             
             # Test valid parameters
             result = await strict_func(email="test@example.com", age=25)
