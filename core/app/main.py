@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .state_manager import state_manager
 from .module_loader import ModuleLoader
 from .api import create_api_routes
+from .api_v2 import create_api_routes_v2
 from .auth import router as auth_router, get_current_user, get_current_user_or_service
 from .models import User
 from .database import create_db_and_tables
@@ -17,6 +18,7 @@ from .logging_config import setup_logging
 from .modules.timeline.tool import router as timeline_router
 from .middleware import RateLimitMiddleware, RequestLoggingMiddleware
 from .rate_limiter import limiter
+from .version_manager import VersionMiddleware, create_version_router
 
 # Apply the JSON logging configuration at the earliest point
 setup_logging()
@@ -105,6 +107,9 @@ app.add_middleware(RateLimitMiddleware)
 # Add request logging middleware
 app.add_middleware(RequestLoggingMiddleware)
 
+# Add API versioning middleware
+app.add_middleware(VersionMiddleware)
+
 # Add the rate limiter to the app
 # Rate limits are configured as follows:
 # - 30 requests per minute for unauthenticated users
@@ -119,9 +124,17 @@ app.state.limiter = limiter
 module_loader = ModuleLoader(state_manager)
 content_pack_manager = ContentPackManager(state_manager, module_loader)
 
-# Create the main API routes, passing the loader and content pack manager to them.
-api_router = create_api_routes(module_loader, content_pack_manager)
-app.include_router(api_router)
+# Create the API routes for different versions
+api_router_v1 = create_api_routes(module_loader, content_pack_manager)
+api_router_v2 = create_api_routes_v2(module_loader, content_pack_manager)
+
+# Add version information router
+version_router = create_version_router()
+app.include_router(version_router)
+
+# Add API routers for different versions
+app.include_router(api_router_v1)
+app.include_router(api_router_v2)
 app.include_router(auth_router)
 app.include_router(timeline_router)
 

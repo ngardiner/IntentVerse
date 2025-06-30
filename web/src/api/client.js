@@ -6,6 +6,9 @@ import axios from 'axios';
 // maps the host's port 8000 to the core service's port 8000.
 const BASE_URL = 'http://localhost:8000';
 
+// API version to use
+const API_VERSION = 'v1'; // Default to v1 for backward compatibility
+
 // Create a pre-configured instance of axios
 const apiClient = axios.create({
   baseURL: BASE_URL,
@@ -23,6 +26,9 @@ apiClient.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    
+    // Add API version header
+    config.headers['X-API-Version'] = API_VERSION;
     
     return config;
   },
