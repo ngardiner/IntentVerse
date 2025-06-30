@@ -3,6 +3,7 @@ import os
 import sys
 from pythonjsonlogger import jsonlogger
 
+
 def setup_logging():
     """
     Configures the root logger to output structured JSON logs to stdout.
@@ -11,7 +12,7 @@ def setup_logging():
     # Get log level from environment variable, default to INFO
     log_level_name = os.environ.get("LOG_LEVEL", "INFO").upper()
     log_level = getattr(logging, log_level_name, logging.INFO)
-    
+
     log = logging.getLogger()
     log.setLevel(log_level)
 

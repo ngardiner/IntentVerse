@@ -4,6 +4,7 @@ Unit tests for the ContentPackManager class.
 These tests use mocks and a temporary file system to test the logic of the
 ContentPackManager in isolation from the actual modules and file system.
 """
+
 import pytest
 import json
 from unittest.mock import Mock, patch
@@ -55,13 +56,15 @@ def content_pack_manager(state_manager, module_loader, temp_content_packs_dir):
 class TestLocalContentPacks:
     """Tests for loading, exporting, and managing local content packs."""
 
-    def test_load_content_pack_success(self, content_pack_manager, state_manager, module_loader):
+    def test_load_content_pack_success(
+        self, content_pack_manager, state_manager, module_loader
+    ):
         """Tests that a valid content pack is loaded correctly."""
         # ARRANGE: Create a valid content pack file
         pack_data = {
             "metadata": {"name": "Test Pack"},
             "database": ["CREATE TABLE test (id INT);"],
-            "state": {"filesystem": {"type": "directory"}}
+            "state": {"filesystem": {"type": "directory"}},
         }
         pack_path = content_pack_manager.content_packs_dir / "valid_pack.json"
         pack_path.write_text(json.dumps(pack_data))
@@ -73,9 +76,13 @@ class TestLocalContentPacks:
         assert success is True
         # Check that the database tool was called with the SQL
         db_tool = module_loader.get_tool("database")
-        db_tool.load_content_pack_database.assert_called_once_with(pack_data["database"])
+        db_tool.load_content_pack_database.assert_called_once_with(
+            pack_data["database"]
+        )
         # Check that the state manager was called with the state data
-        state_manager.set.assert_called_once_with("filesystem", pack_data["state"]["filesystem"])
+        state_manager.set.assert_called_once_with(
+            "filesystem", pack_data["state"]["filesystem"]
+        )
         # Check that the loaded pack is tracked
         assert len(content_pack_manager.loaded_packs) == 1
         assert content_pack_manager.loaded_packs[0]["metadata"]["name"] == "Test Pack"
@@ -93,12 +100,14 @@ class TestLocalContentPacks:
         success = content_pack_manager.load_content_pack(pack_path)
         assert success is False
 
-    def test_export_content_pack(self, content_pack_manager, state_manager, module_loader):
+    def test_export_content_pack(
+        self, content_pack_manager, state_manager, module_loader
+    ):
         """Tests that exporting the current state creates a valid content pack."""
         # ARRANGE: Set up some mock state to be exported
         state_manager.get_full_state.return_value = {
             "filesystem": {"name": "/", "type": "directory"},
-            "database": {}  # This should be ignored in the state section
+            "database": {},  # This should be ignored in the state section
         }
 
         output_path = content_pack_manager.content_packs_dir / "exported.json"
@@ -112,7 +121,7 @@ class TestLocalContentPacks:
         assert output_path.exists()
 
         # Verify the content of the exported file
-        with open(output_path, 'r') as f:
+        with open(output_path, "r") as f:
             exported_data = json.load(f)
 
         assert exported_data["metadata"]["name"] == "Exported Test"
@@ -127,9 +136,13 @@ class TestLocalContentPacks:
         """Tests listing available content packs from the directory."""
         # ARRANGE: Create some dummy pack files
         pack1_data = {"metadata": {"name": "Pack 1"}}
-        (content_pack_manager.content_packs_dir / "pack1.json").write_text(json.dumps(pack1_data))
+        (content_pack_manager.content_packs_dir / "pack1.json").write_text(
+            json.dumps(pack1_data)
+        )
         pack2_data = {"metadata": {"name": "Pack 2"}}
-        (content_pack_manager.content_packs_dir / "pack2.json").write_text(json.dumps(pack2_data))
+        (content_pack_manager.content_packs_dir / "pack2.json").write_text(
+            json.dumps(pack2_data)
+        )
         # Create a non-json file that should be ignored
         (content_pack_manager.content_packs_dir / "notes.txt").write_text("ignore me")
 
@@ -149,9 +162,14 @@ class TestRemoteContentPacks:
     def test_fetch_remote_manifest_success(self, content_pack_manager):
         """Tests successfully fetching and parsing the remote manifest."""
         # ARRANGE: Mock the HTTP GET request to the manifest URL
-        mock_manifest = {"manifest_version": "1.0", "content_packs": [{"name": "Remote Pack"}]}
-        respx.get(content_pack_manager.manifest_url).mock(return_value=httpx.Response(200, json=mock_manifest))
-        
+        mock_manifest = {
+            "manifest_version": "1.0",
+            "content_packs": [{"name": "Remote Pack"}],
+        }
+        respx.get(content_pack_manager.manifest_url).mock(
+            return_value=httpx.Response(200, json=mock_manifest)
+        )
+
         # ACT: Fetch the manifest
         manifest = content_pack_manager.fetch_remote_manifest()
 
@@ -165,7 +183,9 @@ class TestRemoteContentPacks:
     def test_fetch_remote_manifest_caching(self, content_pack_manager):
         """Tests that the remote manifest is cached to avoid repeated requests."""
         # ARRANGE: Mock the manifest URL
-        route = respx.get(content_pack_manager.manifest_url).mock(return_value=httpx.Response(200, json={}))
+        route = respx.get(content_pack_manager.manifest_url).mock(
+            return_value=httpx.Response(200, json={})
+        )
 
         # ACT: Fetch twice
         content_pack_manager.fetch_remote_manifest()
@@ -179,7 +199,7 @@ class TestRemoteContentPacks:
 
         # ASSERT: The request count should now be 2
         assert route.call_count == 2
-    
+
     @respx.mock
     def test_download_remote_pack_success(self, content_pack_manager):
         """Tests downloading a remote pack to the local cache."""
@@ -187,11 +207,17 @@ class TestRemoteContentPacks:
         pack_filename = "cool_pack.json"
         pack_content = {"metadata": {"name": "Cool Pack"}}
         mock_manifest = {"content_packs": [{"filename": pack_filename}]}
-        
-        respx.get(content_pack_manager.manifest_url).mock(return_value=httpx.Response(200, json=mock_manifest))
+
+        respx.get(content_pack_manager.manifest_url).mock(
+            return_value=httpx.Response(200, json=mock_manifest)
+        )
         # Construct the download URL exactly as the application does to ensure the mock matches.
-        download_url = urljoin(content_pack_manager.remote_repo_url, f"content-packs/{pack_filename}")
-        respx.get(download_url).mock(return_value=httpx.Response(200, json=pack_content))
+        download_url = urljoin(
+            content_pack_manager.remote_repo_url, f"content-packs/{pack_filename}"
+        )
+        respx.get(download_url).mock(
+            return_value=httpx.Response(200, json=pack_content)
+        )
 
         # ACT: Download the pack
         cache_path = content_pack_manager.download_remote_content_pack(pack_filename)
@@ -200,6 +226,6 @@ class TestRemoteContentPacks:
         assert cache_path is not None
         assert cache_path.exists()
         assert cache_path.name == pack_filename
-        with open(cache_path, 'r') as f:
+        with open(cache_path, "r") as f:
             data = json.load(f)
         assert data["metadata"]["name"] == "Cool Pack"

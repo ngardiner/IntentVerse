@@ -7,6 +7,7 @@ from .registrar import ToolRegistrar
 from .core_client import CoreClient
 from .logging_config import setup_logging
 
+
 async def main():
     """
     The main entry point for the MCP Interface service.
@@ -16,7 +17,7 @@ async def main():
     """
     setup_logging()
     logging.info("Starting IntentVerse MCP Interface...")
-    
+
     # Log the MCP start event to the timeline
     # We'll do this after the server is fully initialized to ensure the timeline module is loaded
 
@@ -42,48 +43,54 @@ async def main():
         host = "0.0.0.0"
         port = 8001
         logging.info(f"Running in Streamable HTTP mode on {host}:{port}")
-        
+
         # Now that everything is set up, log the MCP start event to the timeline
         try:
-            await core_client.execute_tool({
-                "tool_name": "timeline.log_system_event",
-                "parameters": {
-                    "title": "MCP Interface Started",
-                    "description": "The MCP Interface service has been started and is ready to accept connections."
+            await core_client.execute_tool(
+                {
+                    "tool_name": "timeline.log_system_event",
+                    "parameters": {
+                        "title": "MCP Interface Started",
+                        "description": "The MCP Interface service has been started and is ready to accept connections.",
+                    },
                 }
-            })
+            )
         except Exception as e:
             logging.error(f"Failed to log MCP start event: {e}")
             # Continue even if logging fails
-            
+
         await server.run_async(transport="streamable-http", host=host, port=port)
+
 
 async def shutdown(tool_registrar: ToolRegistrar = None):
     """Log the MCP shutdown event to the timeline and cleanup resources."""
     try:
         # Create a temporary client to log the shutdown event
         temp_client = CoreClient()
-        
+
         # Try to log the shutdown event, but don't worry if it fails
         try:
-            await temp_client.execute_tool({
-                "tool_name": "timeline.log_system_event",
-                "parameters": {
-                    "title": "MCP Interface Stopped",
-                    "description": "The MCP Interface service has been stopped."
+            await temp_client.execute_tool(
+                {
+                    "tool_name": "timeline.log_system_event",
+                    "parameters": {
+                        "title": "MCP Interface Stopped",
+                        "description": "The MCP Interface service has been stopped.",
+                    },
                 }
-            })
+            )
         except Exception as e:
             logging.debug(f"Could not log MCP shutdown event: {e}")
-            
+
         await temp_client.close()
-        
+
         # Shutdown the tool registrar (which will stop the proxy engine)
         if tool_registrar:
             await tool_registrar.shutdown()
-            
+
     except Exception as e:
         logging.error(f"Error during shutdown: {e}")
+
 
 if __name__ == "__main__":
     try:

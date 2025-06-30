@@ -26,11 +26,12 @@ logger = logging.getLogger(__name__)
 @dataclass
 class MCPTool:
     """Represents a tool discovered from an MCP server."""
+
     name: str
     description: str
     input_schema: Dict[str, Any]
     server_name: str
-    
+
     def __post_init__(self):
         """Validate tool after initialization."""
         if not self.name:
@@ -41,49 +42,53 @@ class MCPTool:
             raise ValueError("Tool input_schema must be a dictionary")
 
     @classmethod
-    def from_mcp_response(cls, tool_data: Dict[str, Any], server_name: str) -> "MCPTool":
+    def from_mcp_response(
+        cls, tool_data: Dict[str, Any], server_name: str
+    ) -> "MCPTool":
         """Create MCPTool from MCP server response data."""
         return cls(
             name=tool_data.get("name", ""),
             description=tool_data.get("description", ""),
             input_schema=tool_data.get("inputSchema", {}),
-            server_name=server_name
+            server_name=server_name,
         )
 
     def to_core_tool_format(self, tool_prefix: str = "") -> Dict[str, Any]:
         """Convert to core engine tool format."""
         prefixed_name = f"{tool_prefix}{self.name}" if tool_prefix else self.name
-        
+
         # Convert MCP input schema to core tool format
         parameters = []
         properties = self.input_schema.get("properties", {})
         required = self.input_schema.get("required", [])
-        
+
         for param_name, param_info in properties.items():
             param_type = param_info.get("type", "string")
             param_desc = param_info.get("description", "")
-            
+
             # Map JSON Schema types to Python types
             type_mapping = {
                 "string": "str",
-                "integer": "int", 
+                "integer": "int",
                 "number": "float",
                 "boolean": "bool",
                 "array": "list",
-                "object": "dict"
+                "object": "dict",
             }
-            
-            parameters.append({
-                "name": param_name,
-                "annotation": type_mapping.get(param_type, "str"),
-                "description": param_desc,
-                "required": param_name in required,
-                "default": param_info.get("default")
-            })
-        
+
+            parameters.append(
+                {
+                    "name": param_name,
+                    "annotation": type_mapping.get(param_type, "str"),
+                    "description": param_desc,
+                    "required": param_name in required,
+                    "default": param_info.get("default"),
+                }
+            )
+
         # Use the stored original name if available, otherwise use current name
-        original_name = getattr(self, '_original_name', self.name)
-        
+        original_name = getattr(self, "_original_name", self.name)
+
         return {
             "name": prefixed_name,
             "description": self.description,
@@ -92,8 +97,8 @@ class MCPTool:
                 "source": "mcp_proxy",
                 "server_name": self.server_name,
                 "original_name": original_name,
-                "input_schema": self.input_schema
-            }
+                "input_schema": self.input_schema,
+            },
         }
 
     def __str__(self) -> str:
@@ -103,27 +108,31 @@ class MCPTool:
         return f"MCPTool(name={self.name}, server={self.server_name})"
 
 
-@dataclass 
+@dataclass
 class MCPServerInfo:
     """Information about an MCP server."""
+
     name: str
     version: str
     protocol_version: str = "2024-11-05"
     capabilities: Optional[Dict[str, Any]] = None
-    
+
     @classmethod
-    def from_mcp_response(cls, info_data: Dict[str, Any], server_name: str) -> "MCPServerInfo":
+    def from_mcp_response(
+        cls, info_data: Dict[str, Any], server_name: str
+    ) -> "MCPServerInfo":
         """Create MCPServerInfo from MCP server response."""
         return cls(
             name=info_data.get("name", server_name),
             version=info_data.get("version", "unknown"),
             protocol_version=info_data.get("protocolVersion", "2024-11-05"),
-            capabilities=info_data.get("capabilities", {})
+            capabilities=info_data.get("capabilities", {}),
         )
 
 
 class ConnectionState(Enum):
     """Connection state enumeration."""
+
     DISCONNECTED = "disconnected"
     CONNECTING = "connecting"
     CONNECTED = "connected"
@@ -134,6 +143,7 @@ class ConnectionState(Enum):
 @dataclass
 class MCPMessage:
     """Represents an MCP protocol message."""
+
     jsonrpc: str = "2.0"
     id: Optional[Union[str, int]] = None
     method: Optional[str] = None
@@ -144,7 +154,7 @@ class MCPMessage:
     def to_dict(self) -> Dict[str, Any]:
         """Convert message to dictionary."""
         msg = {"jsonrpc": self.jsonrpc}
-        
+
         if self.id is not None:
             msg["id"] = self.id
         if self.method is not None:
@@ -155,7 +165,7 @@ class MCPMessage:
             msg["result"] = self.result
         if self.error is not None:
             msg["error"] = self.error
-            
+
         return msg
 
     @classmethod
@@ -167,7 +177,7 @@ class MCPMessage:
             method=data.get("method"),
             params=data.get("params"),
             result=data.get("result"),
-            error=data.get("error")
+            error=data.get("error"),
         )
 
     def is_request(self) -> bool:
@@ -176,7 +186,9 @@ class MCPMessage:
 
     def is_response(self) -> bool:
         """Check if this is a response message."""
-        return self.id is not None and (self.result is not None or self.error is not None)
+        return self.id is not None and (
+            self.result is not None or self.error is not None
+        )
 
     def is_notification(self) -> bool:
         """Check if this is a notification message."""
@@ -262,18 +274,20 @@ class StdioTransport(MCPTransport):
                 stderr=subprocess.PIPE,
                 env={**os.environ, **(self.server_config.env or {})},
                 text=True,
-                bufsize=0
+                bufsize=0,
             )
 
             # Start reading messages
             self._read_task = asyncio.create_task(self._read_messages())
-            
+
             self.state = ConnectionState.CONNECTED
             logger.info(f"Connected to stdio MCP server: {self.server_config.name}")
 
         except Exception as e:
             self.state = ConnectionState.FAILED
-            logger.error(f"Failed to start stdio MCP server {self.server_config.name}: {e}")
+            logger.error(
+                f"Failed to start stdio MCP server {self.server_config.name}: {e}"
+            )
             self._handle_error(e)
             raise
 
@@ -300,7 +314,9 @@ class StdioTransport(MCPTransport):
                 try:
                     self.process.wait(timeout=5)
                 except subprocess.TimeoutExpired:
-                    logger.warning(f"Force killing stdio MCP server: {self.server_config.name}")
+                    logger.warning(
+                        f"Force killing stdio MCP server: {self.server_config.name}"
+                    )
                     self.process.kill()
                     self.process.wait()
             except Exception as e:
@@ -328,7 +344,7 @@ class StdioTransport(MCPTransport):
         """Check if the stdio connection is healthy."""
         if not self.process:
             return False
-        
+
         # Check if process is still running
         return self.process.poll() is None
 
@@ -342,7 +358,7 @@ class StdioTransport(MCPTransport):
                 line = await asyncio.get_event_loop().run_in_executor(
                     None, self.process.stdout.readline
                 )
-                
+
                 if not line:  # EOF
                     break
 
@@ -357,7 +373,9 @@ class StdioTransport(MCPTransport):
                 except json.JSONDecodeError as e:
                     logger.error(f"Invalid JSON from {self.server_config.name}: {e}")
                 except Exception as e:
-                    logger.error(f"Error processing message from {self.server_config.name}: {e}")
+                    logger.error(
+                        f"Error processing message from {self.server_config.name}: {e}"
+                    )
 
         except Exception as e:
             if not isinstance(e, asyncio.CancelledError):
@@ -386,7 +404,7 @@ class SSETransport(MCPTransport):
             # Create HTTP client
             self.client = httpx.AsyncClient(
                 timeout=httpx.Timeout(self.server_config.settings.timeout),
-                headers=self.server_config.headers or {}
+                headers=self.server_config.headers or {},
             )
 
             # Test connection
@@ -395,13 +413,15 @@ class SSETransport(MCPTransport):
 
             # Start reading SSE stream
             self._read_task = asyncio.create_task(self._read_sse_stream())
-            
+
             self.state = ConnectionState.CONNECTED
             logger.info(f"Connected to SSE MCP server: {self.server_config.name}")
 
         except Exception as e:
             self.state = ConnectionState.FAILED
-            logger.error(f"Failed to connect to SSE MCP server {self.server_config.name}: {e}")
+            logger.error(
+                f"Failed to connect to SSE MCP server {self.server_config.name}: {e}"
+            )
             self._handle_error(e)
             raise
 
@@ -436,7 +456,7 @@ class SSETransport(MCPTransport):
             response = await self.client.post(
                 self.server_config.url,
                 json=message.to_dict(),
-                headers={"Content-Type": "application/json"}
+                headers={"Content-Type": "application/json"},
             )
             response.raise_for_status()
             logger.debug(f"Sent message to {self.server_config.name}: {message.method}")
@@ -464,7 +484,7 @@ class SSETransport(MCPTransport):
         try:
             async with self.client.stream("GET", self.server_config.url) as response:
                 response.raise_for_status()
-                
+
                 async for line in response.aiter_lines():
                     if line.startswith("data: "):
                         data = line[6:]  # Remove "data: " prefix
@@ -474,9 +494,13 @@ class SSETransport(MCPTransport):
                                 message = MCPMessage.from_dict(message_data)
                                 self._handle_message(message)
                             except json.JSONDecodeError as e:
-                                logger.error(f"Invalid JSON from SSE {self.server_config.name}: {e}")
+                                logger.error(
+                                    f"Invalid JSON from SSE {self.server_config.name}: {e}"
+                                )
                             except Exception as e:
-                                logger.error(f"Error processing SSE message from {self.server_config.name}: {e}")
+                                logger.error(
+                                    f"Error processing SSE message from {self.server_config.name}: {e}"
+                                )
 
         except Exception as e:
             if not isinstance(e, asyncio.CancelledError):
@@ -504,19 +528,21 @@ class HTTPTransport(MCPTransport):
             # Create HTTP client
             self.client = httpx.AsyncClient(
                 timeout=httpx.Timeout(self.server_config.settings.timeout),
-                headers=self.server_config.headers or {}
+                headers=self.server_config.headers or {},
             )
 
             # Test connection
             response = await self.client.get(self.server_config.url)
             response.raise_for_status()
-            
+
             self.state = ConnectionState.CONNECTED
             logger.info(f"Connected to HTTP MCP server: {self.server_config.name}")
 
         except Exception as e:
             self.state = ConnectionState.FAILED
-            logger.error(f"Failed to connect to HTTP MCP server {self.server_config.name}: {e}")
+            logger.error(
+                f"Failed to connect to HTTP MCP server {self.server_config.name}: {e}"
+            )
             self._handle_error(e)
             raise
 
@@ -542,16 +568,16 @@ class HTTPTransport(MCPTransport):
             response = await self.client.post(
                 self.server_config.url,
                 json=message.to_dict(),
-                headers={"Content-Type": "application/json"}
+                headers={"Content-Type": "application/json"},
             )
             response.raise_for_status()
-            
+
             # Handle response if it's a request
             if message.is_request():
                 response_data = response.json()
                 response_message = MCPMessage.from_dict(response_data)
                 self._handle_message(response_message)
-                
+
             logger.debug(f"Sent message to {self.server_config.name}: {message.method}")
         except Exception as e:
             logger.error(f"Failed to send message to {self.server_config.name}: {e}")
@@ -573,7 +599,7 @@ class HTTPTransport(MCPTransport):
 class MCPClient:
     """
     Client for connecting to external MCP servers.
-    
+
     Handles connection management, message routing, and health checking
     for various MCP transport protocols.
     """
@@ -581,7 +607,7 @@ class MCPClient:
     def __init__(self, server_config: ServerConfig):
         """
         Initialize MCP client.
-        
+
         Args:
             server_config: Configuration for the MCP server to connect to
         """
@@ -591,12 +617,12 @@ class MCPClient:
         self._pending_requests: Dict[Union[str, int], asyncio.Future] = {}
         self._last_health_check = 0.0
         self._connection_attempts = 0
-        
+
         # Tool discovery cache
         self._discovered_tools: List[MCPTool] = []
         self._server_info: Optional[MCPServerInfo] = None
         self._last_discovery = 0.0
-        
+
         # Create appropriate transport
         self._create_transport()
 
@@ -618,7 +644,7 @@ class MCPClient:
     async def connect(self) -> None:
         """
         Connect to the MCP server.
-        
+
         Raises:
             RuntimeError: If connection fails
         """
@@ -628,36 +654,44 @@ class MCPClient:
         try:
             await self.transport.connect()
             self._connection_attempts = 0
-            logger.info(f"Successfully connected to MCP server: {self.server_config.name}")
+            logger.info(
+                f"Successfully connected to MCP server: {self.server_config.name}"
+            )
         except Exception as e:
             self._connection_attempts += 1
-            logger.error(f"Failed to connect to MCP server {self.server_config.name}: {e}")
+            logger.error(
+                f"Failed to connect to MCP server {self.server_config.name}: {e}"
+            )
             raise
 
     async def disconnect(self) -> None:
         """Disconnect from the MCP server."""
         if self.transport:
             await self.transport.disconnect()
-            
+
         # Cancel any pending requests
         for future in self._pending_requests.values():
             if not future.done():
                 future.cancel()
         self._pending_requests.clear()
 
-    async def send_request(self, method: str, params: Optional[Dict[str, Any]] = None, 
-                          timeout: Optional[float] = None) -> Any:
+    async def send_request(
+        self,
+        method: str,
+        params: Optional[Dict[str, Any]] = None,
+        timeout: Optional[float] = None,
+    ) -> Any:
         """
         Send a request to the MCP server and wait for response.
-        
+
         Args:
             method: The method name to call
             params: Parameters for the method
             timeout: Request timeout in seconds
-            
+
         Returns:
             The result from the server
-            
+
         Raises:
             RuntimeError: If not connected or request fails
             asyncio.TimeoutError: If request times out
@@ -667,13 +701,9 @@ class MCPClient:
 
         # Generate unique message ID
         message_id = self._get_next_message_id()
-        
+
         # Create request message
-        message = MCPMessage(
-            id=message_id,
-            method=method,
-            params=params or {}
-        )
+        message = MCPMessage(id=message_id, method=method, params=params or {})
 
         # Create future for response
         response_future = asyncio.Future()
@@ -682,18 +712,20 @@ class MCPClient:
         try:
             # Send message
             await self.transport.send_message(message)
-            
+
             # Wait for response
             timeout = timeout or self.server_config.settings.timeout
             response = await asyncio.wait_for(response_future, timeout=timeout)
-            
+
             return response
-            
+
         except asyncio.TimeoutError:
             logger.error(f"Request timeout for {method} on {self.server_config.name}")
             raise
         except Exception as e:
-            logger.error(f"Request failed for {method} on {self.server_config.name}: {e}")
+            logger.error(
+                f"Request failed for {method} on {self.server_config.name}: {e}"
+            )
             raise
         finally:
             # Clean up pending request
@@ -702,10 +734,10 @@ class MCPClient:
     async def initialize_server(self) -> MCPServerInfo:
         """
         Initialize the MCP server connection and get server info.
-        
+
         Returns:
             Server information
-            
+
         Raises:
             RuntimeError: If initialization fails
         """
@@ -714,40 +746,44 @@ class MCPClient:
 
         try:
             # Send initialize request
-            result = await self.send_request("initialize", {
-                "protocolVersion": "2024-11-05",
-                "capabilities": {
-                    "tools": {}
+            result = await self.send_request(
+                "initialize",
+                {
+                    "protocolVersion": "2024-11-05",
+                    "capabilities": {"tools": {}},
+                    "clientInfo": {"name": "mcp-proxy-client", "version": "1.0.0"},
                 },
-                "clientInfo": {
-                    "name": "mcp-proxy-client",
-                    "version": "1.0.0"
-                }
-            })
-            
+            )
+
             # Parse server info
-            self._server_info = MCPServerInfo.from_mcp_response(result, self.server_config.name)
-            
+            self._server_info = MCPServerInfo.from_mcp_response(
+                result, self.server_config.name
+            )
+
             # Send initialized notification
             await self.send_notification("notifications/initialized")
-            
-            logger.info(f"Initialized MCP server {self.server_config.name}: {self._server_info.name} v{self._server_info.version}")
+
+            logger.info(
+                f"Initialized MCP server {self.server_config.name}: {self._server_info.name} v{self._server_info.version}"
+            )
             return self._server_info
-            
+
         except Exception as e:
-            logger.error(f"Failed to initialize MCP server {self.server_config.name}: {e}")
+            logger.error(
+                f"Failed to initialize MCP server {self.server_config.name}: {e}"
+            )
             raise
 
     async def discover_tools(self, force_refresh: bool = False) -> List[MCPTool]:
         """
         Discover tools available on the MCP server.
-        
+
         Args:
             force_refresh: If True, bypass cache and fetch fresh tool list
-            
+
         Returns:
             List of discovered tools
-            
+
         Raises:
             RuntimeError: If not connected or discovery fails
         """
@@ -757,26 +793,26 @@ class MCPClient:
         # Check cache
         now = time.time()
         cache_valid = (
-            not force_refresh and 
-            self._discovered_tools and 
-            (now - self._last_discovery) < 300  # 5 minute cache
+            not force_refresh
+            and self._discovered_tools
+            and (now - self._last_discovery) < 300  # 5 minute cache
         )
-        
+
         if cache_valid:
             logger.debug(f"Using cached tools for {self.server_config.name}")
             return self._discovered_tools
 
         try:
             logger.info(f"Discovering tools from MCP server: {self.server_config.name}")
-            
+
             # Send tools/list request
             result = await self.send_request("tools/list")
-            
+
             # Parse tools from response
             tools_data = result.get("tools", [])
             if not isinstance(tools_data, list):
                 raise ValueError("Expected 'tools' to be a list in response")
-            
+
             # Convert to MCPTool objects
             discovered_tools = []
             for tool_data in tools_data:
@@ -785,30 +821,36 @@ class MCPClient:
                     discovered_tools.append(tool)
                     logger.debug(f"Discovered tool: {tool.name}")
                 except Exception as e:
-                    logger.warning(f"Failed to parse tool from {self.server_config.name}: {e}")
+                    logger.warning(
+                        f"Failed to parse tool from {self.server_config.name}: {e}"
+                    )
                     continue
-            
+
             # Update cache
             self._discovered_tools = discovered_tools
             self._last_discovery = now
-            
-            logger.info(f"Discovered {len(discovered_tools)} tools from {self.server_config.name}")
+
+            logger.info(
+                f"Discovered {len(discovered_tools)} tools from {self.server_config.name}"
+            )
             return discovered_tools
-            
+
         except Exception as e:
-            logger.error(f"Failed to discover tools from {self.server_config.name}: {e}")
+            logger.error(
+                f"Failed to discover tools from {self.server_config.name}: {e}"
+            )
             raise
 
     async def get_tool_schema(self, tool_name: str) -> Dict[str, Any]:
         """
         Get detailed schema for a specific tool.
-        
+
         Args:
             tool_name: Name of the tool to get schema for
-            
+
         Returns:
             Tool schema information
-            
+
         Raises:
             RuntimeError: If not connected or tool not found
         """
@@ -820,26 +862,28 @@ class MCPClient:
             for tool in self._discovered_tools:
                 if tool.name == tool_name:
                     return tool.input_schema
-            
+
             # If not in cache, try to get it directly
             result = await self.send_request("tools/get", {"name": tool_name})
             return result.get("inputSchema", {})
-            
+
         except Exception as e:
-            logger.error(f"Failed to get schema for tool {tool_name} from {self.server_config.name}: {e}")
+            logger.error(
+                f"Failed to get schema for tool {tool_name} from {self.server_config.name}: {e}"
+            )
             raise
 
     async def call_tool(self, tool_name: str, arguments: Dict[str, Any]) -> Any:
         """
         Call a tool on the MCP server.
-        
+
         Args:
             tool_name: Name of the tool to call
             arguments: Arguments to pass to the tool
-            
+
         Returns:
             Tool execution result
-            
+
         Raises:
             RuntimeError: If not connected or tool call fails
         """
@@ -848,12 +892,11 @@ class MCPClient:
 
         try:
             logger.debug(f"Calling tool {tool_name} on {self.server_config.name}")
-            
-            result = await self.send_request("tools/call", {
-                "name": tool_name,
-                "arguments": arguments
-            })
-            
+
+            result = await self.send_request(
+                "tools/call", {"name": tool_name, "arguments": arguments}
+            )
+
             # Extract content from result
             content = result.get("content", [])
             if isinstance(content, list) and len(content) > 0:
@@ -861,17 +904,19 @@ class MCPClient:
                 first_content = content[0]
                 if isinstance(first_content, dict):
                     return first_content.get("text", result)
-            
+
             return result
-            
+
         except Exception as e:
-            logger.error(f"Failed to call tool {tool_name} on {self.server_config.name}: {e}")
+            logger.error(
+                f"Failed to call tool {tool_name} on {self.server_config.name}: {e}"
+            )
             raise
 
     def get_discovered_tools(self) -> List[MCPTool]:
         """
         Get the list of currently discovered tools (from cache).
-        
+
         Returns:
             List of discovered tools
         """
@@ -880,7 +925,7 @@ class MCPClient:
     def get_server_info(self) -> Optional[MCPServerInfo]:
         """
         Get server information.
-        
+
         Returns:
             Server info if available, None otherwise
         """
@@ -889,10 +934,10 @@ class MCPClient:
     def get_tool_by_name(self, tool_name: str) -> Optional[MCPTool]:
         """
         Get a specific tool by name from discovered tools.
-        
+
         Args:
             tool_name: Name of the tool to find
-            
+
         Returns:
             MCPTool if found, None otherwise
         """
@@ -907,31 +952,30 @@ class MCPClient:
         self._last_discovery = 0.0
         logger.debug(f"Cleared tool cache for {self.server_config.name}")
 
-    async def send_notification(self, method: str, params: Optional[Dict[str, Any]] = None) -> None:
+    async def send_notification(
+        self, method: str, params: Optional[Dict[str, Any]] = None
+    ) -> None:
         """
         Send a notification to the MCP server (no response expected).
-        
+
         Args:
             method: The method name to call
             params: Parameters for the method
-            
+
         Raises:
             RuntimeError: If not connected
         """
         if not self.transport or self.transport.state != ConnectionState.CONNECTED:
             raise RuntimeError("Not connected to MCP server")
 
-        message = MCPMessage(
-            method=method,
-            params=params or {}
-        )
+        message = MCPMessage(method=method, params=params or {})
 
         await self.transport.send_message(message)
 
     async def is_healthy(self) -> bool:
         """
         Check if the connection is healthy.
-        
+
         Returns:
             True if connection is healthy, False otherwise
         """
@@ -940,7 +984,9 @@ class MCPClient:
 
         # Use cached result if recent
         now = time.time()
-        if (now - self._last_health_check) < self.server_config.settings.health_check_interval:
+        if (
+            now - self._last_health_check
+        ) < self.server_config.settings.health_check_interval:
             return self.transport.state == ConnectionState.CONNECTED
 
         # Perform health check
@@ -955,7 +1001,7 @@ class MCPClient:
     async def reconnect(self) -> bool:
         """
         Attempt to reconnect to the MCP server.
-        
+
         Returns:
             True if reconnection successful, False otherwise
         """
@@ -967,21 +1013,25 @@ class MCPClient:
 
         for attempt in range(max_attempts):
             try:
-                logger.info(f"Reconnection attempt {attempt + 1}/{max_attempts} for {self.server_config.name}")
-                
+                logger.info(
+                    f"Reconnection attempt {attempt + 1}/{max_attempts} for {self.server_config.name}"
+                )
+
                 # Disconnect first
                 await self.disconnect()
-                
+
                 # Wait before retry
                 if attempt > 0:
-                    await asyncio.sleep(delay * (2 ** attempt))  # Exponential backoff
-                
+                    await asyncio.sleep(delay * (2**attempt))  # Exponential backoff
+
                 # Attempt connection
                 await self.connect()
                 return True
-                
+
             except Exception as e:
-                logger.warning(f"Reconnection attempt {attempt + 1} failed for {self.server_config.name}: {e}")
+                logger.warning(
+                    f"Reconnection attempt {attempt + 1} failed for {self.server_config.name}: {e}"
+                )
 
         logger.error(f"All reconnection attempts failed for {self.server_config.name}")
         return False
@@ -1004,14 +1054,18 @@ class MCPClient:
                     future.set_result(message.result)
         elif message.is_notification():
             # Handle notification (could be used for events)
-            logger.debug(f"Received notification from {self.server_config.name}: {message.method}")
+            logger.debug(
+                f"Received notification from {self.server_config.name}: {message.method}"
+            )
         else:
-            logger.warning(f"Unhandled message from {self.server_config.name}: {message.to_dict()}")
+            logger.warning(
+                f"Unhandled message from {self.server_config.name}: {message.to_dict()}"
+            )
 
     def _handle_error(self, error: Exception) -> None:
         """Handle transport error."""
         logger.error(f"Transport error for {self.server_config.name}: {error}")
-        
+
         # Cancel any pending requests
         for future in self._pending_requests.values():
             if not future.done():
@@ -1021,8 +1075,10 @@ class MCPClient:
     @property
     def is_connected(self) -> bool:
         """Check if client is connected."""
-        return (self.transport is not None and 
-                self.transport.state == ConnectionState.CONNECTED)
+        return (
+            self.transport is not None
+            and self.transport.state == ConnectionState.CONNECTED
+        )
 
     @property
     def connection_state(self) -> ConnectionState:
@@ -1035,9 +1091,11 @@ class MCPClient:
 
     def __repr__(self) -> str:
         """Detailed string representation."""
-        return (f"MCPClient(name={self.server_config.name}, "
-                f"type={self.server_config.type}, "
-                f"state={self.connection_state.value})")
+        return (
+            f"MCPClient(name={self.server_config.name}, "
+            f"type={self.server_config.type}, "
+            f"state={self.connection_state.value})"
+        )
 
 
 # Import os for environment variables

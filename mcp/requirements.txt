@@ -1,3 +1,7 @@
 fastmcp
 httpx
 python-json-logger
+# Linting and code formatting tools
+flake8
+black
+pylint

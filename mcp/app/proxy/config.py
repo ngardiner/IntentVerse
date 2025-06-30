@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ServerSettings:
     """Settings for individual MCP server connections."""
+
     timeout: int = 30
     retry_attempts: int = 3
     retry_delay: int = 5
@@ -39,12 +40,13 @@ class ServerSettings:
 @dataclass
 class ServerConfig:
     """Configuration for a single MCP server."""
+
     name: str
     enabled: bool
     description: str
     type: str
     settings: ServerSettings
-    
+
     # Connection-specific fields
     command: Optional[str] = None
     args: Optional[List[str]] = None
@@ -56,10 +58,10 @@ class ServerConfig:
         """Validate server configuration after initialization."""
         if not self.name:
             raise ValueError("Server name cannot be empty")
-        
+
         if self.type not in ["stdio", "sse", "streamable-http", "websocket", "tcp"]:
             raise ValueError(f"Unsupported server type: {self.type}")
-        
+
         # Validate type-specific requirements
         if self.type == "stdio":
             if not self.command:
@@ -67,7 +69,7 @@ class ServerConfig:
         elif self.type in ["sse", "streamable-http", "websocket"]:
             if not self.url:
                 raise ValueError(f"{self.type} servers require a url")
-        
+
         # Set defaults
         if self.args is None:
             self.args = []
@@ -89,16 +91,9 @@ class ServerConfig:
     def get_connection_info(self) -> Dict[str, Any]:
         """Get connection information for this server."""
         if self.is_process_based:
-            return {
-                "command": self.command,
-                "args": self.args,
-                "env": self.env
-            }
+            return {"command": self.command, "args": self.args, "env": self.env}
         elif self.is_network_based:
-            return {
-                "url": self.url,
-                "headers": self.headers
-            }
+            return {"url": self.url, "headers": self.headers}
         else:
             return {}
 
@@ -106,6 +101,7 @@ class ServerConfig:
 @dataclass
 class GlobalSettings:
     """Global settings for the proxy engine."""
+
     discovery_interval: int = 300
     health_check_interval: int = 60
     max_concurrent_calls: int = 10
@@ -127,14 +123,14 @@ class GlobalSettings:
 class ProxyConfig:
     """
     Main configuration class for MCP Proxy Engine.
-    
+
     Handles loading, validation, and access to proxy configuration.
     """
 
     def __init__(self, config_path: Optional[Union[str, Path]] = None):
         """
         Initialize proxy configuration.
-        
+
         Args:
             config_path: Path to configuration file. If None, uses default location.
         """
@@ -148,7 +144,7 @@ class ProxyConfig:
         """Resolve the configuration file path."""
         if config_path:
             return Path(config_path)
-        
+
         # Default to mcp-proxy.json in the same directory as this module
         module_dir = Path(__file__).parent.parent.parent
         return module_dir / "mcp-proxy.json"
@@ -156,7 +152,7 @@ class ProxyConfig:
     def load(self) -> None:
         """
         Load configuration from file.
-        
+
         Raises:
             FileNotFoundError: If config file doesn't exist
             ValueError: If config is invalid
@@ -168,14 +164,14 @@ class ProxyConfig:
         logger.info(f"Loading MCP proxy configuration from {self.config_path}")
 
         try:
-            with open(self.config_path, 'r', encoding='utf-8') as f:
+            with open(self.config_path, "r", encoding="utf-8") as f:
                 config_data = json.load(f)
         except json.JSONDecodeError as e:
             raise ValueError(f"Invalid JSON in configuration file: {e}")
 
         self._validate_and_load_config(config_data)
         self._loaded = True
-        
+
         logger.info(f"Loaded configuration for {len(self.servers)} servers")
 
     def _validate_and_load_config(self, config_data: Dict[str, Any]) -> None:
@@ -212,11 +208,13 @@ class ProxyConfig:
                     args=server_data.get("args"),
                     env=server_data.get("env"),
                     url=server_data.get("url"),
-                    headers=server_data.get("headers")
+                    headers=server_data.get("headers"),
                 )
 
                 self.servers[server_name] = server_config
-                logger.debug(f"Loaded server config: {server_name} ({server_config.type})")
+                logger.debug(
+                    f"Loaded server config: {server_name} ({server_config.type})"
+                )
 
             except Exception as e:
                 logger.error(f"Failed to load server config '{server_name}': {e}")
@@ -230,10 +228,10 @@ class ProxyConfig:
     def save(self) -> None:
         """Save current configuration to file."""
         config_data = self.to_dict()
-        
+
         logger.info(f"Saving MCP proxy configuration to {self.config_path}")
-        
-        with open(self.config_path, 'w', encoding='utf-8') as f:
+
+        with open(self.config_path, "w", encoding="utf-8") as f:
             json.dump(config_data, f, indent=2, ensure_ascii=False)
 
     def to_dict(self) -> Dict[str, Any]:
@@ -249,8 +247,8 @@ class ProxyConfig:
                     "retry_attempts": server.settings.retry_attempts,
                     "retry_delay": server.settings.retry_delay,
                     "tool_prefix": server.settings.tool_prefix,
-                    "health_check_interval": server.settings.health_check_interval
-                }
+                    "health_check_interval": server.settings.health_check_interval,
+                },
             }
 
             # Add connection-specific fields
@@ -275,8 +273,8 @@ class ProxyConfig:
                 "health_check_interval": self.global_settings.health_check_interval,
                 "max_concurrent_calls": self.global_settings.max_concurrent_calls,
                 "enable_timeline_logging": self.global_settings.enable_timeline_logging,
-                "log_level": self.global_settings.log_level
-            }
+                "log_level": self.global_settings.log_level,
+            },
         }
 
     def get_enabled_servers(self) -> List[ServerConfig]:
@@ -291,7 +289,7 @@ class ProxyConfig:
         """Add a new server configuration."""
         if server_config.name in self.servers:
             raise ValueError(f"Server '{server_config.name}' already exists")
-        
+
         self.servers[server_config.name] = server_config
         logger.info(f"Added server configuration: {server_config.name}")
 
@@ -321,7 +319,7 @@ class ProxyConfig:
     def validate(self) -> List[str]:
         """
         Validate the current configuration.
-        
+
         Returns:
             List of validation error messages. Empty list if valid.
         """
@@ -343,7 +341,9 @@ class ProxyConfig:
 
         # Check for duplicate tool prefixes among enabled servers
         enabled_servers = self.get_enabled_servers()
-        prefixes = [s.settings.tool_prefix for s in enabled_servers if s.settings.tool_prefix]
+        prefixes = [
+            s.settings.tool_prefix for s in enabled_servers if s.settings.tool_prefix
+        ]
         if len(prefixes) != len(set(prefixes)):
             errors.append("Duplicate tool prefixes found among enabled servers")
 
@@ -362,22 +362,24 @@ class ProxyConfig:
 
     def __repr__(self) -> str:
         """Detailed string representation."""
-        return (f"ProxyConfig(config_path={self.config_path}, "
-                f"servers={list(self.servers.keys())}, "
-                f"version={self.version})")
+        return (
+            f"ProxyConfig(config_path={self.config_path}, "
+            f"servers={list(self.servers.keys())}, "
+            f"version={self.version})"
+        )
 
 
 # Convenience function for loading configuration
 def load_proxy_config(config_path: Optional[Union[str, Path]] = None) -> ProxyConfig:
     """
     Load proxy configuration from file.
-    
+
     Args:
         config_path: Path to configuration file. If None, uses default location.
-        
+
     Returns:
         Loaded ProxyConfig instance
-        
+
     Raises:
         FileNotFoundError: If config file doesn't exist
         ValueError: If config is invalid

@@ -1,7 +1,7 @@
 .service_pids
 *.md
 *.pyc
-venv/
+*venv/
 core/*venv/
 intentverse.db
 logs/*

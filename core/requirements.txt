@@ -10,3 +10,10 @@ python-json-logger
 pytest-asyncio
 respx
 packaging
+# Linting and code formatting tools
+flake8
+black
+pylint
+# Rate limiting
+slowapi
+redis

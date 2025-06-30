@@ -15,62 +15,70 @@ from .init_db import init_db
 from .content_pack_manager import ContentPackManager
 from .logging_config import setup_logging
 from .modules.timeline.tool import router as timeline_router
+from .middleware import RateLimitMiddleware, RequestLoggingMiddleware
+from .rate_limiter import limiter
 
 # Apply the JSON logging configuration at the earliest point
 setup_logging()
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # This code runs on server startup
     logging.info("--- IntentVerse Core Engine Starting Up ---")
-    
+
     # Skip database initialization during tests
     import os
+
     is_testing = os.getenv("SERVICE_API_KEY") == "test-service-key-12345"
-    
+
     if not is_testing:
         create_db_and_tables()
         # Initialize the database with default data (admin user and groups)
         init_db()
     else:
         logging.info("Skipping database initialization during tests")
-    
+
     # Discover and load all modules from the 'modules' directory
     if not is_testing:
         from .database import engine
+
         with Session(engine) as session:
             module_loader.load_modules(session)
     else:
         logging.info("Skipping module loading during tests")
-    
+
     # Load default content pack after modules are loaded
     if not is_testing:
         content_pack_manager.load_default_content_pack()
     else:
         logging.info("Skipping content pack loading during tests")
-    
+
     # Log system startup event
     from .modules.timeline.tool import log_system_event
+
     log_system_event(
         title="Core Service Started",
-        description="The IntentVerse Core Engine has been started and is ready to accept connections."
+        description="The IntentVerse Core Engine has been started and is ready to accept connections.",
     )
     logging.info("Logged system startup event")
-    
+
     yield
     # This code runs on server shutdown
     logging.info("--- IntentVerse Core Engine Shutting Down ---")
-    
+
     # Log system shutdown event
     try:
         from .modules.timeline.tool import log_system_event
+
         log_system_event(
             title="Core Service Stopped",
-            description="The IntentVerse Core Engine has been stopped."
+            description="The IntentVerse Core Engine has been stopped.",
         )
         logging.info("Logged system shutdown event")
     except Exception as e:
         logging.error(f"Failed to log shutdown event: {e}")
+
 
 # --- Application Initialization ---
 app = FastAPI(
@@ -78,6 +86,8 @@ app = FastAPI(
     description="Manages state, tools, and logic for the IntentVerse simulation.",
     version="1.0.0",
     lifespan=lifespan,
+    docs_url="/api/docs",
+    redoc_url="/api/redoc",
 )
 
 # Add CORS middleware to allow cross-origin requests from the web client
@@ -88,6 +98,23 @@ app.add_middleware(
     allow_methods=["*"],  # Allow all methods
     allow_headers=["*"],  # Allow all headers
 )
+
+# Add rate limiting middleware
+app.add_middleware(RateLimitMiddleware)
+
+# Add request logging middleware
+app.add_middleware(RequestLoggingMiddleware)
+
+# Add the rate limiter to the app
+# Rate limits are configured as follows:
+# - 30 requests per minute for unauthenticated users
+# - 100 requests per minute for authenticated users
+# - 200 requests per minute for admin users and service accounts
+# These limits can be configured via environment variables:
+# - RATE_LIMIT_UNAUTH: Rate limit for unauthenticated users (default: 30/minute)
+# - RATE_LIMIT_AUTH: Rate limit for authenticated users (default: 100/minute)
+# - RATE_LIMIT_ADMIN: Rate limit for admin users and services (default: 200/minute)
+app.state.limiter = limiter
 
 module_loader = ModuleLoader(state_manager)
 content_pack_manager = ContentPackManager(state_manager, module_loader)
@@ -101,9 +128,12 @@ app.include_router(timeline_router)
 # Create a new, separate router for debug endpoints
 debug_router = APIRouter()
 
+
 @debug_router.get("/debug/module-loader-state", tags=["Debug"])
 def get_module_loader_state(
-    current_user_or_service: Annotated[Union[User, str], Depends(get_current_user_or_service)]
+    current_user_or_service: Annotated[
+        Union[User, str], Depends(get_current_user_or_service)
+    ],
 ):
     """
     Returns a snapshot of the ModuleLoader's state for debugging purposes.
@@ -114,8 +144,9 @@ def get_module_loader_state(
         "modules_path_calculated": str(module_loader.modules_path),
         "modules_path_exists": module_loader.modules_path.exists(),
         "loading_errors": module_loader.errors,
-        "loaded_modules": list(module_loader.modules.keys())
+        "loaded_modules": list(module_loader.modules.keys()),
     }
+
 
 app.include_router(debug_router, prefix="/api/v1")
 

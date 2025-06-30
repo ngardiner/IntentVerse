@@ -1,6 +1,7 @@
 import threading
 from typing import Any, Dict
 
+
 class StateManager:
     """
     A thread-safe, in-memory state manager for the application.
@@ -50,6 +51,7 @@ class StateManager:
         """
         with self._lock:
             return self._state.copy()
+
 
 # A single, global instance of the StateManager that can be imported
 # by other parts of the application to ensure shared state.

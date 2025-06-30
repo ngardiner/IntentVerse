@@ -18,18 +18,20 @@ if "SERVICE_API_KEY" not in os.environ:
 # Use an in-memory SQLite database for testing
 TEST_DATABASE_URL = "sqlite:///:memory:"  # Use in-memory SQLite for test isolation
 test_engine = create_engine(
-    TEST_DATABASE_URL, 
+    TEST_DATABASE_URL,
     connect_args={"check_same_thread": False},
     poolclass=StaticPool,  # Use StaticPool to share the same connection
-    pool_pre_ping=True
+    pool_pre_ping=True,
 )
 
 # Override the engine used in the database module BEFORE importing the app
 from app import database
+
 database.engine = test_engine
 
 # Override the init_db module to use the test engine
 from app import init_db
+
 init_db.engine = test_engine
 
 # Now import the app and other modules
@@ -37,18 +39,35 @@ from app.main import app
 from app.database import get_session
 from app.state_manager import StateManager
 from app.module_loader import ModuleLoader
-from app.auth import get_current_user, get_current_user_or_service, User, UserGroup, UserGroupLink
+from app.auth import (
+    get_current_user,
+    get_current_user_or_service,
+    User,
+    UserGroup,
+    UserGroupLink,
+)
+
 # Import ALL models to ensure they're registered with SQLModel metadata
 from app.models import (
-    AuditLog, Role, Permission, UserRoleLink, GroupRoleLink, RolePermissionLink,
-    ModuleConfiguration, User, UserGroup, UserGroupLink
+    AuditLog,
+    Role,
+    Permission,
+    UserRoleLink,
+    GroupRoleLink,
+    RolePermissionLink,
+    ModuleConfiguration,
+    User,
+    UserGroup,
+    UserGroupLink,
 )
 from app.security import get_password_hash, create_access_token
+
 
 def get_session_override():
     """Dependency override to use the test database session."""
     with Session(test_engine) as session:
         yield session
+
 
 # Override the database session dependency
 app.dependency_overrides[get_session] = get_session_override
@@ -59,15 +78,17 @@ TEST_USER_DATA = {
     "password": "testpass123",
     "email": "test@example.com",
     "full_name": "Test User",
-    "is_admin": True
+    "is_admin": True,
 }
+
 
 def setup_test_database(session: Session):
     """Set up the test database with RBAC system and test data."""
     from app.rbac import initialize_rbac_system
-    
+
     # Initialize RBAC system first to ensure roles and permissions exist
     initialize_rbac_system(session)
+
 
 def create_test_user(session: Session) -> User:
     """Create a test user in the database."""
@@ -77,30 +98,35 @@ def create_test_user(session: Session) -> User:
         hashed_password=hashed_password,
         email=TEST_USER_DATA["email"],
         full_name=TEST_USER_DATA["full_name"],
-        is_admin=TEST_USER_DATA["is_admin"]
+        is_admin=TEST_USER_DATA["is_admin"],
     )
     session.add(user)
     session.commit()
     session.refresh(user)
-    
+
     # Ensure the admin role is assigned to the admin user
     from app.rbac import assign_admin_role_to_admins
+
     assign_admin_role_to_admins(session)
-    
+
     return user
+
 
 def get_test_token() -> str:
     """Generate a test JWT token for the test user."""
     return create_access_token(data={"sub": TEST_USER_DATA["username"]})
+
 
 def get_auth_headers() -> dict:
     """Get authentication headers with JWT token."""
     token = get_test_token()
     return {"Authorization": f"Bearer {token}"}
 
+
 def get_service_headers() -> dict:
     """Get authentication headers with service API key."""
     return {"X-API-Key": os.environ.get("SERVICE_API_KEY", TEST_SERVICE_API_KEY)}
+
 
 @pytest.fixture(name="test_user")
 def test_user_fixture():
@@ -109,28 +135,39 @@ def test_user_fixture():
         user = create_test_user(session)
         yield user
 
+
 @pytest.fixture(name="auth_headers")
 def auth_headers_fixture(test_user):
     """Get authentication headers for API requests."""
     return get_auth_headers()
+
 
 @pytest.fixture(name="service_headers")
 def service_headers_fixture():
     """Get service authentication headers for API requests."""
     return get_service_headers()
 
+
 def create_test_db_and_tables():
     """Create all database tables for testing, ensuring all models are imported."""
     # Import all models to ensure they're registered with SQLModel metadata
     # This matches what's done in app.database.create_db_and_tables()
     from app.models import (
-        User, UserGroup, UserGroupLink, AuditLog, ModuleConfiguration,
-        Role, Permission, UserRoleLink, GroupRoleLink, RolePermissionLink
+        User,
+        UserGroup,
+        UserGroupLink,
+        AuditLog,
+        ModuleConfiguration,
+        Role,
+        Permission,
+        UserRoleLink,
+        GroupRoleLink,
+        RolePermissionLink,
     )
-    
+
     # Create all tables
     SQLModel.metadata.create_all(test_engine)
-    
+
     # Verify critical tables exist
     with Session(test_engine) as session:
         try:
@@ -139,6 +176,7 @@ def create_test_db_and_tables():
             session.exec(text("SELECT COUNT(*) FROM role")).first()
         except Exception as e:
             raise RuntimeError(f"Failed to create test database tables: {e}")
+
 
 @pytest.fixture(name="client")
 def client_fixture():
@@ -149,17 +187,18 @@ def client_fixture():
     """
     # Create all database tables
     create_test_db_and_tables()
-    
+
     # Set up test database with RBAC system
     with Session(test_engine) as session:
         setup_test_database(session)
-    
+
     # This context manager will run the startup events before yielding
     with TestClient(app) as client:
         yield client
-        
+
     # Clean up by dropping tables after tests are done
     SQLModel.metadata.drop_all(test_engine)
+
 
 @pytest.fixture(name="authenticated_client")
 def authenticated_client_fixture(client, test_user):
@@ -169,6 +208,7 @@ def authenticated_client_fixture(client, test_user):
     client.headers.update(get_auth_headers())
     yield client
 
+
 @pytest.fixture(name="session")
 def session_fixture():
     """
@@ -176,9 +216,10 @@ def session_fixture():
     """
     # Ensure tables are created
     create_test_db_and_tables()
-    
+
     with Session(test_engine) as session:
         yield session
+
 
 @pytest.fixture(name="service_client")
 def service_client_fixture(client):

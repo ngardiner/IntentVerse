@@ -1,6 +1,7 @@
 """
 Unit tests for the User model.
 """
+
 import pytest
 from sqlmodel import Session, create_engine, SQLModel
 from app.models import User
@@ -44,12 +45,12 @@ def test_user_model_database_operations(test_session):
     test_session.add(user)
     test_session.commit()
     test_session.refresh(user)
-    
+
     # Verify the user was saved with an ID
     assert user.id is not None
     assert user.username == "dbuser"
     assert user.hashed_password == "dbhashed123"
-    
+
     # Retrieve the user from the database
     retrieved_user = test_session.get(User, user.id)
     assert retrieved_user is not None
@@ -63,11 +64,11 @@ def test_user_model_unique_username(test_session):
     user1 = User(username="uniqueuser", hashed_password="hash1")
     test_session.add(user1)
     test_session.commit()
-    
+
     # Try to create second user with same username
     user2 = User(username="uniqueuser", hashed_password="hash2")
     test_session.add(user2)
-    
+
     # This should raise an integrity error due to unique constraint
     with pytest.raises(Exception):  # SQLite will raise IntegrityError
         test_session.commit()

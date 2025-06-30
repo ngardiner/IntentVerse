@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ProxyCallEvent:
     """Event data for a proxy tool call."""
+
     tool_name: str
     server_name: str
     original_name: str
@@ -26,14 +27,14 @@ class ProxyCallEvent:
     result: Optional[Any] = None
     error: Optional[str] = None
     status: str = "pending"
-    
+
     @property
     def duration_ms(self) -> Optional[float]:
         """Get call duration in milliseconds."""
         if self.end_time and self.start_time:
             return (self.end_time - self.start_time) * 1000
         return None
-    
+
     def to_timeline_event(self) -> Dict[str, Any]:
         """Convert to timeline event format."""
         # Determine event status
@@ -50,8 +51,10 @@ class ProxyCallEvent:
         else:
             status = "pending"
             title = f"Proxy Tool Executing: {self.tool_name}"
-            description = f"Executing '{self.original_name}' on server '{self.server_name}'"
-        
+            description = (
+                f"Executing '{self.original_name}' on server '{self.server_name}'"
+            )
+
         # Create timeline event
         event = {
             "event_type": "mcp_proxy_call",
@@ -68,78 +71,97 @@ class ProxyCallEvent:
                 "duration_ms": self.duration_ms,
                 "result": self.result if not self.error else None,
                 "error": self.error,
-                "proxy_type": "mcp_external_tool"
-            }
+                "proxy_type": "mcp_external_tool",
+            },
         }
-        
+
         return event
 
 
 class ProxyTimelineLogger:
     """Timeline logger for MCP proxy tool calls."""
-    
+
     def __init__(self):
         """Initialize the timeline logger."""
         self._timeline_module = None
         self._active_calls: Dict[str, ProxyCallEvent] = {}
         self._call_counter = 0
-        
+
     def _get_timeline_module(self):
         """Get the timeline module (lazy loading to avoid circular imports)."""
         if self._timeline_module is None:
             try:
                 # Try to import timeline functions from core
                 from core.app.modules.timeline.tool import add_event, log_system_event
+
                 self._timeline_module = {
-                    'add_event': add_event,
-                    'log_system_event': log_system_event
+                    "add_event": add_event,
+                    "log_system_event": log_system_event,
                 }
                 logger.debug("Timeline module loaded for MCP proxy logging")
             except ImportError as e:
-                logger.debug(f"Core timeline module not available for MCP proxy logging: {e}")
+                logger.debug(
+                    f"Core timeline module not available for MCP proxy logging: {e}"
+                )
                 # Try alternative import paths
                 try:
                     # Try importing from a relative path if running in integrated mode
                     import sys
                     import os
-                    
+
                     # Add the core path to sys.path temporarily
-                    core_path = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'core')
+                    core_path = os.path.join(
+                        os.path.dirname(__file__), "..", "..", "..", "core"
+                    )
                     if os.path.exists(core_path) and core_path not in sys.path:
                         sys.path.insert(0, core_path)
-                        from app.modules.timeline.tool import add_event, log_system_event
+                        from app.modules.timeline.tool import (
+                            add_event,
+                            log_system_event,
+                        )
+
                         self._timeline_module = {
-                            'add_event': add_event,
-                            'log_system_event': log_system_event
+                            "add_event": add_event,
+                            "log_system_event": log_system_event,
                         }
-                        logger.debug("Timeline module loaded via alternative path for MCP proxy logging")
+                        logger.debug(
+                            "Timeline module loaded via alternative path for MCP proxy logging"
+                        )
                     else:
                         raise ImportError("Core timeline module not found")
                 except ImportError:
-                    logger.info("Timeline module not available - using dummy functions for MCP proxy logging")
+                    logger.info(
+                        "Timeline module not available - using dummy functions for MCP proxy logging"
+                    )
                     # Create dummy functions to avoid errors
                     self._timeline_module = {
-                        'add_event': lambda *args, **kwargs: None,
-                        'log_system_event': lambda *args, **kwargs: None
+                        "add_event": lambda *args, **kwargs: None,
+                        "log_system_event": lambda *args, **kwargs: None,
                     }
         return self._timeline_module
-    
-    def start_call(self, tool_name: str, server_name: str, original_name: str, parameters: Dict[str, Any]) -> str:
+
+    def start_call(
+        self,
+        tool_name: str,
+        server_name: str,
+        original_name: str,
+        parameters: Dict[str, Any],
+    ) -> str:
         """
         Log the start of a proxy tool call.
-        
+
         Args:
             tool_name: Name of the proxy tool
             server_name: Name of the MCP server
             original_name: Original name of the tool on the server
             parameters: Parameters passed to the tool
-            
+
         Returns:
             Call ID for tracking this specific call
         """
         self._call_counter += 1
         call_id = f"proxy_call_{self._call_counter}_{int(time.time() * 1000)}"
-        
+
         # Create call event
         call_event = ProxyCallEvent(
             tool_name=tool_name,
@@ -147,31 +169,33 @@ class ProxyTimelineLogger:
             original_name=original_name,
             parameters=parameters,
             start_time=time.time(),
-            status="pending"
+            status="pending",
         )
-        
+
         # Store active call
         self._active_calls[call_id] = call_event
-        
+
         # Log to timeline
         timeline = self._get_timeline_module()
         if timeline:
             event_data = call_event.to_timeline_event()
-            timeline['add_event'](
+            timeline["add_event"](
                 event_type=event_data["event_type"],
                 title=event_data["title"],
                 description=event_data["description"],
                 details=event_data["details"],
-                status=event_data["status"]
+                status=event_data["status"],
             )
-        
+
         logger.debug(f"Started proxy call tracking: {call_id} for {tool_name}")
         return call_id
-    
-    def end_call(self, call_id: str, result: Any = None, error: Optional[str] = None) -> None:
+
+    def end_call(
+        self, call_id: str, result: Any = None, error: Optional[str] = None
+    ) -> None:
         """
         Log the end of a proxy tool call.
-        
+
         Args:
             call_id: Call ID returned from start_call
             result: Result of the tool call (if successful)
@@ -180,35 +204,41 @@ class ProxyTimelineLogger:
         if call_id not in self._active_calls:
             logger.warning(f"Unknown call ID for end_call: {call_id}")
             return
-        
+
         # Update call event
         call_event = self._active_calls[call_id]
         call_event.end_time = time.time()
         call_event.result = result
         call_event.error = error
         call_event.status = "error" if error else "success"
-        
+
         # Log to timeline
         timeline = self._get_timeline_module()
         if timeline:
             event_data = call_event.to_timeline_event()
-            timeline['add_event'](
+            timeline["add_event"](
                 event_type=event_data["event_type"],
                 title=event_data["title"],
                 description=event_data["description"],
                 details=event_data["details"],
-                status=event_data["status"]
+                status=event_data["status"],
             )
-        
+
         # Remove from active calls
         del self._active_calls[call_id]
-        
+
         logger.debug(f"Ended proxy call tracking: {call_id} for {call_event.tool_name}")
-    
-    def log_discovery_event(self, server_name: str, tools_discovered: int, success: bool, error: Optional[str] = None) -> None:
+
+    def log_discovery_event(
+        self,
+        server_name: str,
+        tools_discovered: int,
+        success: bool,
+        error: Optional[str] = None,
+    ) -> None:
         """
         Log a tool discovery event.
-        
+
         Args:
             server_name: Name of the MCP server
             tools_discovered: Number of tools discovered
@@ -218,7 +248,7 @@ class ProxyTimelineLogger:
         timeline = self._get_timeline_module()
         if not timeline:
             return
-        
+
         if success:
             title = f"MCP Server Discovery: {server_name}"
             description = f"Successfully discovered {tools_discovered} tools from MCP server '{server_name}'"
@@ -229,8 +259,8 @@ class ProxyTimelineLogger:
             if error:
                 description += f": {error}"
             status = "error"
-        
-        timeline['add_event'](
+
+        timeline["add_event"](
             event_type="mcp_discovery",
             title=title,
             description=description,
@@ -239,17 +269,25 @@ class ProxyTimelineLogger:
                 "tools_discovered": tools_discovered,
                 "success": success,
                 "error": error,
-                "discovery_type": "mcp_server_tools"
+                "discovery_type": "mcp_server_tools",
             },
-            status=status
+            status=status,
         )
-        
-        logger.debug(f"Logged discovery event for {server_name}: {tools_discovered} tools, success={success}")
-    
-    def log_engine_event(self, event_type: str, title: str, description: str, details: Optional[Dict[str, Any]] = None) -> None:
+
+        logger.debug(
+            f"Logged discovery event for {server_name}: {tools_discovered} tools, success={success}"
+        )
+
+    def log_engine_event(
+        self,
+        event_type: str,
+        title: str,
+        description: str,
+        details: Optional[Dict[str, Any]] = None,
+    ) -> None:
         """
         Log a general MCP proxy engine event.
-        
+
         Args:
             event_type: Type of event (e.g., "startup", "shutdown", "error")
             title: Event title
@@ -259,34 +297,40 @@ class ProxyTimelineLogger:
         timeline = self._get_timeline_module()
         if not timeline:
             return
-        
+
         # Determine status based on event type
         status = "success"
         if "error" in event_type.lower() or "fail" in event_type.lower():
             status = "error"
         elif "start" in event_type.lower() or "init" in event_type.lower():
             status = "pending"
-        
+
         event_details = {
             "component": "mcp_proxy_engine",
             "event_type": event_type,
-            **(details or {})
+            **(details or {}),
         }
-        
-        timeline['add_event'](
+
+        timeline["add_event"](
             event_type="mcp_engine",
             title=title,
             description=description,
             details=event_details,
-            status=status
+            status=status,
         )
-        
+
         logger.debug(f"Logged engine event: {event_type} - {title}")
-    
-    def log_server_connection_event(self, server_name: str, event_type: str, success: bool, error: Optional[str] = None) -> None:
+
+    def log_server_connection_event(
+        self,
+        server_name: str,
+        event_type: str,
+        success: bool,
+        error: Optional[str] = None,
+    ) -> None:
         """
         Log a server connection event.
-        
+
         Args:
             server_name: Name of the MCP server
             event_type: Type of connection event (e.g., "connect", "disconnect", "reconnect")
@@ -296,7 +340,7 @@ class ProxyTimelineLogger:
         timeline = self._get_timeline_module()
         if not timeline:
             return
-        
+
         if success:
             title = f"MCP Server {event_type.title()}: {server_name}"
             description = f"Successfully {event_type}ed to MCP server '{server_name}'"
@@ -307,8 +351,8 @@ class ProxyTimelineLogger:
             if error:
                 description += f": {error}"
             status = "error"
-        
-        timeline['add_event'](
+
+        timeline["add_event"](
             event_type="mcp_connection",
             title=title,
             description=description,
@@ -316,23 +360,25 @@ class ProxyTimelineLogger:
                 "server_name": server_name,
                 "connection_event": event_type,
                 "success": success,
-                "error": error
+                "error": error,
             },
-            status=status
+            status=status,
         )
-        
-        logger.debug(f"Logged connection event for {server_name}: {event_type}, success={success}")
-    
+
+        logger.debug(
+            f"Logged connection event for {server_name}: {event_type}, success={success}"
+        )
+
     def get_active_calls(self) -> Dict[str, ProxyCallEvent]:
         """Get currently active proxy calls."""
         return self._active_calls.copy()
-    
+
     def get_call_stats(self) -> Dict[str, Any]:
         """Get statistics about proxy calls."""
         return {
             "active_calls": len(self._active_calls),
             "total_calls_started": self._call_counter,
-            "active_call_ids": list(self._active_calls.keys())
+            "active_call_ids": list(self._active_calls.keys()),
         }
 
 
@@ -348,26 +394,32 @@ def get_timeline_logger() -> ProxyTimelineLogger:
     return _timeline_logger
 
 
-def log_proxy_call_start(tool_name: str, server_name: str, original_name: str, parameters: Dict[str, Any]) -> str:
+def log_proxy_call_start(
+    tool_name: str, server_name: str, original_name: str, parameters: Dict[str, Any]
+) -> str:
     """
     Convenience function to log the start of a proxy tool call.
-    
+
     Args:
         tool_name: Name of the proxy tool
         server_name: Name of the MCP server
         original_name: Original name of the tool on the server
         parameters: Parameters passed to the tool
-        
+
     Returns:
         Call ID for tracking this specific call
     """
-    return get_timeline_logger().start_call(tool_name, server_name, original_name, parameters)
+    return get_timeline_logger().start_call(
+        tool_name, server_name, original_name, parameters
+    )
 
 
-def log_proxy_call_end(call_id: str, result: Any = None, error: Optional[str] = None) -> None:
+def log_proxy_call_end(
+    call_id: str, result: Any = None, error: Optional[str] = None
+) -> None:
     """
     Convenience function to log the end of a proxy tool call.
-    
+
     Args:
         call_id: Call ID returned from log_proxy_call_start
         result: Result of the tool call (if successful)
@@ -376,23 +428,32 @@ def log_proxy_call_end(call_id: str, result: Any = None, error: Optional[str] = 
     get_timeline_logger().end_call(call_id, result, error)
 
 
-def log_discovery_event(server_name: str, tools_discovered: int, success: bool, error: Optional[str] = None) -> None:
+def log_discovery_event(
+    server_name: str, tools_discovered: int, success: bool, error: Optional[str] = None
+) -> None:
     """
     Convenience function to log a tool discovery event.
-    
+
     Args:
         server_name: Name of the MCP server
         tools_discovered: Number of tools discovered
         success: Whether discovery was successful
         error: Error message if discovery failed
     """
-    get_timeline_logger().log_discovery_event(server_name, tools_discovered, success, error)
+    get_timeline_logger().log_discovery_event(
+        server_name, tools_discovered, success, error
+    )
 
 
-def log_engine_event(event_type: str, title: str, description: str, details: Optional[Dict[str, Any]] = None) -> None:
+def log_engine_event(
+    event_type: str,
+    title: str,
+    description: str,
+    details: Optional[Dict[str, Any]] = None,
+) -> None:
     """
     Convenience function to log a general MCP proxy engine event.
-    
+
     Args:
         event_type: Type of event (e.g., "startup", "shutdown", "error")
         title: Event title
@@ -402,14 +463,18 @@ def log_engine_event(event_type: str, title: str, description: str, details: Opt
     get_timeline_logger().log_engine_event(event_type, title, description, details)
 
 
-def log_server_connection_event(server_name: str, event_type: str, success: bool, error: Optional[str] = None) -> None:
+def log_server_connection_event(
+    server_name: str, event_type: str, success: bool, error: Optional[str] = None
+) -> None:
     """
     Convenience function to log a server connection event.
-    
+
     Args:
         server_name: Name of the MCP server
         event_type: Type of connection event (e.g., "connect", "disconnect", "reconnect")
         success: Whether the connection event was successful
         error: Error message if connection failed
     """
-    get_timeline_logger().log_server_connection_event(server_name, event_type, success, error)
+    get_timeline_logger().log_server_connection_event(
+        server_name, event_type, success, error
+    )

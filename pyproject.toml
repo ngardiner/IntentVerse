@@ -1,0 +1,66 @@
+[tool.black]
+line-length = 88
+target-version = ['py312']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+    # directories
+    \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | venv
+  | _build
+  | buck-out
+  | build
+  | dist
+  | node_modules
+  | core/venv
+  | core/test_venv
+  | mcp/venv
+)/
+'''
+
+[tool.pylint.messages_control]
+disable = [
+    "C0114",  # missing-module-docstring
+    "C0115",  # missing-class-docstring
+    "C0116",  # missing-function-docstring
+    "R0903",  # too-few-public-methods
+    "R0913",  # too-many-arguments
+    "W0613",  # unused-argument (common in FastAPI dependencies)
+    "C0103",  # invalid-name (for short variable names)
+    "R0801",  # duplicate-code (common in test files)
+]
+
+[tool.pylint.format]
+max-line-length = 88
+
+[tool.pylint.design]
+max-args = 10
+max-locals = 20
+max-returns = 8
+max-branches = 15
+max-statements = 60
+
+[tool.pylint.similarities]
+min-similarity-lines = 10
+ignore-comments = true
+ignore-docstrings = true
+
+[tool.pylint.basic]
+good-names = ["i", "j", "k", "ex", "Run", "_", "id", "db", "app", "e"]
+
+[tool.pylint.imports]
+known-third-party = [
+    "fastapi",
+    "uvicorn", 
+    "sqlmodel",
+    "pytest",
+    "httpx",
+    "passlib",
+    "jose",
+    "fastmcp"
+]

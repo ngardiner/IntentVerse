@@ -1,6 +1,7 @@
 from ..base_tool import BaseTool
 from typing import Any, Dict, List, Optional
 
+
 class MemoryTool(BaseTool):
     """
     Implements the logic for a simple key-value memory store.
@@ -16,22 +17,23 @@ class MemoryTool(BaseTool):
         """
         self.state_manager = state_manager
         # Ensure the memory state exists as a dictionary
-        if 'memory' not in self.state_manager.get_full_state():
-            self.state_manager.set('memory', {})
-            
+        if "memory" not in self.state_manager.get_full_state():
+            self.state_manager.set("memory", {})
+
     def get_ui_schema(self) -> Dict[str, Any]:
         """Returns the UI schema for the memory module."""
         from .schema import UI_SCHEMA
+
         return UI_SCHEMA
 
     def set_memory(self, key: str, value: str) -> str:
         """
         Stores or updates a value in the memory scratchpad.
         """
-        memory_state = self.state_manager.get('memory')
+        memory_state = self.state_manager.get("memory")
         memory_state[key] = value
-        self.state_manager.set('memory', memory_state)
-        
+        self.state_manager.set("memory", memory_state)
+
         print(f"SETTING MEMORY for key '{key}'")
         return f"Successfully set memory for key: '{key}'"
 
@@ -39,9 +41,9 @@ class MemoryTool(BaseTool):
         """
         Retrieves a value from the memory scratchpad using its key.
         """
-        memory_state = self.state_manager.get('memory')
+        memory_state = self.state_manager.get("memory")
         value = memory_state.get(key)
-        
+
         if value is None:
             return f"Error: No memory found for key: '{key}'"
         return value
@@ -50,10 +52,10 @@ class MemoryTool(BaseTool):
         """
         Deletes a key-value pair from the memory scratchpad.
         """
-        memory_state = self.state_manager.get('memory')
+        memory_state = self.state_manager.get("memory")
         if key in memory_state:
             del memory_state[key]
-            self.state_manager.set('memory', memory_state)
+            self.state_manager.set("memory", memory_state)
             return f"Successfully deleted memory for key: '{key}'"
         return f"Error: No memory found for key: '{key}'"
 
@@ -61,5 +63,5 @@ class MemoryTool(BaseTool):
         """
         Lists all key-value pairs currently stored in the memory scratchpad.
         """
-        memory_state = self.state_manager.get('memory')
+        memory_state = self.state_manager.get("memory")
         return [{"key": k, "value": v} for k, v in memory_state.items()]
