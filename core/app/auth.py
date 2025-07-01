@@ -45,8 +45,10 @@ router = APIRouter()
 # and it provides a dependency to get the token from the Authorization header.
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login", auto_error=False)
 
-# API Key for service-to-service communication
+# API Keys for service-to-service communication
+# Support both header names for backward compatibility
 api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
+service_api_key_header = APIKeyHeader(name="X-Service-API-Key", auto_error=False)
 
 # Service API key for internal communication (should be set as environment variable)
 SERVICE_API_KEY = os.getenv("SERVICE_API_KEY", "dev-service-key-12345")
@@ -263,19 +265,24 @@ def get_current_user_or_service(
     session: Annotated[Session, Depends(get_session)],
     token: Annotated[Optional[str], Depends(oauth2_scheme)] = None,
     api_key: Annotated[Optional[str], Depends(api_key_header)] = None,
+    service_api_key: Annotated[Optional[str], Depends(service_api_key_header)] = None,
 ) -> Union[User, str]:
     """
     Dependency that allows both JWT token and API key authentication.
     Returns a User object for JWT auth, or "service" string for API key auth.
     """
+    # Read the service API key dynamically to handle test environment overrides
+    current_service_api_key = os.getenv("SERVICE_API_KEY", "dev-service-key-12345")
+    
     # Check API key first (for service-to-service communication)
-    if api_key:
+    # Support both header names for backward compatibility
+    effective_api_key = api_key or service_api_key
+    
+    if effective_api_key:
         # Validate that the API key is appropriate for the current environment
-        validate_api_key_for_environment(api_key)
+        validate_api_key_for_environment(effective_api_key)
 
-        # Read the service API key dynamically to handle test environment overrides
-        current_service_api_key = os.getenv("SERVICE_API_KEY", "dev-service-key-12345")
-        if api_key == current_service_api_key:
+        if effective_api_key == current_service_api_key:
             return "service"
 
     # Fall back to JWT token authentication
