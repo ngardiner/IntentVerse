@@ -46,6 +46,9 @@ const TimelinePage = ({ isEditing, onSaveLayout, onCancelEdit, currentDashboard 
 
   // Initialize WebSocket connection
   useEffect(() => {
+    let pollingInterval = null;
+    let hasFallenBackToPolling = false;
+
     const connectWebSocket = async () => {
       try {
         await initializeWebSocket('timeline');
@@ -54,7 +57,10 @@ const TimelinePage = ({ isEditing, onSaveLayout, onCancelEdit, currentDashboard 
         console.error('Failed to connect to WebSocket:', err);
         setError('Failed to establish real-time connection. Falling back to polling.');
         // Fall back to polling if WebSocket connection fails
-        fetchEventsFallback();
+        if (!hasFallenBackToPolling) {
+          hasFallenBackToPolling = true;
+          pollingInterval = await fetchEventsFallback();
+        }
       }
     };
 
@@ -99,6 +105,12 @@ const TimelinePage = ({ isEditing, onSaveLayout, onCancelEdit, currentDashboard 
     const removeEstablishedListener = addWebSocketListener('connection_established', () => {
       setWsStatus('OPEN');
       setError(null);
+      // Clear polling interval if WebSocket connection is established
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+        pollingInterval = null;
+        hasFallenBackToPolling = false;
+      }
     });
     const removeClosedListener = addWebSocketListener('connection_closed', () => {
       setWsStatus('CLOSED');
@@ -107,8 +119,12 @@ const TimelinePage = ({ isEditing, onSaveLayout, onCancelEdit, currentDashboard 
       setWsStatus('ERROR');
       setError('WebSocket connection error. Falling back to polling.');
       // Fall back to polling if WebSocket connection fails
-      const intervalId = fetchEventsFallback();
-      return () => clearInterval(intervalId);
+      if (!hasFallenBackToPolling) {
+        hasFallenBackToPolling = true;
+        fetchEventsFallback().then(intervalId => {
+          pollingInterval = intervalId;
+        });
+      }
     });
 
     // Clean up WebSocket connection and listeners
@@ -119,6 +135,10 @@ const TimelinePage = ({ isEditing, onSaveLayout, onCancelEdit, currentDashboard 
       removeClosedListener();
       removeErrorListener();
       closeWebSocket();
+      // Clear polling interval on cleanup
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+      }
     };
   }, [handleNewEvent, handleInitialEvents, handleConnectionStatus]);
 
