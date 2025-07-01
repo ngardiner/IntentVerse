@@ -90,8 +90,10 @@ const TimelinePage = ({ isEditing, onSaveLayout, onCancelEdit, currentDashboard 
             new Date(b.timestamp) - new Date(a.timestamp)
           );
           setEvents(sortedEvents);
+          setError(null); // Clear any previous errors on successful poll
         } catch (err) {
           console.error('Error polling timeline events:', err);
+          // Don't set error state for polling failures to avoid disrupting UI
         }
       }, 5000);
     };
@@ -274,11 +276,14 @@ const TimelinePage = ({ isEditing, onSaveLayout, onCancelEdit, currentDashboard 
           
           {loading && events.length === 0 ? (
             <p>Loading timeline events...</p>
-          ) : error ? (
-            <p className="error-message">{error}</p>
           ) : events.length === 0 ? (
-            <p>No timeline events found. Actions performed by the MCP client will appear here.</p>
+            <>
+              {error && <p className="error-message">{error}</p>}
+              <p>No timeline events found. Actions performed by the MCP client will appear here.</p>
+            </>
           ) : (
+            <>
+              {error && <p className="error-message">{error}</p>}
             <>
               {/* Horizontal Timeline */}
               <div className="horizontal-timeline">
@@ -370,6 +375,7 @@ const TimelinePage = ({ isEditing, onSaveLayout, onCancelEdit, currentDashboard 
                   ))}
                 </div>
               </div>
+            </>
             </>
           )}
         </div>

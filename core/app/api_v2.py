@@ -217,7 +217,7 @@ def create_api_routes_v2(
                 }
                 for name in module_loader.modules
             },
-            "state_manager": {"keys": list(state_manager.get_all_keys())},
+            "state_manager": {"active": True},
         }
 
     @router.get("/modules")

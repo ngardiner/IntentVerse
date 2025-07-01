@@ -3,9 +3,18 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import TimelinePage from './TimelinePage';
 import { getTimelineEvents } from '../api/client';
+import { initializeWebSocket, addWebSocketListener, closeWebSocket, getWebSocketStatus } from '../api/websocket';
 
 // Mock the API client
 jest.mock('../api/client');
+
+// Mock WebSocket API
+jest.mock('../api/websocket', () => ({
+  initializeWebSocket: jest.fn().mockResolvedValue(undefined),
+  addWebSocketListener: jest.fn().mockReturnValue(() => {}),
+  closeWebSocket: jest.fn(),
+  getWebSocketStatus: jest.fn().mockReturnValue('OPEN')
+}));
 
 // Mock DashboardLayoutManager
 jest.mock('../components/DashboardLayoutManager', () => {
@@ -67,6 +76,11 @@ describe('TimelinePage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     getTimelineEvents.mockResolvedValue({ data: mockEvents });
+    
+    // Set up WebSocket mocks to simulate successful connection
+    initializeWebSocket.mockResolvedValue(undefined);
+    getWebSocketStatus.mockReturnValue('OPEN');
+    addWebSocketListener.mockReturnValue(() => {});
   });
 
   describe('Initial Loading', () => {
@@ -89,14 +103,26 @@ describe('TimelinePage', () => {
     });
 
     it('fetches timeline events on mount', async () => {
+      // Use fake timers to control polling interval
+      jest.useFakeTimers();
+      
+      // Mock WebSocket connection failure to trigger polling fallback
+      initializeWebSocket.mockRejectedValue(new Error('WebSocket failed'));
+      
       render(<TimelinePage {...defaultProps} />);
       
       await waitFor(() => {
         expect(getTimelineEvents).toHaveBeenCalledTimes(1);
       });
+      
+      // Clean up
+      jest.useRealTimers();
     });
 
     it('displays events after loading', async () => {
+      // Mock WebSocket connection failure to trigger polling fallback
+      initializeWebSocket.mockRejectedValue(new Error('WebSocket failed'));
+      
       render(<TimelinePage {...defaultProps} />);
       
       await waitFor(() => {
@@ -310,6 +336,9 @@ describe('TimelinePage', () => {
     });
 
     it('sets up polling interval for events', async () => {
+      // Mock WebSocket connection failure to trigger polling fallback
+      initializeWebSocket.mockRejectedValue(new Error('WebSocket failed'));
+      
       render(<TimelinePage {...defaultProps} />);
       
       await waitFor(() => {
@@ -325,6 +354,9 @@ describe('TimelinePage', () => {
     });
 
     it('clears polling interval on unmount', async () => {
+      // Mock WebSocket connection failure to trigger polling fallback
+      initializeWebSocket.mockRejectedValue(new Error('WebSocket failed'));
+      
       const { unmount } = render(<TimelinePage {...defaultProps} />);
       
       await waitFor(() => {
@@ -341,6 +373,9 @@ describe('TimelinePage', () => {
     });
 
     it('updates events when new data is received', async () => {
+      // Mock WebSocket connection failure to trigger polling fallback
+      initializeWebSocket.mockRejectedValue(new Error('WebSocket failed'));
+      
       render(<TimelinePage {...defaultProps} />);
       
       await waitFor(() => {
@@ -370,6 +405,9 @@ describe('TimelinePage', () => {
     });
 
     it('continues polling even after error', async () => {
+      // Mock WebSocket connection failure to trigger polling fallback
+      initializeWebSocket.mockRejectedValue(new Error('WebSocket failed'));
+      
       getTimelineEvents.mockRejectedValueOnce(new Error('API Error'));
       getTimelineEvents.mockResolvedValue({ data: mockEvents });
       

@@ -344,6 +344,9 @@ class TestTimelineAPIUnit:
             is_admin=False,
         )
 
+        # Create a mock request
+        mock_request = Mock()
+
         # Mock the database query
         mock_session.exec.return_value.first.return_value = mock_user
         mock_get_session.return_value = mock_session
@@ -362,7 +365,7 @@ class TestTimelineAPIUnit:
 
         with patch("app.modules.timeline.tool.get_events", return_value=sample_events):
             # Test the API function directly
-            result = await get_timeline_events(current_user_or_service=mock_user)
+            result = await get_timeline_events(request=mock_request, current_user_or_service=mock_user)
 
             assert len(result) == 1
             assert result[0]["id"] == "event-1"
@@ -383,6 +386,9 @@ class TestTimelineAPIUnit:
             is_active=True,
             is_admin=False,
         )
+
+        # Create a mock request
+        mock_request = Mock()
 
         # Mock the database query
         mock_session.exec.return_value.first.return_value = mock_user
@@ -411,7 +417,7 @@ class TestTimelineAPIUnit:
         with patch("app.modules.timeline.tool.get_events", return_value=sample_events):
             # Test with event_type filter
             result = await get_timeline_events(
-                current_user_or_service=mock_user, event_type="tool_execution"
+                request=mock_request, current_user_or_service=mock_user, event_type="tool_execution"
             )
 
             assert len(result) == 1
@@ -433,6 +439,9 @@ class TestTimelineAPIUnit:
             is_admin=False,
         )
 
+        # Create a mock request
+        mock_request = Mock()
+
         # Mock the database query
         mock_session.exec.return_value.first.return_value = mock_user
         mock_get_session.return_value = mock_session
@@ -453,7 +462,7 @@ class TestTimelineAPIUnit:
         with patch("app.modules.timeline.tool.get_events", return_value=sample_events):
             # Test with limit
             result = await get_timeline_events(
-                current_user_or_service=mock_user, limit=2
+                request=mock_request, current_user_or_service=mock_user, limit=2
             )
 
             assert len(result) == 2
