@@ -93,8 +93,10 @@ class RateLimitHeaderMiddleware(BaseHTTPMiddleware):
                 timeline_log_error(
                     title="API Request Error",
                     description=f"Error processing request to {request.url.path}: {str(e)}",
-                    error_type=type(e).__name__,
-                    error_details=str(e),
+                    details={
+                        "error_type": type(e).__name__,
+                        "error_details": str(e),
+                    },
                 )
             except Exception as log_err:
                 logging.error(f"Failed to log error to timeline: {log_err}")

@@ -457,6 +457,44 @@ def create_api_routes(
                 detail=f"An error occurred while executing tool '{tool_full_name}': {str(e)}",
             )
 
+    # --- Version and Compatibility Endpoints ---
+
+    @router.get("/version")
+    def get_app_version_info(
+        current_user: Annotated[
+            User, Depends(get_current_user_or_service)
+        ],
+    ) -> Dict[str, Any]:
+        """
+        Get current IntentVerse version information.
+        """
+        from .version_utils import get_version_info
+        return get_version_info()
+
+    @router.post("/compatibility/check")
+    def check_content_pack_compatibility(
+        request: Dict[str, Any],
+        current_user: Annotated[
+            User, Depends(get_current_user_or_service)
+        ],
+    ) -> Dict[str, Any]:
+        """
+        Check compatibility of content pack conditions against current version.
+        """
+        from .version_utils import get_app_version, check_compatibility_conditions
+        
+        compatibility_conditions = request.get("compatibility_conditions", [])
+        app_version = get_app_version()
+        
+        is_compatible, reasons = check_compatibility_conditions(app_version, compatibility_conditions)
+        
+        return {
+            "app_version": app_version,
+            "compatible": is_compatible,
+            "reasons": reasons,
+            "conditions": compatibility_conditions
+        }
+
     # --- Content Pack Management Endpoints ---
 
     if content_pack_manager:
@@ -605,7 +643,7 @@ def create_api_routes(
             ],
         ) -> Dict[str, Any]:
             """
-            Preview a content pack without loading it, including validation results.
+            Preview a content pack without loading it, including validation and compatibility results.
             """
             preview_result = content_pack_manager.preview_content_pack(filename)
 
@@ -613,6 +651,25 @@ def create_api_routes(
                 raise HTTPException(
                     status_code=404, detail=f"Content pack '{filename}' not found"
                 )
+
+            # Add compatibility information
+            if preview_result["content_pack"]:
+                from .version_utils import get_app_version, check_compatibility_conditions
+                
+                content_pack = preview_result["content_pack"]
+                metadata = content_pack.get("metadata", {})
+                compatibility_conditions = metadata.get("compatibility_conditions", [])
+                
+                app_version = get_app_version()
+                is_compatible, reasons = check_compatibility_conditions(app_version, compatibility_conditions)
+                
+                preview_result["compatibility"] = {
+                    "app_version": app_version,
+                    "compatible": is_compatible,
+                    "reasons": reasons,
+                    "conditions": compatibility_conditions,
+                    "has_conditions": len(compatibility_conditions) > 0
+                }
 
             return preview_result
 

@@ -110,8 +110,26 @@ def add_event(
     logging.info(f"Added timeline event: {title}")
 
     # Broadcast the event via WebSockets asynchronously
-    # We need to run this in a separate task since this function is synchronous
-    asyncio.create_task(broadcast_event(event))
+    # We need to safely handle this since this function can be called from synchronous contexts
+    try:
+        # Try to get the current event loop
+        loop = asyncio.get_running_loop()
+        # If we have a running loop, create the task
+        asyncio.create_task(broadcast_event(event))
+    except RuntimeError:
+        # No running event loop, try to schedule the broadcast for later
+        try:
+            # Try to get the event loop for the current thread
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                # Loop is running in another thread, schedule the coroutine
+                asyncio.run_coroutine_threadsafe(broadcast_event(event), loop)
+            else:
+                # No running loop, skip broadcasting for now
+                logging.debug("No running event loop available for WebSocket broadcast, skipping")
+        except RuntimeError:
+            # No event loop at all, skip broadcasting
+            logging.debug("No event loop available for WebSocket broadcast, skipping")
 
     return event
 
