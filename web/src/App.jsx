@@ -8,6 +8,7 @@ import ContentPage from './pages/ContentPage';
 import UsersPage from './pages/UsersPage';
 import DashboardSelector from './components/DashboardSelector';
 import EditButton from './components/EditButton';
+import VersionInfo from './components/VersionInfo';
 
 // 1. Create an Authentication Context
 const AuthContext = createContext(null);
@@ -245,6 +246,7 @@ function App() {
           <header className="app-header">
             <div className="app-header-left">
               <h1 onClick={() => handleMenuItemClick('dashboard')} style={{ cursor: 'pointer' }}>IntentVerse</h1>
+              <VersionInfo inline={true} className="header-version" />
               {currentPage === 'dashboard' && (
                 <DashboardSelector 
                   currentDashboard={currentDashboard} 

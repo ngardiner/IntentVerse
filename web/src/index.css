@@ -964,6 +964,49 @@ body {
     color: #28a745;
     font-family: 'Courier New', monospace;
   }
+
+  /* --- Compatibility Status Styles --- */
+  .compatibility-loading {
+    padding: 4px 8px;
+    font-size: 12px;
+    color: #64748b;
+    font-style: italic;
+  }
+
+  .pack-compatibility.compact {
+    margin: 8px 0;
+  }
+
+  /* Header Version Styles */
+  .header-version {
+    margin-left: 12px;
+    font-size: 13px;
+    opacity: 0.7;
+  }
+
+  /* Content Pack Card Enhancements */
+  .pack-card {
+    position: relative;
+  }
+
+  .pack-card .compatibility-status {
+    margin: 8px 0;
+  }
+
+  .pack-card .compatibility-status.compact {
+    margin: 6px 0;
+  }
+
+  /* Compatibility status in preview modal */
+  .preview-section h4 {
+    margin-bottom: 8px;
+    color: #374151;
+    font-weight: 600;
+  }
+
+  .preview-section .compatibility-status {
+    margin-bottom: 16px;
+  }
   
   /* Code block styles */
   .code-block {
@@ -4025,3 +4068,46 @@ body {
     margin: 0 0 0.5rem 0;
     color: #ff6b6b;
   }
+
+/* --- Compatibility Status Styles --- */
+.compatibility-loading {
+  padding: 4px 8px;
+  font-size: 12px;
+  color: #64748b;
+  font-style: italic;
+}
+
+.pack-compatibility.compact {
+  margin: 8px 0;
+}
+
+/* Header Version Styles */
+.header-version {
+  margin-left: 12px;
+  font-size: 13px;
+  opacity: 0.7;
+}
+
+/* Content Pack Card Enhancements */
+.pack-card {
+  position: relative;
+}
+
+.pack-card .compatibility-status {
+  margin: 8px 0;
+}
+
+.pack-card .compatibility-status.compact {
+  margin: 6px 0;
+}
+
+/* Compatibility status in preview modal */
+.preview-section h4 {
+  margin-bottom: 8px;
+  color: #374151;
+  font-weight: 600;
+}
+
+.preview-section .compatibility-status {
+  margin-bottom: 16px;
+}

@@ -14,6 +14,9 @@ import {
   clearRemoteCache
 } from '../api/client';
 import ContentPackPreview from './ContentPackPreview';
+import CompatibilityStatus from './CompatibilityStatus';
+import PackCompatibilityIndicator from './PackCompatibilityIndicator';
+import { checkCompatibility } from '../api/client';
 
 const ContentPackManager = () => {
   const [availablePacks, setAvailablePacks] = useState([]);
@@ -43,6 +46,7 @@ const ContentPackManager = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedTags, setSelectedTags] = useState([]);
+  const [compatibilityCache, setCompatibilityCache] = useState({});
 
   useEffect(() => {
     fetchContentPacks();
@@ -289,6 +293,56 @@ const ContentPackManager = () => {
     }
   };
 
+  const getCompatibilityInfo = async (pack) => {
+    const cacheKey = pack.filename || pack.name;
+    
+    // Return cached result if available
+    if (compatibilityCache[cacheKey]) {
+      return compatibilityCache[cacheKey];
+    }
+
+    // Get compatibility conditions from metadata
+    const compatibilityConditions = pack.metadata?.compatibility_conditions || pack.compatibility_conditions || [];
+    
+    if (compatibilityConditions.length === 0) {
+      // No conditions means universal compatibility
+      const result = {
+        compatible: true,
+        has_conditions: false,
+        conditions: [],
+        reasons: []
+      };
+      
+      setCompatibilityCache(prev => ({
+        ...prev,
+        [cacheKey]: result
+      }));
+      
+      return result;
+    }
+
+    try {
+      const response = await checkCompatibility(compatibilityConditions);
+      const result = response.data;
+      
+      // Cache the result
+      setCompatibilityCache(prev => ({
+        ...prev,
+        [cacheKey]: result
+      }));
+      
+      return result;
+    } catch (err) {
+      console.error('Error checking compatibility:', err);
+      return {
+        compatible: false,
+        has_conditions: true,
+        conditions: compatibilityConditions,
+        reasons: ['Error checking compatibility']
+      };
+    }
+  };
+
   const renderAvailablePacks = () => (
     <div className="content-pack-list">
       <h3>Available Content Packs</h3>
@@ -325,6 +379,12 @@ const ContentPackManager = () => {
                     {pack.has_state && <span className="feature-badge state">State</span>}
                     {pack.has_prompts && <span className="feature-badge prompts">Prompts</span>}
                   </div>
+                  
+                  <PackCompatibilityIndicator 
+                    pack={pack}
+                    getCompatibilityInfo={getCompatibilityInfo}
+                    className="compact"
+                  />
                   
                   {pack.metadata?.author_name && (
                     <p className="pack-author">By: {pack.metadata.author_name}</p>
@@ -574,6 +634,12 @@ const ContentPackManager = () => {
                       {pack.sections?.has_state && <span className="feature-badge state">State</span>}
                       {pack.sections?.has_prompts && <span className="feature-badge prompts">Prompts</span>}
                     </div>
+                    
+                    <PackCompatibilityIndicator 
+                      pack={pack}
+                      getCompatibilityInfo={getCompatibilityInfo}
+                      className="compact"
+                    />
                     
                     {pack.category && (
                       <p className="pack-category">Category: {pack.category}</p>

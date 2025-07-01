@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { previewContentPack } from '../api/client';
+import CompatibilityStatus from './CompatibilityStatus';
 
 const ContentPackPreview = ({ filename, isOpen, onClose, onLoad }) => {
   const [preview, setPreview] = useState(null);
@@ -245,6 +246,15 @@ const ContentPackPreview = ({ filename, isOpen, onClose, onLoad }) => {
 
           {preview && (
             <div className="preview-content">
+              {preview.compatibility && (
+                <div className="preview-section">
+                  <h4>Compatibility</h4>
+                  <CompatibilityStatus 
+                    compatibility={preview.compatibility} 
+                    showDetails={true}
+                  />
+                </div>
+              )}
               {renderValidationStatus(preview.validation)}
               {renderMetadataPreview(preview.preview?.metadata)}
               {renderDatabasePreview(preview.preview?.database_preview)}

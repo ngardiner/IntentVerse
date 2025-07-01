@@ -81,6 +81,18 @@ export const getModuleState = (moduleName) => {
   return apiClient.get(`/api/v1/${moduleName}/state`);
 };
 
+// --- Version and Compatibility API Functions ---
+
+export const getVersionInfo = () => {
+  return apiClient.get('/api/v1/version');
+};
+
+export const checkCompatibility = (compatibilityConditions) => {
+  return apiClient.post('/api/v1/compatibility/check', {
+    compatibility_conditions: compatibilityConditions
+  });
+};
+
 // --- Content Pack API Functions ---
 
 export const getAvailableContentPacks = () => {
