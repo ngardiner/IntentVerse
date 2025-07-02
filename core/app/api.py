@@ -1,6 +1,8 @@
 import logging
 import inspect
-from fastapi import APIRouter, Path, HTTPException, Depends, Request
+import tempfile
+import os
+from fastapi import APIRouter, Path, HTTPException, Depends, Request, UploadFile, File
 from typing import Dict, Any, List, Union, get_origin, get_args, Annotated
 from sqlmodel import Session
 
@@ -519,7 +521,7 @@ def create_api_routes(
             """
             Returns information about currently loaded content packs.
             """
-            return content_pack_manager.get_loaded_packs_info()
+            return content_pack_manager.get_loaded_content_packs()
 
         @router.post("/content-packs/export")
         def export_content_pack(
@@ -546,7 +548,7 @@ def create_api_routes(
 
             if success:
                 return {
-                    "status": "success",
+                    "success": True,
                     "message": f"Content pack exported to {filename}",
                     "path": str(output_path),
                 }
@@ -556,14 +558,68 @@ def create_api_routes(
                 )
 
         @router.post("/content-packs/load")
-        def load_content_pack(
+        def load_content_pack_file(
+            current_user: Annotated[
+                User, Depends(require_permission_or_service("content_packs.install"))
+            ],
+            file: UploadFile = File(...),
+        ) -> Dict[str, Any]:
+            """
+            Load a content pack from an uploaded file.
+            """
+            if not file.filename or not file.filename.endswith('.json'):
+                raise HTTPException(status_code=400, detail="File must be a JSON file")
+
+            try:
+                # Create a temporary file to store the uploaded content
+                with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as temp_file:
+                    content = file.file.read().decode('utf-8')
+                    temp_file.write(content)
+                    temp_file_path = temp_file.name
+
+                # Load the content pack from the temporary file
+                user_id = current_user.id if isinstance(current_user, User) else None
+                success = content_pack_manager.load_content_pack(temp_file_path, user_id)
+
+                # Clean up the temporary file
+                os.unlink(temp_file_path)
+
+                if success:
+                    # Try to get the pack name from the content
+                    try:
+                        import json
+                        file.file.seek(0)  # Reset file pointer
+                        content = file.file.read().decode('utf-8')
+                        pack_data = json.loads(content)
+                        pack_name = pack_data.get("metadata", {}).get("name", file.filename)
+                    except:
+                        pack_name = file.filename
+                    
+                    return {
+                        "success": True,
+                        "message": f"Content pack '{pack_name}' loaded successfully",
+                    }
+                else:
+                    raise HTTPException(
+                        status_code=422, detail=f"Failed to load content pack '{file.filename}'"
+                    )
+            except Exception as e:
+                # Clean up the temporary file if it exists
+                if 'temp_file_path' in locals() and os.path.exists(temp_file_path):
+                    os.unlink(temp_file_path)
+                raise HTTPException(
+                    status_code=422, detail=f"Error processing content pack: {str(e)}"
+                )
+
+        @router.post("/content-packs/load-by-filename")
+        def load_content_pack_by_filename(
             request: Dict[str, Any],
             current_user: Annotated[
                 User, Depends(require_permission_or_service("content_packs.install"))
             ],
         ) -> Dict[str, Any]:
             """
-            Load a content pack by filename.
+            Load a content pack by filename from the content_packs directory.
             """
             filename = request.get("filename")
             if not filename:
@@ -573,7 +629,7 @@ def create_api_routes(
 
             if success:
                 return {
-                    "status": "success",
+                    "success": True,
                     "message": f"Content pack '{filename}' loaded successfully",
                 }
             else:
@@ -636,14 +692,14 @@ def create_api_routes(
                 )
 
         @router.get("/content-packs/preview/{filename}")
-        def preview_content_pack(
+        def preview_content_pack_by_filename(
             filename: str,
             current_user: Annotated[
                 User, Depends(require_permission_or_service("content_packs.read"))
             ],
         ) -> Dict[str, Any]:
             """
-            Preview a content pack without loading it, including validation and compatibility results.
+            Preview a content pack by filename without loading it, including validation and compatibility results.
             """
             preview_result = content_pack_manager.preview_content_pack(filename)
 
@@ -672,6 +728,70 @@ def create_api_routes(
                 }
 
             return preview_result
+
+        @router.post("/content-packs/preview")
+        def preview_content_pack_file(
+            current_user: Annotated[
+                User, Depends(require_permission_or_service("content_packs.read"))
+            ],
+            file: UploadFile = File(...),
+        ) -> Dict[str, Any]:
+            """
+            Preview a content pack from an uploaded file without loading it.
+            """
+            if not file.filename or not file.filename.endswith('.json'):
+                raise HTTPException(status_code=400, detail="File must be a JSON file")
+
+            try:
+                # Read and parse the uploaded content
+                content = file.file.read().decode('utf-8')
+                import json
+                content_pack = json.loads(content)
+                
+                # Perform detailed validation
+                validation_result = content_pack_manager.validate_content_pack_detailed(content_pack)
+                
+                # Add compatibility information
+                from .version_utils import get_app_version, check_compatibility_conditions
+                
+                metadata = content_pack.get("metadata", {})
+                compatibility_conditions = metadata.get("compatibility_conditions", [])
+                
+                app_version = get_app_version()
+                is_compatible, reasons = check_compatibility_conditions(app_version, compatibility_conditions)
+                
+                compatibility_info = {
+                    "app_version": app_version,
+                    "compatible": is_compatible,
+                    "reasons": reasons,
+                    "conditions": compatibility_conditions,
+                    "has_conditions": len(compatibility_conditions) > 0
+                }
+
+                return {
+                    "filename": file.filename,
+                    "exists": True,
+                    "content_pack": content_pack,
+                    "validation": validation_result,
+                    "compatibility": compatibility_info,
+                    "preview": {
+                        "metadata": metadata,
+                        "has_variables": "variables" in content_pack,
+                        "has_content_prompts": "content_prompts" in content_pack,
+                        "has_usage_prompts": "usage_prompts" in content_pack,
+                        "has_prompts": "prompts" in content_pack,
+                        "has_database": "database" in content_pack,
+                        "has_state": "state" in content_pack,
+                    }
+                }
+            except json.JSONDecodeError as e:
+                raise HTTPException(
+                    status_code=400, detail=f"Invalid JSON format: {str(e)}"
+                )
+            except Exception as e:
+                raise HTTPException(
+                    status_code=500, detail=f"Error processing content pack: {str(e)}"
+                )
 
         @router.post("/content-packs/validate")
         def validate_content_pack(
@@ -725,6 +845,15 @@ def create_api_routes(
                 )
             
             try:
+                # Check if pack exists
+                loaded_packs = content_pack_manager.get_loaded_content_packs()
+                pack_exists = any(pack["name"] == pack_name for pack in loaded_packs)
+                if not pack_exists:
+                    raise HTTPException(
+                        status_code=404,
+                        detail=f"Content pack '{pack_name}' not found"
+                    )
+                
                 variables = content_pack_manager.get_pack_variables(pack_name, current_user.id)
                 return {
                     "status": "success",
@@ -732,6 +861,8 @@ def create_api_routes(
                     "variables": variables,
                     "variable_count": len(variables)
                 }
+            except HTTPException:
+                raise
             except Exception as e:
                 logging.error(f"Error getting variables for pack '{pack_name}': {e}")
                 raise HTTPException(
@@ -770,11 +901,28 @@ def create_api_routes(
             variable_value = request.get("value")
             if variable_value is None:
                 raise HTTPException(
-                    status_code=400,
+                    status_code=422,
                     detail="Variable value is required"
                 )
             
+            # Validate variable name
+            import re
+            if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', variable_name):
+                raise HTTPException(
+                    status_code=400,
+                    detail="Invalid variable name. Must start with letter or underscore, followed by letters, numbers, or underscores"
+                )
+            
             try:
+                # Check if pack exists
+                loaded_packs = content_pack_manager.get_loaded_content_packs()
+                pack_exists = any(pack["name"] == pack_name for pack in loaded_packs)
+                if not pack_exists:
+                    raise HTTPException(
+                        status_code=404,
+                        detail=f"Content pack '{pack_name}' not found"
+                    )
+                
                 success = content_pack_manager.set_pack_variable(
                     pack_name, variable_name, str(variable_value), current_user.id
                 )
@@ -792,6 +940,8 @@ def create_api_routes(
                         status_code=500,
                         detail=f"Failed to set variable '{variable_name}' for content pack '{pack_name}'"
                     )
+            except HTTPException:
+                raise
             except Exception as e:
                 logging.error(f"Error setting variable '{variable_name}' for pack '{pack_name}': {e}")
                 raise HTTPException(
@@ -827,6 +977,15 @@ def create_api_routes(
                 )
             
             try:
+                # Check if pack exists
+                loaded_packs = content_pack_manager.get_loaded_content_packs()
+                pack_exists = any(pack["name"] == pack_name for pack in loaded_packs)
+                if not pack_exists:
+                    raise HTTPException(
+                        status_code=404,
+                        detail=f"Content pack '{pack_name}' not found"
+                    )
+                
                 from .content_pack_variables import get_variable_manager
                 variable_manager = get_variable_manager(session)
                 
@@ -834,7 +993,7 @@ def create_api_routes(
                 
                 if success:
                     return {
-                        "status": "success",
+                        "success": True,
                         "message": f"Variable '{variable_name}' reset to default value",
                         "pack_name": pack_name,
                         "variable_name": variable_name
@@ -880,11 +1039,20 @@ def create_api_routes(
                 )
             
             try:
+                # Check if pack exists
+                loaded_packs = content_pack_manager.get_loaded_content_packs()
+                pack_exists = any(pack["name"] == pack_name for pack in loaded_packs)
+                if not pack_exists:
+                    raise HTTPException(
+                        status_code=404,
+                        detail=f"Content pack '{pack_name}' not found"
+                    )
+                
                 success = content_pack_manager.reset_pack_variables(pack_name, current_user.id)
                 
                 if success:
                     return {
-                        "status": "success",
+                        "success": True,
                         "message": f"All variables reset to default values for content pack '{pack_name}'",
                         "pack_name": pack_name
                     }
@@ -893,6 +1061,8 @@ def create_api_routes(
                         status_code=500,
                         detail=f"Failed to reset variables for content pack '{pack_name}'"
                     )
+            except HTTPException:
+                raise
             except Exception as e:
                 logging.error(f"Error resetting all variables for pack '{pack_name}': {e}")
                 raise HTTPException(

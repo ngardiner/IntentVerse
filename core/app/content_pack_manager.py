@@ -79,7 +79,7 @@ class ContentPackManager:
         else:
             logging.warning("Default content pack not found")
 
-    def load_content_pack(self, pack_path: Path, user_id: Optional[int] = None) -> bool:
+    def load_content_pack(self, pack_path, user_id: Optional[int] = None) -> bool:
         """
         Load a content pack from a JSON file with variable resolution support.
 
@@ -91,6 +91,10 @@ class ContentPackManager:
             True if loaded successfully, False otherwise
         """
         try:
+            # Convert string path to Path object if needed
+            if isinstance(pack_path, str):
+                pack_path = Path(pack_path)
+            
             with open(pack_path, "r", encoding="utf-8") as f:
                 content_pack = json.load(f)
 
@@ -141,7 +145,22 @@ class ContentPackManager:
                 "has_legacy_prompts": "prompts" in content_pack,
                 "user_id": user_id,
             }
-            self.loaded_packs.append(pack_info)
+            
+            # Check if a pack with the same name already exists and replace it
+            pack_name = resolved_content_pack.get("metadata", {}).get("name", pack_path.stem)
+            existing_pack_index = None
+            for i, existing_pack in enumerate(self.loaded_packs):
+                if existing_pack.get("metadata", {}).get("name") == pack_name:
+                    existing_pack_index = i
+                    break
+            
+            if existing_pack_index is not None:
+                # Replace existing pack
+                self.loaded_packs[existing_pack_index] = pack_info
+                logging.info(f"Replaced existing content pack: {pack_name}")
+            else:
+                # Add new pack
+                self.loaded_packs.append(pack_info)
 
             logging.info(f"Successfully loaded content pack: {pack_path.name}")
             return True
@@ -221,16 +240,22 @@ class ContentPackManager:
                 "state": {},
             }
 
-            # Add new v1.1.0 fields if supported
-            if supports_new_prompt_categories():
+            # Determine if we should include v1.1.0 fields based on loaded packs
+            has_v11_features = any(
+                pack.get("has_content_prompts", False) or pack.get("has_usage_prompts", False) or pack.get("has_variables", False)
+                for pack in self.loaded_packs
+            )
+            
+            # Add new v1.1.0 fields if supported and we have v1.1.0 features
+            if supports_new_prompt_categories() and has_v11_features:
                 content_pack["content_prompts"] = []
                 content_pack["usage_prompts"] = []
             
             # Keep legacy prompts field for backward compatibility
             content_pack["prompts"] = []
 
-            # Add variables section if supported and requested
-            if supports_content_pack_variables() and include_variables:
+            # Add variables section if supported and requested and we have v1.1.0 features
+            if supports_content_pack_variables() and include_variables and has_v11_features:
                 content_pack["variables"] = variables or {}
 
             # Export database content
@@ -243,6 +268,37 @@ class ContentPackManager:
             for module_name, module_state in full_state.items():
                 if module_name != "database":  # Database is handled separately
                     content_pack["state"][module_name] = module_state
+
+            # Export prompts from loaded content packs
+            all_prompts = []
+            all_content_prompts = []
+            all_usage_prompts = []
+            
+            for pack in self.loaded_packs:
+                try:
+                    pack_path = Path(pack["path"])
+                    if pack_path.exists():
+                        with open(pack_path, "r", encoding="utf-8") as f:
+                            pack_data = json.load(f)
+                        
+                        # Collect legacy prompts
+                        if "prompts" in pack_data:
+                            all_prompts.extend(pack_data["prompts"])
+                        
+                        # Collect v1.1.0 prompts
+                        if "content_prompts" in pack_data:
+                            all_content_prompts.extend(pack_data["content_prompts"])
+                        if "usage_prompts" in pack_data:
+                            all_usage_prompts.extend(pack_data["usage_prompts"])
+                            
+                except Exception as e:
+                    logging.warning(f"Could not export prompts from pack {pack['path']}: {e}")
+            
+            # Update the content pack with collected prompts
+            content_pack["prompts"] = all_prompts
+            if supports_new_prompt_categories() and has_v11_features:
+                content_pack["content_prompts"] = all_content_prompts
+                content_pack["usage_prompts"] = all_usage_prompts
 
             # Write to file
             with open(output_path, "w", encoding="utf-8") as f:
@@ -370,6 +426,64 @@ class ContentPackManager:
     def get_loaded_packs_info(self) -> List[Dict[str, Any]]:
         """Get information about currently loaded content packs."""
         return self.loaded_packs.copy()
+
+    def get_loaded_content_packs(self) -> List[Dict[str, Any]]:
+        """Get information about currently loaded content packs with features."""
+        result = []
+        for pack in self.loaded_packs:
+            pack_info = pack.copy()
+            # Add features information
+            pack_info["features"] = {
+                "has_variables": pack.get("has_variables", False),
+                "has_content_prompts": pack.get("has_content_prompts", False),
+                "has_usage_prompts": pack.get("has_usage_prompts", False),
+                "has_prompts": pack.get("has_legacy_prompts", False),
+                "has_database": self._pack_has_database(pack),
+                "has_state": self._pack_has_state(pack),
+            }
+            # Extract name from metadata for easier access
+            pack_info["name"] = pack.get("metadata", {}).get("name", "")
+            result.append(pack_info)
+        return result
+
+    def get_content_pack_data(self, pack_name: str) -> Dict[str, Any]:
+        """Get the data for a specific loaded content pack."""
+        for pack in self.loaded_packs:
+            if pack.get("metadata", {}).get("name") == pack_name:
+                # Load the pack data from file
+                pack_path = Path(pack["path"])
+                if pack_path.exists():
+                    try:
+                        with open(pack_path, "r", encoding="utf-8") as f:
+                            return json.load(f)
+                    except Exception as e:
+                        logging.error(f"Error reading pack data from {pack_path}: {e}")
+                        raise ValueError(f"Could not read pack data: {e}")
+        raise ValueError(f"Content pack '{pack_name}' not found in loaded packs")
+
+    def _pack_has_database(self, pack_info: Dict[str, Any]) -> bool:
+        """Check if a loaded pack has database content."""
+        try:
+            pack_path = Path(pack_info["path"])
+            if pack_path.exists():
+                with open(pack_path, "r", encoding="utf-8") as f:
+                    pack_data = json.load(f)
+                return bool(pack_data.get("database"))
+        except Exception:
+            pass
+        return False
+
+    def _pack_has_state(self, pack_info: Dict[str, Any]) -> bool:
+        """Check if a loaded pack has state content."""
+        try:
+            pack_path = Path(pack_info["path"])
+            if pack_path.exists():
+                with open(pack_path, "r", encoding="utf-8") as f:
+                    pack_data = json.load(f)
+                return bool(pack_data.get("state"))
+        except Exception:
+            pass
+        return False
 
     def load_content_pack_by_filename(self, filename: str) -> bool:
         """
@@ -648,13 +762,13 @@ class ContentPackManager:
                             f"Content prompt {i+1} must be an object"
                         )
                     else:
-                        required_fields = ["name", "content"]
-                        missing_fields = [
-                            field for field in required_fields if not prompt.get(field)
-                        ]
-                        if missing_fields:
+                        # Support both v1.1.0 format (name, content) and v1.0.0 format (title/id, prompt)
+                        has_v11_fields = prompt.get("name") and prompt.get("content")
+                        has_v10_fields = (prompt.get("title") or prompt.get("id")) and prompt.get("prompt")
+                        
+                        if not has_v11_fields and not has_v10_fields:
                             validation_result["errors"].append(
-                                f"Content prompt {i+1} missing required fields: {', '.join(missing_fields)}"
+                                f"Content prompt {i+1} missing required fields: either (name, content) for v1.1+ or (title/id, prompt) for v1.0"
                             )
 
         # Validate usage_prompts section (v1.1.0+)
@@ -672,13 +786,13 @@ class ContentPackManager:
                             f"Usage prompt {i+1} must be an object"
                         )
                     else:
-                        required_fields = ["name", "content"]
-                        missing_fields = [
-                            field for field in required_fields if not prompt.get(field)
-                        ]
-                        if missing_fields:
+                        # Support both v1.1.0 format (name, content) and v1.0.0 format (title/id, prompt)
+                        has_v11_fields = prompt.get("name") and prompt.get("content")
+                        has_v10_fields = (prompt.get("title") or prompt.get("id")) and prompt.get("prompt")
+                        
+                        if not has_v11_fields and not has_v10_fields:
                             validation_result["errors"].append(
-                                f"Usage prompt {i+1} missing required fields: {', '.join(missing_fields)}"
+                                f"Usage prompt {i+1} missing required fields: either (name, content) for v1.1+ or (title/id, prompt) for v1.0"
                             )
 
         # Set final validation status
