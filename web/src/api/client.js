@@ -338,4 +338,24 @@ export const executeQuery = (sqlQuery) => {
   });
 };
 
+// --- Content Pack Variable Management API Functions ---
+
+export const getPackVariables = (packName) => {
+  return apiClient.get(`/api/v1/content-packs/${encodeURIComponent(packName)}/variables`);
+};
+
+export const setPackVariable = (packName, variableName, value) => {
+  return apiClient.put(`/api/v1/content-packs/${encodeURIComponent(packName)}/variables/${encodeURIComponent(variableName)}`, {
+    value: value
+  });
+};
+
+export const resetPackVariable = (packName, variableName) => {
+  return apiClient.delete(`/api/v1/content-packs/${encodeURIComponent(packName)}/variables/${encodeURIComponent(variableName)}`);
+};
+
+export const resetAllPackVariables = (packName) => {
+  return apiClient.post(`/api/v1/content-packs/${encodeURIComponent(packName)}/variables/reset`);
+};
+
 export default apiClient;

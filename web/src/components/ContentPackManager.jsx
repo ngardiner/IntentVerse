@@ -47,6 +47,11 @@ const ContentPackManager = () => {
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedTags, setSelectedTags] = useState([]);
   const [compatibilityCache, setCompatibilityCache] = useState({});
+  const [variableModal, setVariableModal] = useState({
+    isOpen: false,
+    packName: null,
+    packFilename: null
+  });
 
   useEffect(() => {
     fetchContentPacks();
@@ -280,6 +285,22 @@ const ContentPackManager = () => {
     });
   };
 
+  const handleManageVariables = (packName, packFilename) => {
+    setVariableModal({
+      isOpen: true,
+      packName,
+      packFilename
+    });
+  };
+
+  const handleCloseVariableModal = () => {
+    setVariableModal({
+      isOpen: false,
+      packName: null,
+      packFilename: null
+    });
+  };
+
   const handleLoadFromPreview = (filename) => {
     handleLoadPack(filename);
   };
@@ -377,7 +398,10 @@ const ContentPackManager = () => {
                   <div className="pack-features">
                     {pack.has_database && <span className="feature-badge database">Database</span>}
                     {pack.has_state && <span className="feature-badge state">State</span>}
-                    {pack.has_prompts && <span className="feature-badge prompts">Prompts</span>}
+                    {pack.has_prompts && <span className="feature-badge prompts deprecated">Prompts (Legacy)</span>}
+                    {pack.has_content_prompts && <span className="feature-badge content-prompts new">Content Prompts</span>}
+                    {pack.has_usage_prompts && <span className="feature-badge usage-prompts new">Usage Prompts</span>}
+                    {pack.has_variables && <span className="feature-badge variables new">Variables</span>}
                   </div>
                   
                   <PackCompatibilityIndicator 
@@ -420,6 +444,16 @@ const ContentPackManager = () => {
                       >
                         Preview
                       </button>
+                      {pack.has_variables && isLoaded && (
+                        <button 
+                          className="variables-button"
+                          onClick={() => handleManageVariables(pack.metadata?.name || pack.filename, pack.filename)}
+                          disabled={isLoading}
+                          title="Manage Variables"
+                        >
+                          Variables
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -496,6 +530,16 @@ const ContentPackManager = () => {
                       >
                         Preview
                       </button>
+                      {pack.has_variables && (
+                        <button 
+                          className="variables-button"
+                          onClick={() => handleManageVariables(pack.metadata?.name || 'Unnamed Pack', packFilename)}
+                          disabled={isLoading || !packFilename}
+                          title="Manage Variables"
+                        >
+                          Variables
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -859,6 +903,30 @@ const ContentPackManager = () => {
         onClose={handleClosePreview}
         onLoad={handleLoadFromPreview}
       />
+
+      {/* Variable Management Modal */}
+      {variableModal.isOpen && (
+        <div className="modal-overlay" onClick={handleCloseVariableModal}>
+          <div className="modal-content variable-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Manage Variables: {variableModal.packName}</h3>
+              <button className="modal-close" onClick={handleCloseVariableModal}>×</button>
+            </div>
+            <div className="modal-body">
+              <div className="variable-manager-placeholder">
+                <p>Variable management interface will be implemented in Step 9.</p>
+                <p>Pack: {variableModal.packName}</p>
+                <p>Filename: {variableModal.packFilename}</p>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="modal-button secondary" onClick={handleCloseVariableModal}>
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -4111,3 +4111,273 @@ body {
 .preview-section .compatibility-status {
   margin-bottom: 16px;
 }
+
+/* --- Content Pack v1.1.0 Features --- */
+
+/* New and deprecated badges */
+.new-badge {
+  background-color: #28a745;
+  color: white;
+  font-size: 0.7rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 600;
+  margin-left: 0.5rem;
+  text-transform: uppercase;
+}
+
+.deprecated-badge {
+  background-color: #ffc107;
+  color: #212529;
+  font-size: 0.7rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 600;
+  margin-left: 0.5rem;
+  text-transform: uppercase;
+}
+
+/* Feature badges for new prompt types and variables */
+.feature-badge.content-prompts {
+  background-color: #17a2b8;
+  color: white;
+}
+
+.feature-badge.usage-prompts {
+  background-color: #6f42c1;
+  color: white;
+}
+
+.feature-badge.variables {
+  background-color: #fd7e14;
+  color: white;
+}
+
+.feature-badge.deprecated {
+  background-color: #6c757d;
+  color: white;
+  opacity: 0.7;
+}
+
+.feature-badge.new {
+  position: relative;
+}
+
+.feature-badge.new::after {
+  content: "NEW";
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background-color: #28a745;
+  color: white;
+  font-size: 0.6rem;
+  padding: 1px 3px;
+  border-radius: 2px;
+  font-weight: 600;
+}
+
+/* Variables button styling */
+.variables-button {
+  background-color: #fd7e14;
+  color: white;
+  border: none;
+  padding: 0.4rem 0.8rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.variables-button:hover {
+  background-color: #e8690b;
+}
+
+.variables-button:disabled {
+  background-color: #6c757d;
+  cursor: not-allowed;
+}
+
+/* Content Pack Preview v1.1.0 styles */
+.content-prompt {
+  border-left: 3px solid #17a2b8;
+  background-color: rgba(23, 162, 184, 0.1);
+}
+
+.usage-prompt {
+  border-left: 3px solid #6f42c1;
+  background-color: rgba(111, 66, 193, 0.1);
+}
+
+.prompt-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  font-size: 0.8rem;
+}
+
+.prompt-category {
+  background-color: #17a2b8;
+  color: white;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 0.7rem;
+}
+
+.prompt-format {
+  background-color: #6c757d;
+  color: white;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 0.7rem;
+}
+
+.prompt-difficulty {
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.difficulty-beginner {
+  background-color: #28a745;
+  color: white;
+}
+
+.difficulty-intermediate {
+  background-color: #ffc107;
+  color: #212529;
+}
+
+.difficulty-advanced {
+  background-color: #dc3545;
+  color: white;
+}
+
+.prompt-time {
+  background-color: #6f42c1;
+  color: white;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 0.7rem;
+}
+
+.prompt-variables {
+  background-color: #fd7e14;
+  color: white;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 0.7rem;
+}
+
+.deprecation-notice {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  background-color: rgba(255, 193, 7, 0.1);
+  border: 1px solid #ffc107;
+  border-radius: 4px;
+  font-size: 0.85rem;
+}
+
+.deprecation-notice p {
+  margin: 0;
+  color: #ffc107;
+}
+
+/* Variables preview styles */
+.variables-preview {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1rem;
+}
+
+.variable-item {
+  background-color: rgba(253, 126, 20, 0.1);
+  border: 1px solid #fd7e14;
+  border-radius: 6px;
+  padding: 0.75rem;
+}
+
+.variable-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.variable-name {
+  font-family: 'Courier New', monospace;
+  font-weight: 600;
+  color: #fd7e14;
+  font-size: 0.9rem;
+}
+
+.variable-type {
+  background-color: #6c757d;
+  color: white;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+}
+
+.variable-value {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 0.25rem;
+}
+
+.variable-label {
+  font-size: 0.8rem;
+  color: var(--text-color-secondary);
+  font-weight: 500;
+}
+
+.variable-default {
+  font-family: 'Courier New', monospace;
+  background-color: rgba(255, 255, 255, 0.1);
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 0.8rem;
+  flex: 1;
+}
+
+.variable-usage {
+  font-size: 0.75rem;
+  color: var(--text-color-secondary);
+}
+
+.usage-count {
+  font-style: italic;
+}
+
+.variables-info {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  background-color: rgba(253, 126, 20, 0.1);
+  border-radius: 4px;
+  font-size: 0.85rem;
+}
+
+.variables-info p {
+  margin: 0;
+  color: var(--text-color-secondary);
+}
+
+/* Variable management modal placeholder */
+.variable-modal {
+  max-width: 800px;
+  width: 90vw;
+}
+
+.variable-manager-placeholder {
+  text-align: center;
+  padding: 2rem;
+  color: var(--text-color-secondary);
+}
+
+.variable-manager-placeholder p {
+  margin: 0.5rem 0;
+}

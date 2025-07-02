@@ -97,6 +97,24 @@ const ContentPackPreview = ({ filename, isOpen, onClose, onLoad }) => {
                   {validation.summary.has_prompts ? `Yes (${validation.summary.prompts_count} prompts)` : 'No'}
                 </span>
               </div>
+              <div className="summary-item">
+                <span className="summary-label">Has Content Prompts:</span>
+                <span className={`summary-value ${validation.summary.has_content_prompts ? 'yes' : 'no'}`}>
+                  {validation.summary.has_content_prompts ? `Yes (${validation.summary.content_prompts_count} prompts)` : 'No'}
+                </span>
+              </div>
+              <div className="summary-item">
+                <span className="summary-label">Has Usage Prompts:</span>
+                <span className={`summary-value ${validation.summary.has_usage_prompts ? 'yes' : 'no'}`}>
+                  {validation.summary.has_usage_prompts ? `Yes (${validation.summary.usage_prompts_count} prompts)` : 'No'}
+                </span>
+              </div>
+              <div className="summary-item">
+                <span className="summary-label">Has Variables:</span>
+                <span className={`summary-value ${validation.summary.has_variables ? 'yes' : 'no'}`}>
+                  {validation.summary.has_variables ? `Yes (${validation.summary.variables_count} variables)` : 'No'}
+                </span>
+              </div>
             </div>
           </div>
         )}
@@ -205,7 +223,7 @@ const ContentPackPreview = ({ filename, isOpen, onClose, onLoad }) => {
 
     return (
       <div className="preview-section">
-        <h4>Prompts Preview</h4>
+        <h4>Prompts Preview <span className="deprecated-badge">DEPRECATED</span></h4>
         <div className="prompts-preview">
           {promptsPreview.map((prompt, index) => (
             <div key={index} className="prompt-item">
@@ -217,6 +235,116 @@ const ContentPackPreview = ({ filename, isOpen, onClose, onLoad }) => {
           {promptsPreview.length === 5 && (
             <div className="preview-note">... and more prompts</div>
           )}
+        </div>
+        <div className="deprecation-notice">
+          <p><strong>Note:</strong> The 'prompts' field is deprecated in v1.1.0. Use 'content_prompts' and 'usage_prompts' instead.</p>
+        </div>
+      </div>
+    );
+  };
+
+  const renderContentPromptsPreview = (contentPromptsPreview) => {
+    if (!contentPromptsPreview || contentPromptsPreview.length === 0) return null;
+
+    return (
+      <div className="preview-section">
+        <h4>Content Prompts Preview <span className="new-badge">NEW</span></h4>
+        <div className="content-prompts-preview">
+          {contentPromptsPreview.map((prompt, index) => (
+            <div key={index} className="prompt-item content-prompt">
+              <h5 className="prompt-name">{prompt.name}</h5>
+              <p className="prompt-description">{prompt.description}</p>
+              <div className="prompt-details">
+                <span className="prompt-length">Content length: {prompt.content_length} characters</span>
+                {prompt.category && (
+                  <span className="prompt-category">Category: {prompt.category}</span>
+                )}
+                {prompt.output_format && (
+                  <span className="prompt-format">Format: {prompt.output_format}</span>
+                )}
+                {prompt.variable_tokens && prompt.variable_tokens.length > 0 && (
+                  <span className="prompt-variables">
+                    Variables: {prompt.variable_tokens.join(', ')}
+                  </span>
+                )}
+              </div>
+            </div>
+          ))}
+          {contentPromptsPreview.length === 5 && (
+            <div className="preview-note">... and more content prompts</div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const renderUsagePromptsPreview = (usagePromptsPreview) => {
+    if (!usagePromptsPreview || usagePromptsPreview.length === 0) return null;
+
+    return (
+      <div className="preview-section">
+        <h4>Usage Prompts Preview <span className="new-badge">NEW</span></h4>
+        <div className="usage-prompts-preview">
+          {usagePromptsPreview.map((prompt, index) => (
+            <div key={index} className="prompt-item usage-prompt">
+              <h5 className="prompt-name">{prompt.name}</h5>
+              <p className="prompt-description">{prompt.description}</p>
+              <div className="prompt-details">
+                <span className="prompt-length">Content length: {prompt.content_length} characters</span>
+                {prompt.difficulty && (
+                  <span className={`prompt-difficulty difficulty-${prompt.difficulty}`}>
+                    Difficulty: {prompt.difficulty}
+                  </span>
+                )}
+                {prompt.estimated_time && (
+                  <span className="prompt-time">Time: {prompt.estimated_time}</span>
+                )}
+                {prompt.variable_tokens && prompt.variable_tokens.length > 0 && (
+                  <span className="prompt-variables">
+                    Variables: {prompt.variable_tokens.join(', ')}
+                  </span>
+                )}
+              </div>
+            </div>
+          ))}
+          {usagePromptsPreview.length === 5 && (
+            <div className="preview-note">... and more usage prompts</div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const renderVariablesPreview = (variablesPreview) => {
+    if (!variablesPreview || Object.keys(variablesPreview).length === 0) return null;
+
+    return (
+      <div className="preview-section">
+        <h4>Variables Preview <span className="new-badge">NEW</span></h4>
+        <div className="variables-preview">
+          {Object.entries(variablesPreview).map(([variableName, variableInfo]) => (
+            <div key={variableName} className="variable-item">
+              <div className="variable-header">
+                <span className="variable-name">{{variableName}}</span>
+                <span className="variable-type">{variableInfo.type}</span>
+              </div>
+              <div className="variable-value">
+                <span className="variable-label">Default:</span>
+                <span className="variable-default">{variableInfo.default_value}</span>
+              </div>
+              {variableInfo.usage_count > 0 && (
+                <div className="variable-usage">
+                  <span className="usage-count">Used in {variableInfo.usage_count} location(s)</span>
+                </div>
+              )}
+            </div>
+          ))}
+          {Object.keys(variablesPreview).length === 10 && (
+            <div className="preview-note">... and more variables</div>
+          )}
+        </div>
+        <div className="variables-info">
+          <p><strong>Variables</strong> allow customization of content pack values. Users can override defaults with their own values.</p>
         </div>
       </div>
     );
@@ -259,6 +387,9 @@ const ContentPackPreview = ({ filename, isOpen, onClose, onLoad }) => {
               {renderMetadataPreview(preview.preview?.metadata)}
               {renderDatabasePreview(preview.preview?.database_preview)}
               {renderStatePreview(preview.preview?.state_preview)}
+              {renderVariablesPreview(preview.preview?.variables_preview)}
+              {renderContentPromptsPreview(preview.preview?.content_prompts_preview)}
+              {renderUsagePromptsPreview(preview.preview?.usage_prompts_preview)}
               {renderPromptsPreview(preview.preview?.prompts_preview)}
             </div>
           )}
