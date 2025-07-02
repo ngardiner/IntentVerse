@@ -50,8 +50,19 @@ describe('VersionInfo', () => {
       expect(screen.getByText('Major:')).toBeInTheDocument();
       expect(screen.getByText('Minor:')).toBeInTheDocument();
       expect(screen.getByText('Patch:')).toBeInTheDocument();
-      expect(screen.getByText('1', { selector: 'strong + *' })).toBeInTheDocument();
-      expect(screen.getByText('0', { selector: 'strong + *' })).toBeInTheDocument();
+      
+      // Use function-based text matcher to handle text broken up by multiple elements
+      expect(screen.getByText((content, element) => {
+        return element && element.textContent === 'Major: 1';
+      })).toBeInTheDocument();
+      
+      expect(screen.getByText((content, element) => {
+        return element && element.textContent === 'Minor: 0';
+      })).toBeInTheDocument();
+      
+      expect(screen.getByText((content, element) => {
+        return element && element.textContent === 'Patch: 0';
+      })).toBeInTheDocument();
     });
   });
 

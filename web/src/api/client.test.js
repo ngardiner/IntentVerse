@@ -6,7 +6,12 @@ import {
   getModuleState,
   exportContentPack,
   getAvailableContentPacks,
-  getLoadedContentPacks
+  getLoadedContentPacks,
+  getPackVariables,
+  setPackVariable,
+  resetPackVariable,
+  resetAllPackVariables,
+  previewContentPack
 } from './client';
 
 // Mock axios
@@ -131,6 +136,119 @@ describe('API Client', () => {
           filename,
           metadata
         });
+        expect(result).toEqual(mockResponse);
+      });
+    });
+  });
+
+  describe('Variable Management API', () => {
+    describe('getPackVariables', () => {
+      it('should make GET request to /api/v1/content-packs/{packName}/variables', async () => {
+        const mockResponse = { data: { variables: { test_var: 'test_value' } } };
+        mockedAxios.get.mockResolvedValue(mockResponse);
+
+        const result = await getPackVariables('Test Pack');
+
+        expect(mockedAxios.get).toHaveBeenCalledWith('/api/v1/content-packs/Test Pack/variables');
+        expect(result).toEqual(mockResponse);
+      });
+
+      it('should handle pack names with special characters', async () => {
+        const mockResponse = { data: { variables: {} } };
+        mockedAxios.get.mockResolvedValue(mockResponse);
+
+        await getPackVariables('Test Pack & More!');
+
+        expect(mockedAxios.get).toHaveBeenCalledWith('/api/v1/content-packs/Test Pack & More!/variables');
+      });
+    });
+
+    describe('setPackVariable', () => {
+      it('should make PUT request to set a variable', async () => {
+        const mockResponse = { data: { success: true } };
+        mockedAxios.put.mockResolvedValue(mockResponse);
+
+        const result = await setPackVariable('Test Pack', 'test_var', 'new_value');
+
+        expect(mockedAxios.put).toHaveBeenCalledWith(
+          '/api/v1/content-packs/Test Pack/variables/test_var',
+          { value: 'new_value' }
+        );
+        expect(result).toEqual(mockResponse);
+      });
+
+      it('should handle empty values', async () => {
+        const mockResponse = { data: { success: true } };
+        mockedAxios.put.mockResolvedValue(mockResponse);
+
+        await setPackVariable('Test Pack', 'test_var', '');
+
+        expect(mockedAxios.put).toHaveBeenCalledWith(
+          '/api/v1/content-packs/Test Pack/variables/test_var',
+          { value: '' }
+        );
+      });
+
+      it('should handle variable names with special characters', async () => {
+        const mockResponse = { data: { success: true } };
+        mockedAxios.put.mockResolvedValue(mockResponse);
+
+        await setPackVariable('Test Pack', 'test_var_123', 'value');
+
+        expect(mockedAxios.put).toHaveBeenCalledWith(
+          '/api/v1/content-packs/Test Pack/variables/test_var_123',
+          { value: 'value' }
+        );
+      });
+    });
+
+    describe('resetPackVariable', () => {
+      it('should make DELETE request to reset a variable', async () => {
+        const mockResponse = { data: { success: true } };
+        mockedAxios.delete.mockResolvedValue(mockResponse);
+
+        const result = await resetPackVariable('Test Pack', 'test_var');
+
+        expect(mockedAxios.delete).toHaveBeenCalledWith(
+          '/api/v1/content-packs/Test Pack/variables/test_var'
+        );
+        expect(result).toEqual(mockResponse);
+      });
+    });
+
+    describe('resetAllPackVariables', () => {
+      it('should make POST request to reset all variables', async () => {
+        const mockResponse = { data: { success: true } };
+        mockedAxios.post.mockResolvedValue(mockResponse);
+
+        const result = await resetAllPackVariables('Test Pack');
+
+        expect(mockedAxios.post).toHaveBeenCalledWith(
+          '/api/v1/content-packs/Test Pack/variables/reset'
+        );
+        expect(result).toEqual(mockResponse);
+      });
+    });
+
+    describe('previewContentPack', () => {
+      it('should make POST request with file to preview content pack', async () => {
+        const mockResponse = { 
+          data: { 
+            content_pack: { 
+              variables: { test_var: 'test_value' },
+              content_prompts: [],
+              usage_prompts: []
+            } 
+          } 
+        };
+        mockedAxios.post.mockResolvedValue(mockResponse);
+
+        const result = await previewContentPack('test-pack.json');
+
+        expect(mockedAxios.post).toHaveBeenCalledWith(
+          '/api/v1/content-packs/preview',
+          expect.any(FormData)
+        );
         expect(result).toEqual(mockResponse);
       });
     });

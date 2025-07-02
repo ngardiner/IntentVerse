@@ -16,6 +16,7 @@ import {
 import ContentPackPreview from './ContentPackPreview';
 import CompatibilityStatus from './CompatibilityStatus';
 import PackCompatibilityIndicator from './PackCompatibilityIndicator';
+import VariableManager from './VariableManager';
 import { checkCompatibility } from '../api/client';
 
 const ContentPackManager = () => {
@@ -905,28 +906,12 @@ const ContentPackManager = () => {
       />
 
       {/* Variable Management Modal */}
-      {variableModal.isOpen && (
-        <div className="modal-overlay" onClick={handleCloseVariableModal}>
-          <div className="modal-content variable-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>Manage Variables: {variableModal.packName}</h3>
-              <button className="modal-close" onClick={handleCloseVariableModal}>×</button>
-            </div>
-            <div className="modal-body">
-              <div className="variable-manager-placeholder">
-                <p>Variable management interface will be implemented in Step 9.</p>
-                <p>Pack: {variableModal.packName}</p>
-                <p>Filename: {variableModal.packFilename}</p>
-              </div>
-            </div>
-            <div className="modal-footer">
-              <button className="modal-button secondary" onClick={handleCloseVariableModal}>
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <VariableManager
+        packName={variableModal.packName}
+        packFilename={variableModal.packFilename}
+        isOpen={variableModal.isOpen}
+        onClose={handleCloseVariableModal}
+      />
     </div>
   );
 };

@@ -51,7 +51,7 @@ api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 service_api_key_header = APIKeyHeader(name="X-Service-API-Key", auto_error=False)
 
 # Service API key for internal communication (should be set as environment variable)
-SERVICE_API_KEY = os.getenv("SERVICE_API_KEY", "dev-service-key-12345")
+SERVICE_API_KEY = os.getenv("SERVICE_API_KEY", "test-service-key-12345")
 
 # Known development and test API keys that should never be used in production
 FORBIDDEN_PRODUCTION_KEYS = {

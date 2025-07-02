@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { apiClient } from '../api/client';
+import { getPackVariables, setPackVariable, resetPackVariable, resetAllPackVariables, previewContentPack } from '../api/client';
 
 const VariableManager = ({ packName, packFilename, isOpen, onClose }) => {
   const [variables, setVariables] = useState({});
+  const [packDefaults, setPackDefaults] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [editingVariable, setEditingVariable] = useState(null);
@@ -12,22 +13,41 @@ const VariableManager = ({ packName, packFilename, isOpen, onClose }) => {
 
   // Load variables when component opens
   useEffect(() => {
-    if (isOpen && packName) {
-      loadVariables();
+    if (isOpen && packName && packFilename) {
+      loadPackData();
     }
-  }, [isOpen, packName]);
+  }, [isOpen, packName, packFilename]);
 
-  const loadVariables = async () => {
+  const loadPackData = async () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await apiClient.getPackVariables(packName);
-      setVariables(response.variables || {});
+      // Load both user variables and pack defaults
+      const [variablesResponse, previewResponse] = await Promise.all([
+        getPackVariables(packName),
+        previewContentPack(packFilename)
+      ]);
+      
+      setVariables(variablesResponse.data.variables || {});
+      
+      // Extract pack defaults from preview
+      const contentPack = previewResponse.data.content_pack;
+      setPackDefaults(contentPack?.variables || {});
+    } catch (err) {
+      console.error('Error loading pack data:', err);
+      setError(err.response?.data?.detail || 'Failed to load pack data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadVariables = async () => {
+    try {
+      const response = await getPackVariables(packName);
+      setVariables(response.data.variables || {});
     } catch (err) {
       console.error('Error loading variables:', err);
       setError(err.response?.data?.detail || 'Failed to load variables');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -44,7 +64,7 @@ const VariableManager = ({ packName, packFilename, isOpen, onClose }) => {
     setSaving(true);
     setError(null);
     try {
-      await apiClient.setPackVariable(packName, editingVariable, editValue);
+      await setPackVariable(packName, editingVariable, editValue);
       
       // Update local state
       setVariables(prev => ({
@@ -80,7 +100,7 @@ const VariableManager = ({ packName, packFilename, isOpen, onClose }) => {
     setSaving(true);
     setError(null);
     try {
-      await apiClient.resetPackVariable(packName, variableName);
+      await resetPackVariable(packName, variableName);
       
       // Reload variables to get the default value
       await loadVariables();
@@ -103,7 +123,7 @@ const VariableManager = ({ packName, packFilename, isOpen, onClose }) => {
     setSaving(true);
     setError(null);
     try {
-      await apiClient.resetAllPackVariables(packName);
+      await resetAllPackVariables(packName);
       
       // Reload variables to get the default values
       await loadVariables();
@@ -156,25 +176,27 @@ const VariableManager = ({ packName, packFilename, isOpen, onClose }) => {
             </div>
           )}
 
-          {!loading && Object.keys(variables).length === 0 && (
+          {!loading && Object.keys(packDefaults).length === 0 && (
             <div className="no-variables">
               <p>This content pack does not define any variables.</p>
               <p>Variables allow customization of content pack values and can be defined in the content pack's JSON structure.</p>
             </div>
           )}
 
-          {!loading && Object.keys(variables).length > 0 && (
+          {!loading && Object.keys(packDefaults).length > 0 && (
             <div className="variables-container">
               <div className="variables-header">
-                <h4>Variables ({Object.keys(variables).length})</h4>
+                <h4>Variables ({Object.keys(packDefaults).length})</h4>
                 <div className="variables-actions">
-                  <button 
-                    className="reset-all-button"
-                    onClick={handleResetAllVariables}
-                    disabled={saving}
-                  >
-                    Reset All to Defaults
-                  </button>
+                  {Object.keys(variables).length > 0 && (
+                    <button 
+                      className="reset-all-button"
+                      onClick={handleResetAllVariables}
+                      disabled={saving}
+                    >
+                      Reset All to Defaults
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -183,15 +205,30 @@ const VariableManager = ({ packName, packFilename, isOpen, onClose }) => {
                   <strong>Variables</strong> allow you to customize content pack values. 
                   Changes are saved automatically and apply to all prompts and content in this pack.
                 </p>
+                <div className="variables-stats">
+                  <span className="stat">
+                    <strong>{Object.keys(packDefaults).length}</strong> total variables
+                  </span>
+                  <span className="stat">
+                    <strong>{Object.keys(variables).length}</strong> customized
+                  </span>
+                </div>
               </div>
 
               <div className="variables-list">
-                {Object.entries(variables).map(([variableName, variableValue]) => (
+                {Object.keys(packDefaults).map((variableName) => {
+                  const defaultValue = packDefaults[variableName];
+                  const userValue = variables[variableName];
+                  const effectiveValue = userValue !== undefined ? userValue : defaultValue;
+                  const isCustomized = userValue !== undefined;
+                  
+                  return (
                   <div key={variableName} className="variable-row">
                     <div className="variable-info">
                       <div className="variable-name-section">
                         <span className="variable-token">{{variableName}}</span>
                         <span className="variable-name">{variableName}</span>
+                        {isCustomized && <span className="customized-badge">Custom</span>}
                       </div>
                       
                       <div className="variable-value-section">
@@ -223,35 +260,53 @@ const VariableManager = ({ packName, packFilename, isOpen, onClose }) => {
                                 Cancel
                               </button>
                             </div>
+                            {defaultValue && (
+                              <div className="default-reference">
+                                <span className="default-label">Default:</span>
+                                <span className="default-value">{defaultValue}</span>
+                              </div>
+                            )}
                           </div>
                         ) : (
                           <div className="variable-display">
-                            <span className="variable-current-value">
-                              {variableValue || <em>No value set</em>}
-                            </span>
+                            <div className="current-value">
+                              <span className="value-label">Current:</span>
+                              <span className={`variable-current-value ${isCustomized ? 'customized' : 'default'}`}>
+                                {effectiveValue || <em>No value set</em>}
+                              </span>
+                            </div>
+                            {isCustomized && defaultValue !== effectiveValue && (
+                              <div className="default-value">
+                                <span className="value-label">Default:</span>
+                                <span className="variable-default-value">{defaultValue}</span>
+                              </div>
+                            )}
                             <div className="variable-actions">
                               <button 
                                 className="edit-button"
-                                onClick={() => handleEditVariable(variableName, variableValue)}
+                                onClick={() => handleEditVariable(variableName, effectiveValue)}
                                 disabled={saving}
                               >
                                 Edit
                               </button>
-                              <button 
-                                className="reset-button"
-                                onClick={() => handleResetVariable(variableName)}
-                                disabled={saving}
-                                title="Reset to default value"
-                              >
-                                Reset
-                              </button>
+                              {isCustomized && (
+                                <button 
+                                  className="reset-button"
+                                  onClick={() => handleResetVariable(variableName)}
+                                  disabled={saving}
+                                  title="Reset to default value"
+                                >
+                                  Reset
+                                </button>
+                              )}
                             </div>
                           </div>
                         )}
                       </div>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
