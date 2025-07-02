@@ -56,6 +56,7 @@ from app.models import (
     GroupRoleLink,
     RolePermissionLink,
     ModuleConfiguration,
+    ContentPackVariable,
     User,
     UserGroup,
     UserGroupLink,
@@ -92,6 +93,15 @@ def setup_test_database(session: Session):
 
 def create_test_user(session: Session) -> User:
     """Create a test user in the database."""
+    # Check if user already exists
+    from sqlmodel import select
+    existing_user = session.exec(
+        select(User).where(User.username == TEST_USER_DATA["username"])
+    ).first()
+    
+    if existing_user:
+        return existing_user
+    
     hashed_password = get_password_hash(TEST_USER_DATA["password"])
     user = User(
         username=TEST_USER_DATA["username"],
@@ -158,6 +168,7 @@ def create_test_db_and_tables():
         UserGroupLink,
         AuditLog,
         ModuleConfiguration,
+        ContentPackVariable,
         Role,
         Permission,
         UserRoleLink,
