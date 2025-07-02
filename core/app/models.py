@@ -1,6 +1,6 @@
 from typing import Optional, List, Dict, Any
 from sqlmodel import Field, SQLModel, Relationship, Column
-from sqlalchemy import JSON
+from sqlalchemy import JSON, UniqueConstraint, Index
 from datetime import datetime
 
 
@@ -195,3 +195,33 @@ class ModuleConfiguration(SQLModel, table=True):
     class Config:
         # Ensure unique constraint on module_name + tool_name combination
         table_args = ({"sqlite_autoincrement": True},)
+
+
+class ContentPackVariable(SQLModel, table=True):
+    """
+    Represents user-specific variable overrides for content packs.
+    
+    This table stores custom variable values that users can set to override
+    the default values defined in content packs. Variables are scoped per
+    content pack and per user.
+    """
+    __tablename__ = "contentpackvariable"
+    __table_args__ = (
+        UniqueConstraint(
+            "content_pack_name", 
+            "variable_name", 
+            "user_id",
+            name="uq_content_pack_variable_user"
+        ),
+    )
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    content_pack_name: str = Field(index=True)  # Name of the content pack
+    variable_name: str = Field(index=True)  # Name of the variable
+    variable_value: str = Field()  # User's custom value for the variable
+    user_id: int = Field(foreign_key="user.id", index=True)  # User who set this override
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+    # Relationship to user
+    user: Optional[User] = Relationship()

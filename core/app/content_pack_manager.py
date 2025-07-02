@@ -7,8 +7,12 @@ import httpx
 import tempfile
 from urllib.parse import urljoin
 import time
+from sqlmodel import Session
 from .config import Config
-from .version_utils import get_app_version, check_compatibility_conditions
+from .version_utils import get_app_version, check_compatibility_conditions, supports_content_pack_variables, supports_new_prompt_categories
+from .variable_resolver import VariableResolver, create_variable_resolver
+from .content_pack_variables import get_variable_manager
+from .database import engine
 
 
 class ContentPackManager:
@@ -28,6 +32,10 @@ class ContentPackManager:
         self.content_packs_dir = Path(__file__).parent.parent / "content_packs"
         self.loaded_packs = []
 
+        # Variable resolution system
+        self.variable_resolver = None
+        self._init_variable_resolver()
+
         # Remote repository configuration
         self.remote_repo_url = Config.get_remote_repo_url()
         self.manifest_url = Config.get_manifest_url()
@@ -42,6 +50,23 @@ class ContentPackManager:
         # HTTP client for remote requests
         self._http_client = httpx.Client(timeout=Config.get_http_timeout())
 
+    def _init_variable_resolver(self):
+        """Initialize the variable resolver with database support if available."""
+        try:
+            if supports_content_pack_variables():
+                # Create variable resolver with database support
+                with Session(engine) as session:
+                    variable_manager = get_variable_manager(session)
+                    self.variable_resolver = VariableResolver(variable_manager)
+                logging.debug("Variable resolver initialized with database support")
+            else:
+                # Create basic variable resolver without database support
+                self.variable_resolver = create_variable_resolver()
+                logging.debug("Variable resolver initialized without database support")
+        except Exception as e:
+            logging.warning(f"Failed to initialize variable resolver: {e}")
+            self.variable_resolver = create_variable_resolver()
+
     def load_default_content_pack(self):
         """Load the default content pack if it exists."""
         default_pack_path = self.content_packs_dir / "default.json"
@@ -54,12 +79,13 @@ class ContentPackManager:
         else:
             logging.warning("Default content pack not found")
 
-    def load_content_pack(self, pack_path: Path) -> bool:
+    def load_content_pack(self, pack_path: Path, user_id: Optional[int] = None) -> bool:
         """
-        Load a content pack from a JSON file.
+        Load a content pack from a JSON file with variable resolution support.
 
         Args:
             pack_path: Path to the content pack JSON file
+            user_id: User ID for variable resolution (optional)
 
         Returns:
             True if loaded successfully, False otherwise
@@ -82,23 +108,38 @@ class ContentPackManager:
                 )
                 return False
 
+            # Get pack name for variable resolution
+            pack_name = content_pack.get("metadata", {}).get("name", pack_path.stem)
+
+            # Resolve variables if supported and variables are defined
+            resolved_content_pack = content_pack
+            if supports_content_pack_variables() and "variables" in content_pack:
+                resolved_content_pack = self._resolve_content_pack_variables(
+                    content_pack, pack_name, user_id
+                )
+
             # Load database content
-            if "database" in content_pack and content_pack["database"]:
+            if "database" in resolved_content_pack and resolved_content_pack["database"]:
                 database_tool = self.module_loader.get_tool("database")
                 if database_tool:
-                    database_tool.load_content_pack_database(content_pack["database"])
+                    database_tool.load_content_pack_database(resolved_content_pack["database"])
                     logging.info(f"Loaded database content from {pack_path.name}")
 
             # Load state content (merge with existing state)
-            if "state" in content_pack and content_pack["state"]:
-                self._merge_state_content(content_pack["state"])
+            if "state" in resolved_content_pack and resolved_content_pack["state"]:
+                self._merge_state_content(resolved_content_pack["state"])
                 logging.info(f"Loaded state content from {pack_path.name}")
 
-            # Store metadata for tracking
+            # Store metadata for tracking (include new prompt fields if present)
             pack_info = {
                 "path": str(pack_path),
-                "metadata": content_pack.get("metadata", {}),
+                "metadata": resolved_content_pack.get("metadata", {}),
                 "loaded_at": datetime.now().isoformat(),
+                "has_variables": "variables" in content_pack,
+                "has_content_prompts": "content_prompts" in content_pack,
+                "has_usage_prompts": "usage_prompts" in content_pack,
+                "has_legacy_prompts": "prompts" in content_pack,
+                "user_id": user_id,
             }
             self.loaded_packs.append(pack_info)
 
@@ -109,15 +150,66 @@ class ContentPackManager:
             logging.error(f"Error loading content pack {pack_path}: {e}")
             return False
 
+    def _resolve_content_pack_variables(
+        self, content_pack: Dict[str, Any], pack_name: str, user_id: Optional[int] = None
+    ) -> Dict[str, Any]:
+        """
+        Resolve variables in a content pack using the variable resolver.
+
+        Args:
+            content_pack: Original content pack data
+            pack_name: Name of the content pack
+            user_id: User ID for variable resolution
+
+        Returns:
+            Content pack with variables resolved
+        """
+        try:
+            if not self.variable_resolver:
+                logging.warning("Variable resolver not available, returning original content pack")
+                return content_pack
+
+            # Get pack defaults
+            pack_defaults = content_pack.get("variables", {})
+            
+            # Validate variables before resolution
+            validation = self.variable_resolver.validate_content_pack_variables(
+                content_pack, pack_defaults
+            )
+            
+            if not validation["valid"]:
+                logging.warning(
+                    f"Content pack '{pack_name}' has undefined variables: {validation['undefined_variables']}"
+                )
+                # Continue with resolution in non-strict mode
+            
+            # Resolve variables in the content pack
+            resolved_pack = self.variable_resolver.resolve_data_structure(
+                content_pack, pack_defaults, pack_name, user_id, strict=False
+            )
+            
+            logging.info(
+                f"Resolved {len(validation.get('used_variables', []))} variables in content pack '{pack_name}'"
+            )
+            
+            return resolved_pack
+
+        except Exception as e:
+            logging.error(f"Error resolving variables in content pack '{pack_name}': {e}")
+            return content_pack
+
     def export_content_pack(
-        self, output_path: Path, metadata: Optional[Dict[str, Any]] = None
+        self, output_path: Path, metadata: Optional[Dict[str, Any]] = None, 
+        include_variables: bool = True, variables: Optional[Dict[str, str]] = None
     ) -> bool:
         """
-        Export current system state as a content pack.
+        Export current system state as a content pack with v1.1.0 structure.
 
         Args:
             output_path: Path where to save the content pack
             metadata: Optional metadata to include
+            include_variables: Whether to include variables section
+            variables: Optional variables to include in the pack
 
         Returns:
             True if exported successfully, False otherwise
@@ -126,9 +218,20 @@ class ContentPackManager:
             content_pack = {
                 "metadata": metadata or self._generate_default_metadata(),
                 "database": [],
-                "prompts": [],
                 "state": {},
             }
+
+            # Add new v1.1.0 fields if supported
+            if supports_new_prompt_categories():
+                content_pack["content_prompts"] = []
+                content_pack["usage_prompts"] = []
+            
+            # Keep legacy prompts field for backward compatibility
+            content_pack["prompts"] = []
+
+            # Add variables section if supported and requested
+            if supports_content_pack_variables() and include_variables:
+                content_pack["variables"] = variables or {}
 
             # Export database content
             database_tool = self.module_loader.get_tool("database")
@@ -150,6 +253,80 @@ class ContentPackManager:
 
         except Exception as e:
             logging.error(f"Error exporting content pack to {output_path}: {e}")
+            return False
+
+    def get_pack_variables(self, pack_name: str, user_id: int) -> Dict[str, str]:
+        """
+        Get all variable overrides for a specific content pack and user.
+
+        Args:
+            pack_name: Name of the content pack
+            user_id: ID of the user
+
+        Returns:
+            Dictionary mapping variable names to their values
+        """
+        try:
+            if not supports_content_pack_variables():
+                logging.warning("Content pack variables not supported in this version")
+                return {}
+
+            with Session(engine) as session:
+                variable_manager = get_variable_manager(session)
+                return variable_manager.get_pack_variables(pack_name, user_id)
+
+        except Exception as e:
+            logging.error(f"Error getting variables for pack '{pack_name}' and user {user_id}: {e}")
+            return {}
+
+    def set_pack_variable(self, pack_name: str, variable_name: str, value: str, user_id: int) -> bool:
+        """
+        Set a variable value for a content pack and user.
+
+        Args:
+            pack_name: Name of the content pack
+            variable_name: Name of the variable
+            value: Value to set
+            user_id: ID of the user
+
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            if not supports_content_pack_variables():
+                logging.warning("Content pack variables not supported in this version")
+                return False
+
+            with Session(engine) as session:
+                variable_manager = get_variable_manager(session)
+                return variable_manager.set_variable_value(pack_name, variable_name, value, user_id)
+
+        except Exception as e:
+            logging.error(f"Error setting variable '{variable_name}' for pack '{pack_name}' and user {user_id}: {e}")
+            return False
+
+    def reset_pack_variables(self, pack_name: str, user_id: int) -> bool:
+        """
+        Reset all variable overrides for a specific content pack and user.
+
+        Args:
+            pack_name: Name of the content pack
+            user_id: ID of the user
+
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            if not supports_content_pack_variables():
+                logging.warning("Content pack variables not supported in this version")
+                return False
+
+            with Session(engine) as session:
+                variable_manager = get_variable_manager(session)
+                return variable_manager.reset_pack_variables(pack_name, user_id)
+
+        except Exception as e:
+            logging.error(f"Error resetting variables for pack '{pack_name}' and user {user_id}: {e}")
             return False
 
     def list_available_content_packs(self) -> List[Dict[str, Any]]:
@@ -176,6 +353,12 @@ class ContentPackManager:
                     "has_database": bool(content_pack.get("database")),
                     "has_state": bool(content_pack.get("state")),
                     "has_prompts": bool(content_pack.get("prompts")),
+                    "has_variables": bool(content_pack.get("variables")),
+                    "has_content_prompts": bool(content_pack.get("content_prompts")),
+                    "has_usage_prompts": bool(content_pack.get("usage_prompts")),
+                    "variable_count": len(content_pack.get("variables", {})),
+                    "content_prompts_count": len(content_pack.get("content_prompts", [])),
+                    "usage_prompts_count": len(content_pack.get("usage_prompts", [])),
                 }
                 packs.append(pack_info)
 
@@ -291,14 +474,13 @@ class ContentPackManager:
             validation_result["errors"].append("Content pack must be a JSON object")
             return validation_result
 
-        # Check for required top-level keys
-        has_content = any(
-            key in content_pack for key in ["database", "state", "prompts"]
-        )
+        # Check for required top-level keys (include new v1.1.0 fields)
+        content_fields = ["database", "state", "prompts", "content_prompts", "usage_prompts"]
+        has_content = any(key in content_pack for key in content_fields)
         if not has_content:
             validation_result["is_valid"] = False
             validation_result["errors"].append(
-                "Content pack must contain at least one of: database, state, or prompts"
+                "Content pack must contain at least one of: database, state, prompts, content_prompts, or usage_prompts"
             )
 
         # Validate metadata section
@@ -396,11 +578,122 @@ class ContentPackManager:
                                 f"Prompt {i+1} missing required fields: {', '.join(missing_prompt_fields)}"
                             )
 
+        # Validate variables section (v1.1.0+)
+        if "variables" in content_pack:
+            validation_result["summary"]["has_variables"] = True
+            variables = content_pack["variables"]
+            if not isinstance(variables, dict):
+                validation_result["errors"].append("Variables section must be an object")
+            else:
+                validation_result["summary"]["variables_count"] = len(variables)
+                # Validate variable names and values
+                for var_name, var_value in variables.items():
+                    if not isinstance(var_name, str):
+                        validation_result["errors"].append(
+                            f"Variable name must be a string: {var_name}"
+                        )
+                    elif not self._is_valid_variable_name(var_name):
+                        validation_result["errors"].append(
+                            f"Invalid variable name '{var_name}': must start with letter/underscore, followed by letters/numbers/underscores"
+                        )
+                    
+                    if not isinstance(var_value, str):
+                        validation_result["errors"].append(
+                            f"Variable value must be a string: {var_name} = {var_value}"
+                        )
+
+                # Validate variable usage if variable resolver is available
+                if hasattr(self, 'variable_resolver') and self.variable_resolver:
+                    try:
+                        var_validation = self.variable_resolver.validate_content_pack_variables(
+                            content_pack, variables
+                        )
+                        if not var_validation["valid"]:
+                            for undefined_var in var_validation.get("undefined_variables", []):
+                                validation_result["warnings"].append(
+                                    f"Variable '{undefined_var}' is used but not defined"
+                                )
+                        
+                        for unused_var in var_validation.get("unused_variables", []):
+                            validation_result["warnings"].append(
+                                f"Variable '{unused_var}' is defined but not used"
+                            )
+                    except Exception as e:
+                        validation_result["warnings"].append(
+                            f"Could not validate variable usage: {e}"
+                        )
+
+        # Validate content_prompts section (v1.1.0+)
+        if "content_prompts" in content_pack:
+            validation_result["summary"]["has_content_prompts"] = True
+            content_prompts = content_pack["content_prompts"]
+            if not isinstance(content_prompts, list):
+                validation_result["errors"].append("Content prompts section must be an array")
+            else:
+                validation_result["summary"]["content_prompts_count"] = len(content_prompts)
+                # Validate content prompt structure
+                for i, prompt in enumerate(content_prompts):
+                    if not isinstance(prompt, dict):
+                        validation_result["errors"].append(
+                            f"Content prompt {i+1} must be an object"
+                        )
+                    else:
+                        required_fields = ["name", "content"]
+                        missing_fields = [
+                            field for field in required_fields if not prompt.get(field)
+                        ]
+                        if missing_fields:
+                            validation_result["errors"].append(
+                                f"Content prompt {i+1} missing required fields: {', '.join(missing_fields)}"
+                            )
+
+        # Validate usage_prompts section (v1.1.0+)
+        if "usage_prompts" in content_pack:
+            validation_result["summary"]["has_usage_prompts"] = True
+            usage_prompts = content_pack["usage_prompts"]
+            if not isinstance(usage_prompts, list):
+                validation_result["errors"].append("Usage prompts section must be an array")
+            else:
+                validation_result["summary"]["usage_prompts_count"] = len(usage_prompts)
+                # Validate usage prompt structure
+                for i, prompt in enumerate(usage_prompts):
+                    if not isinstance(prompt, dict):
+                        validation_result["errors"].append(
+                            f"Usage prompt {i+1} must be an object"
+                        )
+                    else:
+                        required_fields = ["name", "content"]
+                        missing_fields = [
+                            field for field in required_fields if not prompt.get(field)
+                        ]
+                        if missing_fields:
+                            validation_result["errors"].append(
+                                f"Usage prompt {i+1} missing required fields: {', '.join(missing_fields)}"
+                            )
+
         # Set final validation status
         if validation_result["errors"]:
             validation_result["is_valid"] = False
 
         return validation_result
+
+    def _is_valid_variable_name(self, name: str) -> bool:
+        """
+        Check if a variable name follows the correct syntax.
+
+        Args:
+            name: Variable name to check
+
+        Returns:
+            True if valid, False otherwise
+        """
+        if hasattr(self, 'variable_resolver') and self.variable_resolver:
+            return self.variable_resolver.validate_variable_name(name)
+        else:
+            # Fallback validation if variable resolver is not available
+            import re
+            pattern = re.compile(r'^[a-zA-Z_][a-zA-Z0-9_]*$')
+            return bool(pattern.match(name))
 
     def _validate_content_pack(self, content_pack: Dict[str, Any]) -> bool:
         """
@@ -914,7 +1207,7 @@ class ContentPackManager:
             "date_exported": datetime.now().isoformat(),
             "author_name": "",
             "author_email": "",
-            "version": "1.0.0",
+            "version": "1.1.0",
         }
 
     def fetch_remote_manifest(

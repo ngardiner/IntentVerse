@@ -696,6 +696,210 @@ def create_api_routes(
 
             return {"filename": filename, "validation": preview_result["validation"]}
 
+        # --- Content Pack Variable Management Endpoints ---
+
+        @router.get("/content-packs/{pack_name}/variables")
+        def get_pack_variables(
+            pack_name: str,
+            current_user: Annotated[
+                User, Depends(require_permission_or_service("content_packs.read"))
+            ],
+            session: Annotated[Session, Depends(get_session)],
+        ) -> Dict[str, Any]:
+            """
+            Get all variable overrides for a specific content pack and user.
+            """
+            from .version_utils import supports_content_pack_variables
+            
+            if not supports_content_pack_variables():
+                raise HTTPException(
+                    status_code=501, 
+                    detail="Content pack variables are not supported in this version"
+                )
+            
+            # For service authentication, we can't get user-specific variables
+            if isinstance(current_user, str):
+                raise HTTPException(
+                    status_code=400,
+                    detail="User authentication required for variable management"
+                )
+            
+            try:
+                variables = content_pack_manager.get_pack_variables(pack_name, current_user.id)
+                return {
+                    "status": "success",
+                    "pack_name": pack_name,
+                    "variables": variables,
+                    "variable_count": len(variables)
+                }
+            except Exception as e:
+                logging.error(f"Error getting variables for pack '{pack_name}': {e}")
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Failed to get variables for content pack '{pack_name}'"
+                )
+
+        @router.put("/content-packs/{pack_name}/variables/{variable_name}")
+        def set_pack_variable(
+            pack_name: str,
+            variable_name: str,
+            request: Dict[str, Any],
+            current_user: Annotated[
+                User, Depends(require_permission_or_service("content_packs.update"))
+            ],
+            session: Annotated[Session, Depends(get_session)],
+        ) -> Dict[str, Any]:
+            """
+            Set a variable value for a specific content pack and user.
+            """
+            from .version_utils import supports_content_pack_variables
+            
+            if not supports_content_pack_variables():
+                raise HTTPException(
+                    status_code=501, 
+                    detail="Content pack variables are not supported in this version"
+                )
+            
+            # For service authentication, we can't set user-specific variables
+            if isinstance(current_user, str):
+                raise HTTPException(
+                    status_code=400,
+                    detail="User authentication required for variable management"
+                )
+            
+            variable_value = request.get("value")
+            if variable_value is None:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Variable value is required"
+                )
+            
+            try:
+                success = content_pack_manager.set_pack_variable(
+                    pack_name, variable_name, str(variable_value), current_user.id
+                )
+                
+                if success:
+                    return {
+                        "status": "success",
+                        "message": f"Variable '{variable_name}' set successfully",
+                        "pack_name": pack_name,
+                        "variable_name": variable_name,
+                        "variable_value": str(variable_value)
+                    }
+                else:
+                    raise HTTPException(
+                        status_code=500,
+                        detail=f"Failed to set variable '{variable_name}' for content pack '{pack_name}'"
+                    )
+            except Exception as e:
+                logging.error(f"Error setting variable '{variable_name}' for pack '{pack_name}': {e}")
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Failed to set variable '{variable_name}' for content pack '{pack_name}'"
+                )
+
+        @router.delete("/content-packs/{pack_name}/variables/{variable_name}")
+        def reset_pack_variable(
+            pack_name: str,
+            variable_name: str,
+            current_user: Annotated[
+                User, Depends(require_permission_or_service("content_packs.update"))
+            ],
+            session: Annotated[Session, Depends(get_session)],
+        ) -> Dict[str, Any]:
+            """
+            Reset a specific variable to its default value for a content pack and user.
+            """
+            from .version_utils import supports_content_pack_variables
+            
+            if not supports_content_pack_variables():
+                raise HTTPException(
+                    status_code=501, 
+                    detail="Content pack variables are not supported in this version"
+                )
+            
+            # For service authentication, we can't reset user-specific variables
+            if isinstance(current_user, str):
+                raise HTTPException(
+                    status_code=400,
+                    detail="User authentication required for variable management"
+                )
+            
+            try:
+                from .content_pack_variables import get_variable_manager
+                variable_manager = get_variable_manager(session)
+                
+                success = variable_manager.delete_variable(pack_name, variable_name, current_user.id)
+                
+                if success:
+                    return {
+                        "status": "success",
+                        "message": f"Variable '{variable_name}' reset to default value",
+                        "pack_name": pack_name,
+                        "variable_name": variable_name
+                    }
+                else:
+                    raise HTTPException(
+                        status_code=404,
+                        detail=f"Variable '{variable_name}' not found for content pack '{pack_name}'"
+                    )
+            except HTTPException:
+                raise
+            except Exception as e:
+                logging.error(f"Error resetting variable '{variable_name}' for pack '{pack_name}': {e}")
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Failed to reset variable '{variable_name}' for content pack '{pack_name}'"
+                )
+
+        @router.post("/content-packs/{pack_name}/variables/reset")
+        def reset_all_pack_variables(
+            pack_name: str,
+            current_user: Annotated[
+                User, Depends(require_permission_or_service("content_packs.update"))
+            ],
+            session: Annotated[Session, Depends(get_session)],
+        ) -> Dict[str, Any]:
+            """
+            Reset all variables to their default values for a content pack and user.
+            """
+            from .version_utils import supports_content_pack_variables
+            
+            if not supports_content_pack_variables():
+                raise HTTPException(
+                    status_code=501, 
+                    detail="Content pack variables are not supported in this version"
+                )
+            
+            # For service authentication, we can't reset user-specific variables
+            if isinstance(current_user, str):
+                raise HTTPException(
+                    status_code=400,
+                    detail="User authentication required for variable management"
+                )
+            
+            try:
+                success = content_pack_manager.reset_pack_variables(pack_name, current_user.id)
+                
+                if success:
+                    return {
+                        "status": "success",
+                        "message": f"All variables reset to default values for content pack '{pack_name}'",
+                        "pack_name": pack_name
+                    }
+                else:
+                    raise HTTPException(
+                        status_code=500,
+                        detail=f"Failed to reset variables for content pack '{pack_name}'"
+                    )
+            except Exception as e:
+                logging.error(f"Error resetting all variables for pack '{pack_name}': {e}")
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Failed to reset variables for content pack '{pack_name}'"
+                )
+
         # --- Remote Content Pack Endpoints ---
 
         @router.get("/content-packs/remote")

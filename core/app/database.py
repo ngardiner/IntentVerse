@@ -23,7 +23,7 @@ def create_db_and_tables():
     logging.info("Initializing database and creating tables...")
 
     # Import all models to ensure they're registered with SQLModel
-    from .models import User, UserGroup, UserGroupLink, AuditLog, ModuleConfiguration
+    from .models import User, UserGroup, UserGroupLink, AuditLog, ModuleConfiguration, ContentPackVariable
 
     # Import RBAC models to ensure they're registered
     from .models import (

@@ -10,7 +10,7 @@ from packaging import version
 
 
 # Application version - single source of truth
-APP_VERSION = "1.0.0"
+APP_VERSION = "1.1.0"
 
 
 def get_app_version() -> str:
@@ -176,3 +176,77 @@ def get_version_info() -> dict:
         "patch": int(APP_VERSION.split(".")[2]),
         "semantic_version": True,
     }
+
+
+def supports_content_pack_variables() -> bool:
+    """
+    Check if the current version supports content pack variables.
+    
+    Returns:
+        True if variables are supported (v1.1.0+), False otherwise
+    """
+    current_version = parse_version(APP_VERSION)
+    min_version = parse_version("1.1.0")
+    return current_version >= min_version
+
+
+def supports_new_prompt_categories() -> bool:
+    """
+    Check if the current version supports new prompt categories (content_prompts, usage_prompts).
+    
+    Returns:
+        True if new prompt categories are supported (v1.1.0+), False otherwise
+    """
+    current_version = parse_version(APP_VERSION)
+    min_version = parse_version("1.1.0")
+    return current_version >= min_version
+
+
+def get_feature_compatibility() -> dict:
+    """
+    Get information about which features are supported in the current version.
+    
+    Returns:
+        Dictionary with feature compatibility information
+    """
+    return {
+        "content_pack_variables": supports_content_pack_variables(),
+        "new_prompt_categories": supports_new_prompt_categories(),
+        "legacy_prompts_field": True,  # Always supported for backward compatibility
+        "variable_token_syntax": supports_content_pack_variables(),
+        "user_variable_overrides": supports_content_pack_variables(),
+    }
+
+
+def create_v1_1_compatibility_conditions() -> List[dict]:
+    """
+    Create compatibility conditions for content packs that use v1.1.0 features.
+    
+    Returns:
+        List of compatibility conditions for v1.1.0 features
+    """
+    return [
+        {
+            "type": "version_range",
+            "min_version": "1.1.0",
+            "max_version": None,
+            "reason": "Uses content pack variables or new prompt categories (requires v1.1.0+)"
+        }
+    ]
+
+
+def create_backward_compatible_conditions() -> List[dict]:
+    """
+    Create compatibility conditions for content packs that work with older versions.
+    
+    Returns:
+        List of compatibility conditions for backward compatible content packs
+    """
+    return [
+        {
+            "type": "version_range",
+            "min_version": "1.0.0",
+            "max_version": None,
+            "reason": "Compatible with all IntentVerse versions"
+        }
+    ]
