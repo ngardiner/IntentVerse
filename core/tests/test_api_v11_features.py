@@ -13,23 +13,19 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 from app.models import User, ContentPackVariable
-from app.database import get_db_session
+from app.database import get_session
 
 
 class TestAPIv11Features:
     """Test API endpoints for v1.1.0 content pack features."""
 
-    @pytest.fixture
-    def client(self):
-        """Create a test client."""
-        return TestClient(app)
 
     @pytest.fixture
     def auth_headers(self, test_user):
         """Create authentication headers for test user."""
-        # Mock authentication for testing
-        with patch('app.auth.get_current_user', return_value=test_user):
-            yield {"Authorization": "Bearer test-token"}
+        # Use the auth_headers from conftest.py
+        from tests.conftest import get_auth_headers
+        return get_auth_headers()
 
     @pytest.fixture
     def sample_v11_pack_file(self):
@@ -166,8 +162,10 @@ class TestAPIv11Features:
             
             assert response.status_code == 200
             data = response.json()
-            assert data["success"] is True
+            assert data["status"] == "success"
             assert "api_key" in data["message"]
+            assert data["variable_name"] == "api_key"
+            assert data["variable_value"] == "custom-key-456"
             
             # Verify the variable was set
             response = client.get(

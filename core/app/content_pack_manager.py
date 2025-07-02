@@ -514,22 +514,34 @@ class ContentPackManager:
                 )
             else:
                 validation_result["summary"]["database_statements"] = len(database)
-                # Validate SQL statements
-                for i, statement in enumerate(database):
-                    if not isinstance(statement, str):
+                # Validate database content - support both v1.1.0 (SQL strings) and v1.0.0 (objects) formats
+                for i, item in enumerate(database):
+                    if isinstance(item, str):
+                        # v1.1.0 format: SQL string
+                        if not item.strip():
+                            validation_result["warnings"].append(
+                                f"Database statement {i+1} is empty"
+                            )
+                        elif not any(
+                            item.strip().upper().startswith(cmd)
+                            for cmd in ["CREATE", "INSERT", "UPDATE", "DELETE", "ALTER"]
+                        ):
+                            validation_result["warnings"].append(
+                                f"Database statement {i+1} may not be a valid SQL command"
+                            )
+                    elif isinstance(item, dict):
+                        # v1.0.0 format: object with table and data
+                        if not item.get("table"):
+                            validation_result["warnings"].append(
+                                f"Database item {i+1} missing table name (v1.0 format)"
+                            )
+                        if not item.get("data"):
+                            validation_result["warnings"].append(
+                                f"Database item {i+1} missing data (v1.0 format)"
+                            )
+                    else:
                         validation_result["errors"].append(
-                            f"Database statement {i+1} must be a string"
-                        )
-                    elif not statement.strip():
-                        validation_result["warnings"].append(
-                            f"Database statement {i+1} is empty"
-                        )
-                    elif not any(
-                        statement.strip().upper().startswith(cmd)
-                        for cmd in ["CREATE", "INSERT", "UPDATE", "DELETE", "ALTER"]
-                    ):
-                        validation_result["warnings"].append(
-                            f"Database statement {i+1} may not be a valid SQL command"
+                            f"Database item {i+1} must be either a SQL string (v1.1+) or an object with table/data (v1.0)"
                         )
 
         # Validate state section
@@ -567,15 +579,13 @@ class ContentPackManager:
                             f"Prompt {i+1} must be an object"
                         )
                     else:
-                        required_prompt_fields = ["name", "content"]
-                        missing_prompt_fields = [
-                            field
-                            for field in required_prompt_fields
-                            if not prompt.get(field)
-                        ]
-                        if missing_prompt_fields:
+                        # Support both v1.1.0 format (name, content) and v1.0.0 format (title/id, prompt)
+                        has_v11_fields = prompt.get("name") and prompt.get("content")
+                        has_v10_fields = (prompt.get("title") or prompt.get("id")) and prompt.get("prompt")
+                        
+                        if not has_v11_fields and not has_v10_fields:
                             validation_result["errors"].append(
-                                f"Prompt {i+1} missing required fields: {', '.join(missing_prompt_fields)}"
+                                f"Prompt {i+1} missing required fields: either (name, content) for v1.1+ or (title/id, prompt) for v1.0"
                             )
 
         # Validate variables section (v1.1.0+)

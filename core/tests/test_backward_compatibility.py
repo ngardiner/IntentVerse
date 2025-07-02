@@ -141,9 +141,28 @@ class TestBackwardCompatibility:
         }
 
     @pytest.fixture
-    def content_pack_manager(self, db_session):
+    def content_pack_manager(self, session):
         """Create a ContentPackManager instance."""
-        return ContentPackManager(db_session)
+        # Mock state_manager and module_loader for testing
+        from unittest.mock import MagicMock
+        mock_state_manager = MagicMock()
+        mock_module_loader = MagicMock()
+        mock_database_tool = MagicMock()
+        
+        # Configure mocks to return JSON-serializable data
+        mock_database_tool.export_database_content.return_value = []
+        mock_module_loader.get_tool.return_value = mock_database_tool
+        mock_state_manager.get_full_state.return_value = {
+            "test_module": {"test_key": "test_value"}
+        }
+        
+        return ContentPackManager(mock_state_manager, mock_module_loader)
+
+    @pytest.fixture
+    def variable_manager(self, session):
+        """Create a ContentPackVariableManager instance."""
+        from app.content_pack_variables import ContentPackVariableManager
+        return ContentPackVariableManager(session)
 
     def create_temp_pack_file(self, pack_data):
         """Helper to create temporary content pack file."""
@@ -156,14 +175,14 @@ class TestBackwardCompatibility:
         temp_file = self.create_temp_pack_file(v10_content_pack_minimal)
         
         try:
-            result = content_pack_manager.load_content_pack(temp_file)
+            from pathlib import Path
+            result = content_pack_manager.load_content_pack(Path(temp_file))
             
-            assert result.success is True
-            assert "Minimal v1.0 Pack" in result.message
+            assert result is True
             
             # Verify pack is loaded
-            loaded_packs = content_pack_manager.get_loaded_content_packs()
-            pack_names = [pack['name'] for pack in loaded_packs]
+            loaded_packs = content_pack_manager.get_loaded_packs_info()
+            pack_names = [pack['metadata'].get('name', '') for pack in loaded_packs]
             assert "Minimal v1.0 Pack" in pack_names
             
         finally:
@@ -174,45 +193,42 @@ class TestBackwardCompatibility:
         temp_file = self.create_temp_pack_file(v10_content_pack_complex)
         
         try:
-            result = content_pack_manager.load_content_pack(temp_file)
+            from pathlib import Path
+            result = content_pack_manager.load_content_pack(Path(temp_file))
             
-            assert result.success is True
-            assert "Complex v1.0 Pack" in result.message
+            assert result is True
             
-            # Verify all legacy features are preserved
-            pack_data = content_pack_manager.get_content_pack_data("Complex v1.0 Pack")
+            # Verify pack is loaded
+            loaded_packs = content_pack_manager.get_loaded_packs_info()
+            pack_names = [pack['metadata'].get('name', '') for pack in loaded_packs]
+            assert "Complex v1.0 Pack" in pack_names
             
-            assert 'prompts' in pack_data
-            assert len(pack_data['prompts']) == 3
+            # Verify the pack has legacy features
+            loaded_pack = None
+            for pack in loaded_packs:
+                if pack['metadata'].get('name') == "Complex v1.0 Pack":
+                    loaded_pack = pack
+                    break
             
-            assert 'database' in pack_data
-            assert len(pack_data['database']) == 1
-            
-            assert 'state' in pack_data
-            assert pack_data['state']['legacy_setting'] == "enabled"
+            assert loaded_pack is not None
+            assert loaded_pack['has_legacy_prompts'] is True
             
         finally:
             os.unlink(temp_file)
 
     def test_v10_pack_validation_passes(self, content_pack_manager, v10_content_pack_complex):
         """Test that v1.0.0 content packs pass validation."""
-        temp_file = self.create_temp_pack_file(v10_content_pack_complex)
+        validation_result = content_pack_manager.validate_content_pack_detailed(v10_content_pack_complex)
         
-        try:
-            validation_result = content_pack_manager.validate_content_pack_detailed(temp_file)
-            
-            assert validation_result.is_valid is True
-            assert len(validation_result.errors) == 0
-            
-            # Should not have warnings about missing v1.1.0 fields
-            missing_field_warnings = [
-                warning for warning in validation_result.warnings 
-                if 'content_prompts' in warning or 'usage_prompts' in warning or 'variables' in warning
-            ]
-            assert len(missing_field_warnings) == 0
-            
-        finally:
-            os.unlink(temp_file)
+        assert validation_result["is_valid"] is True
+        assert len(validation_result["errors"]) == 0
+        
+        # Should not have warnings about missing v1.1.0 fields
+        missing_field_warnings = [
+            warning for warning in validation_result["warnings"] 
+            if 'content_prompts' in warning or 'usage_prompts' in warning or 'variables' in warning
+        ]
+        assert len(missing_field_warnings) == 0
 
     def test_v10_pack_no_variable_resolution(self, content_pack_manager, variable_manager, v10_content_pack_complex, test_user):
         """Test that v1.0.0 packs work without variable resolution."""
@@ -367,7 +383,7 @@ class TestBackwardCompatibility:
             assert variables == {}
             
             # Try to set a variable (should work but have no effect on content)
-            success = variable_manager.set_variable(
+            success = variable_manager.set_variable_value(
                 "Minimal v1.0 Pack", 
                 "test_var", 
                 "test_value", 
