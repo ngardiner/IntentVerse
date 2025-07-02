@@ -17,8 +17,10 @@ class TestContentPackVariableModel:
     def test_content_pack_variable_creation(self, session):
         """Test creating a ContentPackVariable instance."""
         # Create a test user first
+        import uuid
+        username = f"testuser_{uuid.uuid4().hex[:8]}"
         user = User(
-            username="testuser",
+            username=username,
             hashed_password=get_password_hash("testpass"),
             full_name="Test User",
         )
@@ -50,8 +52,10 @@ class TestContentPackVariableModel:
     def test_unique_constraint(self, session):
         """Test that the unique constraint works correctly."""
         # Create a test user
+        import uuid
+        username = f"testuser2_{uuid.uuid4().hex[:8]}"
         user = User(
-            username="testuser2",
+            username=username,
             hashed_password=get_password_hash("testpass"),
             full_name="Test User 2",
         )
