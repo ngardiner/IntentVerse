@@ -17,11 +17,11 @@ def test_permission_checker_basic_functionality(session: Session):
     # Initialize RBAC system
     initialize_rbac_system(session)
 
-    # Create a test user
+    # Create a test user with a unique username
     user = User(
-        username="testuser",
+        username="testuser_rbac",
         hashed_password=get_password_hash("testpass"),
-        email="test@example.com",
+        email="test_rbac@example.com",
     )
     session.add(user)
     session.commit()

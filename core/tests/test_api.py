@@ -442,7 +442,10 @@ class TestContentPackVariableAPI:
 
     def test_get_pack_variables_success(self, authenticated_client, mock_content_pack_manager_with_variables, mock_variable_manager):
         """Test successful retrieval of pack variables."""
-        with patch('app.main.content_pack_manager', mock_content_pack_manager_with_variables):
+        from app.main import content_pack_manager
+        
+        # Patch the methods on the actual content_pack_manager instance
+        with patch.object(content_pack_manager, 'get_pack_variables', return_value={"email_domain": "example.com", "company_name": "ACME Corp"}):
             with patch('app.content_pack_variables.get_variable_manager', return_value=mock_variable_manager):
                 with patch('app.version_utils.supports_content_pack_variables', return_value=True):
                     response = authenticated_client.get("/api/v1/content-packs/test_pack/variables")
@@ -455,21 +458,22 @@ class TestContentPackVariableAPI:
                     assert data["variables"]["company_name"] == "ACME Corp"
                     assert data["variable_count"] == 2
                     
-                    mock_content_pack_manager_with_variables.get_pack_variables.assert_called_once_with("test_pack", 1)
+                    content_pack_manager.get_pack_variables.assert_called_once_with("test_pack", 1)
 
     def test_get_pack_variables_not_supported(self, authenticated_client, mock_content_pack_manager_with_variables, mock_variable_manager):
         """Test getting pack variables when feature is not supported."""
-        with patch('app.main.content_pack_manager', mock_content_pack_manager_with_variables):
-            with patch('app.content_pack_variables.get_variable_manager', return_value=mock_variable_manager):
-                with patch('app.version_utils.supports_content_pack_variables', return_value=False):
-                    response = authenticated_client.get("/api/v1/content-packs/test_pack/variables")
-                    
-                    assert response.status_code == 501
-                    assert "not supported in this version" in response.json()["detail"]
+        with patch('app.content_pack_variables.get_variable_manager', return_value=mock_variable_manager):
+            with patch('app.version_utils.supports_content_pack_variables', return_value=False):
+                response = authenticated_client.get("/api/v1/content-packs/test_pack/variables")
+                
+                assert response.status_code == 501
+                assert "not supported in this version" in response.json()["detail"]
 
     def test_set_pack_variable_success(self, authenticated_client, mock_content_pack_manager_with_variables, mock_variable_manager):
         """Test successful setting of a pack variable."""
-        with patch('app.main.content_pack_manager', mock_content_pack_manager_with_variables):
+        from app.main import content_pack_manager
+        
+        with patch.object(content_pack_manager, 'set_pack_variable', return_value=True):
             with patch('app.content_pack_variables.get_variable_manager', return_value=mock_variable_manager):
                 with patch('app.version_utils.supports_content_pack_variables', return_value=True):
                     payload = {"value": "new_value"}
@@ -482,24 +486,23 @@ class TestContentPackVariableAPI:
                     assert data["variable_name"] == "test_var"
                     assert data["variable_value"] == "new_value"
                     
-                    mock_content_pack_manager_with_variables.set_pack_variable.assert_called_once_with("test_pack", "test_var", "new_value", 1)
+                    content_pack_manager.set_pack_variable.assert_called_once_with("test_pack", "test_var", "new_value", 1)
 
     def test_set_pack_variable_missing_value(self, authenticated_client, mock_content_pack_manager_with_variables, mock_variable_manager):
         """Test setting a pack variable without providing a value."""
-        with patch('app.main.content_pack_manager', mock_content_pack_manager_with_variables):
-            with patch('app.content_pack_variables.get_variable_manager', return_value=mock_variable_manager):
-                with patch('app.version_utils.supports_content_pack_variables', return_value=True):
-                    payload = {}
-                    response = authenticated_client.put("/api/v1/content-packs/test_pack/variables/test_var", json=payload)
-                    
-                    assert response.status_code == 400
-                    assert "Variable value is required" in response.json()["detail"]
+        with patch('app.content_pack_variables.get_variable_manager', return_value=mock_variable_manager):
+            with patch('app.version_utils.supports_content_pack_variables', return_value=True):
+                payload = {}
+                response = authenticated_client.put("/api/v1/content-packs/test_pack/variables/test_var", json=payload)
+                
+                assert response.status_code == 400
+                assert "Variable value is required" in response.json()["detail"]
 
     def test_set_pack_variable_failure(self, authenticated_client, mock_content_pack_manager_with_variables, mock_variable_manager):
         """Test setting a pack variable when the operation fails."""
-        mock_content_pack_manager_with_variables.set_pack_variable.return_value = False
+        from app.main import content_pack_manager
         
-        with patch('app.main.content_pack_manager', mock_content_pack_manager_with_variables):
+        with patch.object(content_pack_manager, 'set_pack_variable', return_value=False):
             with patch('app.content_pack_variables.get_variable_manager', return_value=mock_variable_manager):
                 with patch('app.version_utils.supports_content_pack_variables', return_value=True):
                     payload = {"value": "new_value"}
@@ -510,7 +513,7 @@ class TestContentPackVariableAPI:
 
     def test_reset_pack_variable_success(self, authenticated_client, mock_content_pack_manager_with_variables, mock_variable_manager):
         """Test successful reset of a pack variable."""
-        with patch('app.main.content_pack_manager', mock_content_pack_manager_with_variables):
+        with patch.object(mock_variable_manager, 'delete_variable', return_value=True):
             with patch('app.content_pack_variables.get_variable_manager', return_value=mock_variable_manager):
                 with patch('app.version_utils.supports_content_pack_variables', return_value=True):
                     response = authenticated_client.delete("/api/v1/content-packs/test_pack/variables/test_var")
@@ -526,9 +529,7 @@ class TestContentPackVariableAPI:
 
     def test_reset_pack_variable_not_found(self, authenticated_client, mock_content_pack_manager_with_variables, mock_variable_manager):
         """Test resetting a pack variable that doesn't exist."""
-        mock_variable_manager.delete_variable.return_value = False
-        
-        with patch('app.main.content_pack_manager', mock_content_pack_manager_with_variables):
+        with patch.object(mock_variable_manager, 'delete_variable', return_value=False):
             with patch('app.content_pack_variables.get_variable_manager', return_value=mock_variable_manager):
                 with patch('app.version_utils.supports_content_pack_variables', return_value=True):
                     response = authenticated_client.delete("/api/v1/content-packs/test_pack/variables/test_var")
@@ -538,7 +539,9 @@ class TestContentPackVariableAPI:
 
     def test_reset_all_pack_variables_success(self, authenticated_client, mock_content_pack_manager_with_variables, mock_variable_manager):
         """Test successful reset of all pack variables."""
-        with patch('app.main.content_pack_manager', mock_content_pack_manager_with_variables):
+        from app.main import content_pack_manager
+        
+        with patch.object(content_pack_manager, 'reset_pack_variables', return_value=True):
             with patch('app.content_pack_variables.get_variable_manager', return_value=mock_variable_manager):
                 with patch('app.version_utils.supports_content_pack_variables', return_value=True):
                     response = authenticated_client.post("/api/v1/content-packs/test_pack/variables/reset")
@@ -549,13 +552,13 @@ class TestContentPackVariableAPI:
                     assert data["pack_name"] == "test_pack"
                     assert "All variables reset" in data["message"]
                     
-                    mock_content_pack_manager_with_variables.reset_pack_variables.assert_called_once_with("test_pack", 1)
+                    content_pack_manager.reset_pack_variables.assert_called_once_with("test_pack", 1)
 
     def test_reset_all_pack_variables_failure(self, authenticated_client, mock_content_pack_manager_with_variables, mock_variable_manager):
         """Test resetting all pack variables when the operation fails."""
-        mock_content_pack_manager_with_variables.reset_pack_variables.return_value = False
+        from app.main import content_pack_manager
         
-        with patch('app.main.content_pack_manager', mock_content_pack_manager_with_variables):
+        with patch.object(content_pack_manager, 'reset_pack_variables', return_value=False):
             with patch('app.content_pack_variables.get_variable_manager', return_value=mock_variable_manager):
                 with patch('app.version_utils.supports_content_pack_variables', return_value=True):
                     response = authenticated_client.post("/api/v1/content-packs/test_pack/variables/reset")

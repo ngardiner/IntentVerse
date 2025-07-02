@@ -25,7 +25,7 @@ CORE_API_URL = os.environ.get("CORE_API_URL", "http://core:8000")
 
 # For e2e tests, use the environment variable value (which will be set correctly in docker-compose)
 # or fall back to the same default as the auth module
-SERVICE_API_KEY = os.environ.get("SERVICE_API_KEY", "dev-service-key-12345")
+SERVICE_API_KEY = os.environ.get("SERVICE_API_KEY", "test-service-key-12345")
 
 
 def get_service_headers():
