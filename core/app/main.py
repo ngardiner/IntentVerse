@@ -10,7 +10,7 @@ from .api import create_api_routes
 from .api_v2 import create_api_routes_v2
 from .auth import router as auth_router, get_current_user, get_current_user_or_service
 from .models import User
-from .database import create_db_and_tables
+from .database_compat import create_db_and_tables
 from sqlmodel import Session
 from .init_db import init_db
 from .content_pack_manager import ContentPackManager
@@ -44,10 +44,11 @@ async def lifespan(app: FastAPI):
 
     # Discover and load all modules from the 'modules' directory
     if not is_testing:
-        from .database import engine
+        from .database_compat import get_session
 
-        with Session(engine) as session:
+        for session in get_session():
             module_loader.load_modules(session)
+            break
     else:
         logging.info("Skipping module loading during tests")
 

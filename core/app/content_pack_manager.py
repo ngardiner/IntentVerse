@@ -12,7 +12,7 @@ from .config import Config
 from .version_utils import get_app_version, check_compatibility_conditions, supports_content_pack_variables, supports_new_prompt_categories
 from .variable_resolver import VariableResolver, create_variable_resolver
 from .content_pack_variables import get_variable_manager
-from .database import engine
+from .database_compat import get_session
 
 
 class ContentPackManager:
@@ -55,9 +55,10 @@ class ContentPackManager:
         try:
             if supports_content_pack_variables():
                 # Create variable resolver with database support
-                with Session(engine) as session:
+                for session in get_session():
                     variable_manager = get_variable_manager(session)
                     self.variable_resolver = VariableResolver(variable_manager)
+                    break
                 logging.debug("Variable resolver initialized with database support")
             else:
                 # Create basic variable resolver without database support
@@ -327,7 +328,7 @@ class ContentPackManager:
                 logging.warning("Content pack variables not supported in this version")
                 return {}
 
-            with Session(engine) as session:
+            for session in get_session():
                 variable_manager = get_variable_manager(session)
                 return variable_manager.get_pack_variables(pack_name, user_id)
 
@@ -353,7 +354,7 @@ class ContentPackManager:
                 logging.warning("Content pack variables not supported in this version")
                 return False
 
-            with Session(engine) as session:
+            for session in get_session():
                 variable_manager = get_variable_manager(session)
                 return variable_manager.set_variable_value(pack_name, variable_name, value, user_id)
 
@@ -377,7 +378,7 @@ class ContentPackManager:
                 logging.warning("Content pack variables not supported in this version")
                 return False
 
-            with Session(engine) as session:
+            for session in get_session():
                 variable_manager = get_variable_manager(session)
                 return variable_manager.reset_pack_variables(pack_name, user_id)
 

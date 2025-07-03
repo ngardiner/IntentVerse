@@ -6,7 +6,7 @@ This script creates the default admin user if it doesn't exist and sets up RBAC.
 import logging
 from sqlmodel import Session, select
 
-from .database import engine
+from .database_compat import engine
 from .models import User, UserGroup, UserGroupLink
 from .security import get_password_hash
 from .rbac import initialize_rbac_system
@@ -19,7 +19,7 @@ def init_default_admin():
     Password: IntentVerse
     """
     # Use the current engine value (important for testing when engine is overridden)
-    from . import database
+    from . import database_compat as database
 
     current_engine = database.engine
     with Session(current_engine) as session:
@@ -75,7 +75,7 @@ def init_db():
     init_default_admin()
 
     # Initialize RBAC system
-    from . import database
+    from . import database_compat as database
 
     current_engine = database.engine
     with Session(current_engine) as session:

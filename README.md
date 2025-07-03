@@ -265,6 +265,80 @@ After installation, IntentVerse provides:
 - **MCP Server:** Standards-compliant interface for AI model integration
 - **Content Packs:** Shareable configurations and scenarios
 
+## Configuration
+
+### Database Configuration
+
+IntentVerse uses SQLite by default with zero configuration required. For production deployments or specific requirements, you can configure alternative database engines.
+
+#### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `INTENTVERSE_DB_TYPE` | `sqlite` | Database engine type |
+| `INTENTVERSE_DB_URL` | - | Complete database connection URL (optional) |
+| `INTENTVERSE_DB_HOST` | - | Database host |
+| `INTENTVERSE_DB_PORT` | - | Database port |
+| `INTENTVERSE_DB_NAME` | - | Database name |
+| `INTENTVERSE_DB_USER` | - | Database username |
+| `INTENTVERSE_DB_PASSWORD` | - | Database password |
+| `INTENTVERSE_DB_SSL_MODE` | - | SSL connection mode |
+
+#### SQLite (Default)
+No configuration needed. IntentVerse will automatically create `intentverse.db` in the working directory.
+
+```bash
+# SQLite is used by default - no environment variables needed
+```
+
+#### PostgreSQL (v1.2.0+)
+*Coming in v1.2.0 - Configuration examples for future reference:*
+
+```bash
+# Using connection URL
+export INTENTVERSE_DB_TYPE=postgresql
+export INTENTVERSE_DB_URL="postgresql://user:password@localhost:5432/intentverse"
+
+# Or using individual parameters
+export INTENTVERSE_DB_TYPE=postgresql
+export INTENTVERSE_DB_HOST=localhost
+export INTENTVERSE_DB_PORT=5432
+export INTENTVERSE_DB_NAME=intentverse
+export INTENTVERSE_DB_USER=intentverse_user
+export INTENTVERSE_DB_PASSWORD=your_password
+export INTENTVERSE_DB_SSL_MODE=require
+```
+
+#### MySQL (v1.2.0+)
+*Coming in v1.2.0 - Configuration examples for future reference:*
+
+```bash
+# Using connection URL
+export INTENTVERSE_DB_TYPE=mysql
+export INTENTVERSE_DB_URL="mysql://user:password@localhost:3306/intentverse"
+
+# Or using individual parameters
+export INTENTVERSE_DB_TYPE=mysql
+export INTENTVERSE_DB_HOST=localhost
+export INTENTVERSE_DB_PORT=3306
+export INTENTVERSE_DB_NAME=intentverse
+export INTENTVERSE_DB_USER=intentverse_user
+export INTENTVERSE_DB_PASSWORD=your_password
+```
+
+#### Cloud Database Examples (v1.2.0+)
+*Coming in v1.2.0 - Cloud provider examples:*
+
+```bash
+# AWS RDS PostgreSQL
+export INTENTVERSE_DB_TYPE=postgresql
+export INTENTVERSE_DB_URL="postgresql://username:password@mydb.cluster-xyz.us-east-1.rds.amazonaws.com:5432/intentverse"
+
+# Google Cloud SQL MySQL
+export INTENTVERSE_DB_TYPE=mysql
+export INTENTVERSE_DB_URL="mysql://username:password@google-cloud-sql-host:3306/intentverse"
+```
+
 ### Next Steps
 
 1. **Explore the Interface:** Log in to the web interface and explore the pre-loaded sample data

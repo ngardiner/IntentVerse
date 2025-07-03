@@ -17,7 +17,7 @@ from .auth import (
 )
 from .rbac import require_permission, require_permission_or_service
 from .models import User
-from .database import get_session
+from .database_compat import get_session
 from .rate_limiter import limiter, create_rate_limit_function
 
 

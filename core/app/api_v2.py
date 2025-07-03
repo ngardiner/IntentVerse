@@ -22,7 +22,7 @@ from .auth import (
 )
 from .rbac import require_permission, require_permission_or_service
 from .models import User
-from .database import get_session
+from .database_compat import get_session
 from .version_manager import get_api_version
 
 

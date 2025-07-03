@@ -37,7 +37,7 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
                 
                 if username:
                     # Get user from database
-                    from .database import get_session
+                    from .database_compat import get_session
                     from .models import User
                     from sqlmodel import Session, select
                     

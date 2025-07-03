@@ -12,7 +12,7 @@ from sqlmodel import Session, select
 from datetime import datetime
 
 from .models import ContentPackVariable, User
-from .database import engine
+from .database_compat import get_session
 
 
 class ContentPackVariableManager:
@@ -313,7 +313,7 @@ def get_pack_variables_standalone(
     Returns:
         Dictionary mapping variable names to their values
     """
-    with Session(engine) as session:
+    for session in get_session():
         manager = get_variable_manager(session)
         return manager.get_pack_variables(content_pack_name, user_id)
 
@@ -333,7 +333,7 @@ def set_variable_value_standalone(
     Returns:
         True if successful, False otherwise
     """
-    with Session(engine) as session:
+    for session in get_session():
         manager = get_variable_manager(session)
         return manager.set_variable_value(
             content_pack_name, variable_name, variable_value, user_id
