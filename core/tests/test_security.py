@@ -11,7 +11,7 @@ from app.security import (
     get_password_hash,
     create_access_token,
     decode_access_token,
-    SECRET_KEY,
+    SECRET_KEY,  # This is now randomly generated on startup
     ALGORITHM,
     ACCESS_TOKEN_EXPIRE_MINUTES,
 )

@@ -136,7 +136,7 @@ Currently, token refresh is not implemented. Users must re-authenticate when tok
 ### Environment Variables
 
 - `SERVICE_API_KEY`: API key for service authentication (default: "your-service-key")
-- `SECRET_KEY`: Secret key for JWT token signing
+<!-- SECRET_KEY is now auto-generated on startup -->
 - `ACCESS_TOKEN_EXPIRE_MINUTES`: Token expiration time in minutes
 
 ### Production Security

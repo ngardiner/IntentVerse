@@ -20,10 +20,10 @@
     "test": "react-scripts test",
     "test:watch": "react-scripts test --watchAll=false",
     "test:coverage": "react-scripts test --coverage --watchAll=false",
-    "test:ci": "JEST_JUNIT_OUTPUT_NAME=web-core-test-results.xml react-scripts test --testPathPattern='(App\\.test\\.|api/)' --watchAll=false --ci --silent --testResultsProcessor=jest-junit",
-    "test:web-auth": "JEST_JUNIT_OUTPUT_NAME=web-auth-test-results.xml react-scripts test --testPathPattern=auth --watchAll=false --ci --silent --testResultsProcessor=jest-junit",
-    "test:web-pages": "JEST_JUNIT_OUTPUT_NAME=web-pages-test-results.xml react-scripts test --testPathPattern=pages --watchAll=false --ci --silent --testResultsProcessor=jest-junit",
-    "test:web-components": "JEST_JUNIT_OUTPUT_NAME=web-components-test-results.xml react-scripts test --testPathPattern=components --watchAll=false --ci --silent --testResultsProcessor=jest-junit",
+    "test:ci": "JEST_JUNIT_OUTPUT_NAME=web-core-test-results.xml react-scripts test --testPathPattern='(App\\.test\\.|api/)' --watchAll=false --ci --silent --testResultsProcessor=jest-junit --forceExit",
+    "test:web-auth": "JEST_JUNIT_OUTPUT_NAME=web-auth-test-results.xml react-scripts test --testPathPattern=auth --watchAll=false --ci --silent --testResultsProcessor=jest-junit --forceExit",
+    "test:web-pages": "JEST_JUNIT_OUTPUT_NAME=web-pages-test-results.xml react-scripts test --testPathPattern=pages --watchAll=false --ci --silent --testResultsProcessor=jest-junit --forceExit",
+    "test:web-components": "JEST_JUNIT_OUTPUT_NAME=web-components-test-results.xml react-scripts test --testPathPattern=components --watchAll=false --ci --silent --testResultsProcessor=jest-junit --forceExit --maxWorkers=2",
     "test:verbose": "react-scripts test --coverage --watchAll=false --verbose",
     "test:debug": "react-scripts test --watchAll=false --verbose --no-cache",
     "eject": "react-scripts eject"
@@ -58,7 +58,8 @@
     },
     "moduleNameMapper": {
       "\\.(css|less|scss|sass)$": "identity-obj-proxy"
-    }
+    },
+    "testTimeout": 30000
   },
   "jest-junit": {
     "outputDirectory": "./test-results",

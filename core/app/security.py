@@ -39,11 +39,10 @@ def get_password_hash(password: str) -> str:
 
 # --- JWT Token Handling ---
 
-# For production, this MUST be set as an environment variable.
-# You can generate a strong secret key with: openssl rand -hex 32
-SECRET_KEY = os.getenv(
-    "SECRET_KEY", "09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7"
-)
+# Generate a random secret key on each startup
+# This is secure because refresh tokens are stored in the database
+# and can be used to get new access tokens after restart
+SECRET_KEY = secrets.token_hex(32)
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
 REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "30"))

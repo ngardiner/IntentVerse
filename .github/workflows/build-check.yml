@@ -173,7 +173,7 @@ jobs:
         id: web-core-tests
         run: |
           echo "Running web core tests (App + API)..."
-          docker compose run --name intentverse-web-core-tests \
+          timeout 180s docker compose run --name intentverse-web-core-tests \
             -e CI=true \
             web npm run test:ci
         continue-on-error: true
@@ -182,7 +182,7 @@ jobs:
         id: web-auth-tests
         run: |
           echo "Running web authentication tests..."
-          docker compose run --name intentverse-web-auth-tests \
+          timeout 180s docker compose run --name intentverse-web-auth-tests \
             -e CI=true \
             web npm run test:web-auth
         continue-on-error: true
@@ -191,7 +191,8 @@ jobs:
         id: web-component-tests
         run: |
           echo "Running web component tests..."
-          docker compose run --name intentverse-web-component-tests \
+          # Run with a timeout to prevent hanging tests
+          timeout 180s docker compose run --name intentverse-web-component-tests \
             -e CI=true \
             web npm run test:web-components
         continue-on-error: true
@@ -200,7 +201,7 @@ jobs:
         id: web-page-tests
         run: |
           echo "Running web page tests..."
-          docker compose run --name intentverse-web-page-tests \
+          timeout 180s docker compose run --name intentverse-web-page-tests \
             -e CI=true \
             web npm run test:web-pages
         continue-on-error: true
