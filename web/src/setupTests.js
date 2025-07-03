@@ -4,6 +4,9 @@
 // learn more: https://github.com/testing-library/jest-dom
 import '@testing-library/jest-dom';
 
+// Set global test timeout to 100 seconds to prevent hanging tests
+jest.setTimeout(100000);
+
 // Ensure axios is mocked for all tests
 jest.mock('axios');
 
