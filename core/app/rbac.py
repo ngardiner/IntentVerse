@@ -14,7 +14,7 @@ from sqlmodel import Session, select
 from functools import wraps
 import logging
 
-from .database import get_session
+from .database_compat import get_session
 from .models import (
     User,
     Role,

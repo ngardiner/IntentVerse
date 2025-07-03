@@ -15,28 +15,15 @@ TEST_SERVICE_API_KEY = "test-service-key-12345"
 if "SERVICE_API_KEY" not in os.environ:
     os.environ["SERVICE_API_KEY"] = TEST_SERVICE_API_KEY
 
-# Use an in-memory SQLite database for testing
-TEST_DATABASE_URL = "sqlite:///:memory:"  # Use in-memory SQLite for test isolation
-test_engine = create_engine(
-    TEST_DATABASE_URL,
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool,  # Use StaticPool to share the same connection
-    pool_pre_ping=True,
-)
+# Set up test database configuration using the new abstraction layer
+from tests.conftest_database import override_database_for_testing, get_test_engine
 
-# Override the engine used in the database module BEFORE importing the app
-from app import database
-
-database.engine = test_engine
-
-# Override the init_db module to use the test engine
-from app import init_db
-
-init_db.engine = test_engine
+# Override database configuration for testing
+test_engine = override_database_for_testing()
 
 # Now import the app and other modules
 from app.main import app
-from app.database import get_session
+from app.database_compat import get_session
 from app.state_manager import StateManager
 from app.module_loader import ModuleLoader
 from app.auth import (
@@ -66,8 +53,8 @@ from app.security import get_password_hash, create_access_token
 
 def get_session_override():
     """Dependency override to use the test database session."""
-    with Session(test_engine) as session:
-        yield session
+    # Use the abstraction layer for session management
+    return get_session()
 
 
 # Override the database session dependency
@@ -141,9 +128,10 @@ def get_service_headers() -> dict:
 @pytest.fixture(name="test_user")
 def test_user_fixture():
     """Create a test user in the database."""
-    with Session(test_engine) as session:
+    for session in get_session():
         user = create_test_user(session)
         yield user
+        break
 
 
 @pytest.fixture(name="auth_headers")
@@ -180,11 +168,12 @@ def create_test_db_and_tables():
     SQLModel.metadata.create_all(test_engine)
 
     # Verify critical tables exist
-    with Session(test_engine) as session:
+    for session in get_session():
         try:
             session.exec(text("SELECT COUNT(*) FROM auditlog")).first()
             session.exec(text("SELECT COUNT(*) FROM user")).first()
             session.exec(text("SELECT COUNT(*) FROM role")).first()
+            break
         except Exception as e:
             raise RuntimeError(f"Failed to create test database tables: {e}")
 
@@ -200,8 +189,9 @@ def client_fixture():
     create_test_db_and_tables()
 
     # Set up test database with RBAC system
-    with Session(test_engine) as session:
+    for session in get_session():
         setup_test_database(session)
+        break
 
     # This context manager will run the startup events before yielding
     with TestClient(app) as client:
@@ -228,8 +218,9 @@ def session_fixture():
     # Ensure tables are created
     create_test_db_and_tables()
 
-    with Session(test_engine) as session:
+    for session in get_session():
         yield session
+        break
 
 
 @pytest.fixture(name="service_client")

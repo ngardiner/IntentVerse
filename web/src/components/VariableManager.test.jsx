@@ -94,10 +94,11 @@ describe('VariableManager', () => {
     it('should load pack data when component opens', async () => {
       render(<VariableManager {...mockProps} />);
       
+      // Check API calls with timeout
       await waitFor(() => {
         expect(apiClient.getPackVariables).toHaveBeenCalledWith('Test Pack');
         expect(apiClient.previewContentPack).toHaveBeenCalledWith('test-pack.json');
-      });
+      }, { timeout: 1000 });
     });
 
     it('should not load data when packName or packFilename is missing', () => {
@@ -112,10 +113,11 @@ describe('VariableManager', () => {
       
       render(<VariableManager {...mockProps} />);
       
+      // Check error message appears with timeout
       await waitFor(() => {
         expect(screen.getByText(/Error:/)).toBeInTheDocument();
         expect(screen.getByText('Retry')).toBeInTheDocument();
-      });
+      }, { timeout: 1000 });
     });
 
     it('should retry loading on retry button click', async () => {
@@ -126,15 +128,18 @@ describe('VariableManager', () => {
       
       render(<VariableManager {...mockProps} />);
       
+      // Wait for error state
       await waitFor(() => {
         expect(screen.getByText('Retry')).toBeInTheDocument();
-      });
+      }, { timeout: 1000 });
       
+      // Click retry
       fireEvent.click(screen.getByText('Retry'));
       
+      // Check API was called again
       await waitFor(() => {
         expect(apiClient.getPackVariables).toHaveBeenCalledTimes(2);
-      });
+      }, { timeout: 1000 });
     });
   });
 
@@ -146,24 +151,27 @@ describe('VariableManager', () => {
       
       render(<VariableManager {...mockProps} />);
       
+      // Check message appears with timeout
       await waitFor(() => {
         expect(screen.getByText('This content pack does not define any variables.')).toBeInTheDocument();
-      });
+      }, { timeout: 1000 });
     });
 
     it('should display all variables from pack defaults', async () => {
       render(<VariableManager {...mockProps} />);
       
+      // Check variables are displayed with timeout
       await waitFor(() => {
         expect(screen.getByText('{{company_name}}')).toBeInTheDocument();
         expect(screen.getByText('{{email_domain}}')).toBeInTheDocument();
         expect(screen.getByText('{{support_email}}')).toBeInTheDocument();
-      });
+      }, { timeout: 1000 });
     });
 
     it('should show customized badge for user overrides', async () => {
       render(<VariableManager {...mockProps} />);
       
+      // Check customized badge with timeout
       await waitFor(() => {
         // company_name has a user override
         const companyNameRow = screen.getByText('{{company_name}}').closest('.variable-row');
@@ -172,12 +180,13 @@ describe('VariableManager', () => {
         // email_domain does not have a user override
         const emailDomainRow = screen.getByText('{{email_domain}}').closest('.variable-row');
         expect(emailDomainRow).not.toHaveTextContent('Custom');
-      });
+      }, { timeout: 1000 });
     });
 
     it('should display current and default values correctly', async () => {
       render(<VariableManager {...mockProps} />);
       
+      // Check values are displayed with timeout
       await waitFor(() => {
         // For customized variable, should show both current and default
         expect(screen.getByText('Custom Corp')).toBeInTheDocument(); // Current value
@@ -185,16 +194,17 @@ describe('VariableManager', () => {
         
         // For non-customized variable, should show only current (which is default)
         expect(screen.getByText('default.com')).toBeInTheDocument();
-      });
+      }, { timeout: 1000 });
     });
 
     it('should show variable statistics', async () => {
       render(<VariableManager {...mockProps} />);
       
+      // Check statistics with timeout
       await waitFor(() => {
         expect(screen.getByText('3')).toBeInTheDocument(); // total variables
         expect(screen.getByText('1')).toBeInTheDocument(); // customized variables
-      });
+      }, { timeout: 1000 });
     });
   });
 
@@ -202,93 +212,126 @@ describe('VariableManager', () => {
     it('should enter edit mode when edit button is clicked', async () => {
       render(<VariableManager {...mockProps} />);
       
+      // Wait for component to load first
       await waitFor(() => {
-        const editButton = screen.getAllByText('Edit')[0];
-        fireEvent.click(editButton);
-        
-        expect(screen.getByDisplayValue('Custom Corp')).toBeInTheDocument();
-        expect(screen.getByText('Save')).toBeInTheDocument();
-        expect(screen.getByText('Cancel')).toBeInTheDocument();
-      });
+        expect(screen.getByText('{{company_name}}')).toBeInTheDocument();
+      }, { timeout: 1000 });
+      
+      // Then perform actions
+      const editButton = screen.getAllByText('Edit')[0];
+      fireEvent.click(editButton);
+      
+      // Check edit mode is active
+      expect(screen.getByDisplayValue('Custom Corp')).toBeInTheDocument();
+      expect(screen.getByText('Save')).toBeInTheDocument();
+      expect(screen.getByText('Cancel')).toBeInTheDocument();
     });
 
     it('should cancel edit mode when cancel button is clicked', async () => {
       render(<VariableManager {...mockProps} />);
       
+      // Wait for component to load first
       await waitFor(() => {
-        const editButton = screen.getAllByText('Edit')[0];
-        fireEvent.click(editButton);
-        
-        const cancelButton = screen.getByText('Cancel');
-        fireEvent.click(cancelButton);
-        
-        expect(screen.queryByDisplayValue('Custom Corp')).not.toBeInTheDocument();
-        expect(screen.queryByText('Save')).not.toBeInTheDocument();
-      });
+        expect(screen.getByText('{{company_name}}')).toBeInTheDocument();
+      }, { timeout: 1000 });
+      
+      // Enter edit mode
+      const editButton = screen.getAllByText('Edit')[0];
+      fireEvent.click(editButton);
+      
+      // Cancel edit mode
+      const cancelButton = screen.getByText('Cancel');
+      fireEvent.click(cancelButton);
+      
+      // Check edit mode is canceled
+      expect(screen.queryByDisplayValue('Custom Corp')).not.toBeInTheDocument();
+      expect(screen.queryByText('Save')).not.toBeInTheDocument();
     });
 
     it('should update input value when typing', async () => {
       render(<VariableManager {...mockProps} />);
       
+      // Wait for component to load first
       await waitFor(() => {
-        const editButton = screen.getAllByText('Edit')[0];
-        fireEvent.click(editButton);
-        
-        const input = screen.getByDisplayValue('Custom Corp');
-        fireEvent.change(input, { target: { value: 'New Corp Name' } });
-        
-        expect(screen.getByDisplayValue('New Corp Name')).toBeInTheDocument();
-      });
+        expect(screen.getByText('{{company_name}}')).toBeInTheDocument();
+      }, { timeout: 1000 });
+      
+      // Enter edit mode
+      const editButton = screen.getAllByText('Edit')[0];
+      fireEvent.click(editButton);
+      
+      // Type in the input
+      const input = screen.getByDisplayValue('Custom Corp');
+      fireEvent.change(input, { target: { value: 'New Corp Name' } });
+      
+      // Check input value updated
+      expect(screen.getByDisplayValue('New Corp Name')).toBeInTheDocument();
     });
 
     it('should save variable when save button is clicked', async () => {
       render(<VariableManager {...mockProps} />);
       
+      // Wait for component to load first
       await waitFor(() => {
-        const editButton = screen.getAllByText('Edit')[0];
-        fireEvent.click(editButton);
-        
-        const input = screen.getByDisplayValue('Custom Corp');
-        fireEvent.change(input, { target: { value: 'New Corp Name' } });
-        
-        const saveButton = screen.getByText('Save');
-        fireEvent.click(saveButton);
-      });
+        expect(screen.getByText('{{company_name}}')).toBeInTheDocument();
+      }, { timeout: 1000 });
       
+      // Then perform actions sequentially
+      const editButton = screen.getAllByText('Edit')[0];
+      fireEvent.click(editButton);
+      
+      const input = screen.getByDisplayValue('Custom Corp');
+      fireEvent.change(input, { target: { value: 'New Corp Name' } });
+      
+      const saveButton = screen.getByText('Save');
+      fireEvent.click(saveButton);
+      
+      // Check API was called with correct parameters
       await waitFor(() => {
         expect(apiClient.setPackVariable).toHaveBeenCalledWith(
           'Test Pack',
           'company_name',
           'New Corp Name'
         );
-      });
+      }, { timeout: 1000 });
     });
 
     it('should disable save button when input is empty', async () => {
       render(<VariableManager {...mockProps} />);
       
+      // Wait for component to load first
       await waitFor(() => {
-        const editButton = screen.getAllByText('Edit')[0];
-        fireEvent.click(editButton);
-        
-        const input = screen.getByDisplayValue('Custom Corp');
-        fireEvent.change(input, { target: { value: '' } });
-        
-        const saveButton = screen.getByText('Save');
-        expect(saveButton).toBeDisabled();
-      });
+        expect(screen.getByText('{{company_name}}')).toBeInTheDocument();
+      }, { timeout: 1000 });
+      
+      // Enter edit mode
+      const editButton = screen.getAllByText('Edit')[0];
+      fireEvent.click(editButton);
+      
+      // Clear the input
+      const input = screen.getByDisplayValue('Custom Corp');
+      fireEvent.change(input, { target: { value: '' } });
+      
+      // Check save button is disabled
+      const saveButton = screen.getByText('Save');
+      expect(saveButton).toBeDisabled();
     });
 
     it('should show default value reference during editing', async () => {
       render(<VariableManager {...mockProps} />);
       
+      // Wait for component to load first
       await waitFor(() => {
-        const editButton = screen.getAllByText('Edit')[0];
-        fireEvent.click(editButton);
-        
-        expect(screen.getByText('Default:')).toBeInTheDocument();
-        expect(screen.getByText('Default Corp')).toBeInTheDocument();
-      });
+        expect(screen.getByText('{{company_name}}')).toBeInTheDocument();
+      }, { timeout: 1000 });
+      
+      // Enter edit mode
+      const editButton = screen.getAllByText('Edit')[0];
+      fireEvent.click(editButton);
+      
+      // Check default value reference is shown
+      expect(screen.getByText('Default:')).toBeInTheDocument();
+      expect(screen.getByText('Default Corp')).toBeInTheDocument();
     });
   });
 
@@ -330,14 +373,19 @@ describe('VariableManager', () => {
       
       render(<VariableManager {...mockProps} />);
       
+      // Wait for component to load first
       await waitFor(() => {
-        const resetButton = screen.getByText('Reset');
-        fireEvent.click(resetButton);
-      });
+        expect(screen.getByText('{{company_name}}')).toBeInTheDocument();
+      }, { timeout: 1000 });
       
+      // Then perform actions
+      const resetButton = screen.getByText('Reset');
+      fireEvent.click(resetButton);
+      
+      // Check API was called
       await waitFor(() => {
         expect(apiClient.resetPackVariable).toHaveBeenCalledWith('Test Pack', 'company_name');
-      });
+      }, { timeout: 1000 });
     });
 
     it('should not reset variable when not confirmed', async () => {
@@ -345,20 +393,26 @@ describe('VariableManager', () => {
       
       render(<VariableManager {...mockProps} />);
       
+      // Wait for component to load first
       await waitFor(() => {
-        const resetButton = screen.getByText('Reset');
-        fireEvent.click(resetButton);
-        
-        expect(apiClient.resetPackVariable).not.toHaveBeenCalled();
-      });
+        expect(screen.getByText('{{company_name}}')).toBeInTheDocument();
+      }, { timeout: 1000 });
+      
+      // Then perform actions
+      const resetButton = screen.getByText('Reset');
+      fireEvent.click(resetButton);
+      
+      // Check API was not called
+      expect(apiClient.resetPackVariable).not.toHaveBeenCalled();
     });
 
     it('should show reset all button when there are customized variables', async () => {
       render(<VariableManager {...mockProps} />);
       
+      // Add timeout to prevent hanging
       await waitFor(() => {
         expect(screen.getByText('Reset All to Defaults')).toBeInTheDocument();
-      });
+      }, { timeout: 1000 });
     });
 
     it('should not show reset all button when no variables are customized', async () => {
@@ -368,9 +422,10 @@ describe('VariableManager', () => {
       
       render(<VariableManager {...mockProps} />);
       
+      // Add timeout to prevent hanging
       await waitFor(() => {
         expect(screen.queryByText('Reset All to Defaults')).not.toBeInTheDocument();
-      });
+      }, { timeout: 1000 });
     });
 
     it('should confirm before resetting all variables', async () => {
@@ -378,14 +433,19 @@ describe('VariableManager', () => {
       
       render(<VariableManager {...mockProps} />);
       
+      // Wait for component to load first
       await waitFor(() => {
-        const resetAllButton = screen.getByText('Reset All to Defaults');
-        fireEvent.click(resetAllButton);
-        
-        expect(window.confirm).toHaveBeenCalledWith(
-          'Reset all variables for "Test Pack" to their default values?'
-        );
-      });
+        expect(screen.getByText('Reset All to Defaults')).toBeInTheDocument();
+      }, { timeout: 1000 });
+      
+      // Then perform actions
+      const resetAllButton = screen.getByText('Reset All to Defaults');
+      fireEvent.click(resetAllButton);
+      
+      // Check confirm was called
+      expect(window.confirm).toHaveBeenCalledWith(
+        'Reset all variables for "Test Pack" to their default values?'
+      );
     });
 
     it('should reset all variables when confirmed', async () => {
@@ -393,14 +453,19 @@ describe('VariableManager', () => {
       
       render(<VariableManager {...mockProps} />);
       
+      // Wait for component to load first
       await waitFor(() => {
-        const resetAllButton = screen.getByText('Reset All to Defaults');
-        fireEvent.click(resetAllButton);
-      });
+        expect(screen.getByText('Reset All to Defaults')).toBeInTheDocument();
+      }, { timeout: 1000 });
       
+      // Then perform actions
+      const resetAllButton = screen.getByText('Reset All to Defaults');
+      fireEvent.click(resetAllButton);
+      
+      // Check API was called
       await waitFor(() => {
         expect(apiClient.resetAllPackVariables).toHaveBeenCalledWith('Test Pack');
-      });
+      }, { timeout: 1000 });
     });
   });
 
@@ -410,21 +475,26 @@ describe('VariableManager', () => {
       
       render(<VariableManager {...mockProps} />);
       
+      // Wait for component to load first
       await waitFor(() => {
-        const editButton = screen.getAllByText('Edit')[0];
-        fireEvent.click(editButton);
-        
-        const input = screen.getByDisplayValue('Custom Corp');
-        fireEvent.change(input, { target: { value: 'New Corp' } });
-        
-        const saveButton = screen.getByText('Save');
-        fireEvent.click(saveButton);
+        expect(screen.getByText('{{company_name}}')).toBeInTheDocument();
       });
       
+      // Then perform actions sequentially
+      const editButton = screen.getAllByText('Edit')[0];
+      fireEvent.click(editButton);
+      
+      const input = screen.getByDisplayValue('Custom Corp');
+      fireEvent.change(input, { target: { value: 'New Corp' } });
+      
+      const saveButton = screen.getByText('Save');
+      fireEvent.click(saveButton);
+      
+      // Then check for error message
       await waitFor(() => {
         expect(screen.getByText(/Error:/)).toBeInTheDocument();
         expect(screen.getByText(/Save failed/)).toBeInTheDocument();
-      });
+      }, { timeout: 1000 });
     });
 
     it('should handle reset errors gracefully', async () => {
@@ -433,15 +503,20 @@ describe('VariableManager', () => {
       
       render(<VariableManager {...mockProps} />);
       
+      // Wait for component to load first
       await waitFor(() => {
-        const resetButton = screen.getByText('Reset');
-        fireEvent.click(resetButton);
+        expect(screen.getByText('{{company_name}}')).toBeInTheDocument();
       });
       
+      // Then perform actions
+      const resetButton = screen.getByText('Reset');
+      fireEvent.click(resetButton);
+      
+      // Then check for error message
       await waitFor(() => {
         expect(screen.getByText(/Error:/)).toBeInTheDocument();
         expect(screen.getByText(/Reset failed/)).toBeInTheDocument();
-      });
+      }, { timeout: 1000 });
     });
 
     /**
@@ -462,37 +537,49 @@ describe('VariableManager', () => {
     it('should have proper ARIA labels', async () => {
       render(<VariableManager {...mockProps} />);
       
+      // Add timeout to prevent hanging
       await waitFor(() => {
         const modal = screen.getByRole('dialog');
         expect(modal).toBeInTheDocument();
-      });
+      }, { timeout: 1000 });
     });
 
     it('should focus input when entering edit mode', async () => {
       render(<VariableManager {...mockProps} />);
       
+      // Wait for component to load first
       await waitFor(() => {
-        const editButton = screen.getAllByText('Edit')[0];
-        fireEvent.click(editButton);
-        
-        const input = screen.getByDisplayValue('Custom Corp');
-        expect(input).toHaveFocus();
-      });
+        expect(screen.getByText('{{company_name}}')).toBeInTheDocument();
+      }, { timeout: 1000 });
+      
+      // Then perform actions sequentially
+      const editButton = screen.getAllByText('Edit')[0];
+      fireEvent.click(editButton);
+      
+      // Check focus
+      const input = screen.getByDisplayValue('Custom Corp');
+      expect(input).toHaveFocus();
     });
 
     it('should handle keyboard navigation', async () => {
       render(<VariableManager {...mockProps} />);
       
+      // Wait for component to load first
       await waitFor(() => {
-        const editButton = screen.getAllByText('Edit')[0];
-        fireEvent.click(editButton);
-        
-        const input = screen.getByDisplayValue('Custom Corp');
-        fireEvent.keyPress(input, { key: 'Enter', code: 'Enter' });
-        
-        // Should trigger save on Enter key
+        expect(screen.getByText('{{company_name}}')).toBeInTheDocument();
+      }, { timeout: 1000 });
+      
+      // Then perform actions sequentially
+      const editButton = screen.getAllByText('Edit')[0];
+      fireEvent.click(editButton);
+      
+      const input = screen.getByDisplayValue('Custom Corp');
+      fireEvent.keyPress(input, { key: 'Enter', code: 'Enter' });
+      
+      // Check API was called
+      await waitFor(() => {
         expect(apiClient.setPackVariable).toHaveBeenCalled();
-      });
+      }, { timeout: 1000 });
     });
   });
 
