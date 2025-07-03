@@ -5,7 +5,6 @@
 import '@testing-library/jest-dom';
 
 // Set global test timeout to 30 seconds to prevent hanging tests
-// This is also configured in package.json's jest.testTimeout
 jest.setTimeout(30000);
 
 // Ensure axios is mocked for all tests
