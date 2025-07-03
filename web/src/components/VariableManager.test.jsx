@@ -54,7 +54,7 @@ describe('VariableManager', () => {
 
     it('should render when isOpen is true', () => {
       render(<VariableManager {...mockProps} />);
-      expect(screen.getByText('Variable Manager: Test Pack')).toBeInTheDocument();
+      expect(screen.getByText('Manage Variables: Test Pack')).toBeInTheDocument();
     });
 
     it('should show loading state initially', () => {

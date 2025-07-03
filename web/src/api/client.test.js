@@ -149,7 +149,7 @@ describe('API Client', () => {
 
         const result = await getPackVariables('Test Pack');
 
-        expect(mockedAxios.get).toHaveBeenCalledWith('/api/v1/content-packs/Test Pack/variables');
+        expect(mockedAxios.get).toHaveBeenCalledWith('/api/v1/content-packs/Test%20Pack/variables');
         expect(result).toEqual(mockResponse);
       });
 
@@ -159,7 +159,7 @@ describe('API Client', () => {
 
         await getPackVariables('Test Pack & More!');
 
-        expect(mockedAxios.get).toHaveBeenCalledWith('/api/v1/content-packs/Test Pack & More!/variables');
+        expect(mockedAxios.get).toHaveBeenCalledWith('/api/v1/content-packs/Test%20Pack%20%26%20More!/variables');
       });
     });
 
@@ -171,7 +171,7 @@ describe('API Client', () => {
         const result = await setPackVariable('Test Pack', 'test_var', 'new_value');
 
         expect(mockedAxios.put).toHaveBeenCalledWith(
-          '/api/v1/content-packs/Test Pack/variables/test_var',
+          '/api/v1/content-packs/Test%20Pack/variables/test_var',
           { value: 'new_value' }
         );
         expect(result).toEqual(mockResponse);
@@ -184,7 +184,7 @@ describe('API Client', () => {
         await setPackVariable('Test Pack', 'test_var', '');
 
         expect(mockedAxios.put).toHaveBeenCalledWith(
-          '/api/v1/content-packs/Test Pack/variables/test_var',
+          '/api/v1/content-packs/Test%20Pack/variables/test_var',
           { value: '' }
         );
       });
@@ -196,7 +196,7 @@ describe('API Client', () => {
         await setPackVariable('Test Pack', 'test_var_123', 'value');
 
         expect(mockedAxios.put).toHaveBeenCalledWith(
-          '/api/v1/content-packs/Test Pack/variables/test_var_123',
+          '/api/v1/content-packs/Test%20Pack/variables/test_var_123',
           { value: 'value' }
         );
       });
@@ -210,7 +210,7 @@ describe('API Client', () => {
         const result = await resetPackVariable('Test Pack', 'test_var');
 
         expect(mockedAxios.delete).toHaveBeenCalledWith(
-          '/api/v1/content-packs/Test Pack/variables/test_var'
+          '/api/v1/content-packs/Test%20Pack/variables/test_var'
         );
         expect(result).toEqual(mockResponse);
       });
@@ -224,14 +224,14 @@ describe('API Client', () => {
         const result = await resetAllPackVariables('Test Pack');
 
         expect(mockedAxios.post).toHaveBeenCalledWith(
-          '/api/v1/content-packs/Test Pack/variables/reset'
+          '/api/v1/content-packs/Test%20Pack/variables/reset'
         );
         expect(result).toEqual(mockResponse);
       });
     });
 
     describe('previewContentPack', () => {
-      it('should make POST request with file to preview content pack', async () => {
+      it('should make GET request to preview content pack by filename', async () => {
         const mockResponse = { 
           data: { 
             content_pack: { 
@@ -241,13 +241,12 @@ describe('API Client', () => {
             } 
           } 
         };
-        mockedAxios.post.mockResolvedValue(mockResponse);
+        mockedAxios.get.mockResolvedValue(mockResponse);
 
         const result = await previewContentPack('test-pack.json');
 
-        expect(mockedAxios.post).toHaveBeenCalledWith(
-          '/api/v1/content-packs/preview',
-          expect.any(FormData)
+        expect(mockedAxios.get).toHaveBeenCalledWith(
+          '/api/v1/content-packs/preview/test-pack.json'
         );
         expect(result).toEqual(mockResponse);
       });

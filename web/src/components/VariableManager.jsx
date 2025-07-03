@@ -150,9 +150,9 @@ const VariableManager = ({ packName, packFilename, isOpen, onClose }) => {
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content variable-manager-modal" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-content variable-manager-modal" role="dialog" aria-labelledby="variable-manager-title" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h3>Manage Variables: {packName}</h3>
+          <h3 id="variable-manager-title">Manage Variables: {packName}</h3>
           <button className="modal-close" onClick={onClose}>×</button>
         </div>
         
@@ -226,7 +226,7 @@ const VariableManager = ({ packName, packFilename, isOpen, onClose }) => {
                   <div key={variableName} className="variable-row">
                     <div className="variable-info">
                       <div className="variable-name-section">
-                        <span className="variable-token">{{variableName}}</span>
+                        <span className="variable-token">{`{{${variableName}}}`}</span>
                         <span className="variable-name">{variableName}</span>
                         {isCustomized && <span className="customized-badge">Custom</span>}
                       </div>
@@ -316,7 +316,7 @@ const VariableManager = ({ packName, packFilename, isOpen, onClose }) => {
           <div className="footer-info">
             <p>
               <strong>Tip:</strong> Variable changes apply immediately to all content in this pack. 
-              Use the token format <code>{{variable_name}}</code> in prompts to reference variables.
+              Use the token format <code>{`{{variable_name}}`}</code> in prompts to reference variables.
             </p>
           </div>
           <div className="footer-actions">

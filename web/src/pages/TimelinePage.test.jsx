@@ -135,6 +135,9 @@ describe('TimelinePage', () => {
 
   describe('Event Display', () => {
     it('sorts events by timestamp (newest first)', async () => {
+      // Mock WebSocket connection failure to trigger polling fallback
+      initializeWebSocket.mockRejectedValue(new Error('WebSocket failed'));
+      
       render(<TimelinePage {...defaultProps} />);
       
       await waitFor(() => {
@@ -146,6 +149,9 @@ describe('TimelinePage', () => {
     });
 
     it('groups events by date', async () => {
+      // Mock WebSocket connection failure to trigger polling fallback
+      initializeWebSocket.mockRejectedValue(new Error('WebSocket failed'));
+      
       render(<TimelinePage {...defaultProps} />);
       
       await waitFor(() => {
@@ -156,6 +162,9 @@ describe('TimelinePage', () => {
     });
 
     it('displays event metadata correctly', async () => {
+      // Mock WebSocket connection failure to trigger polling fallback
+      initializeWebSocket.mockRejectedValue(new Error('WebSocket failed'));
+      
       render(<TimelinePage {...defaultProps} />);
       
       await waitFor(() => {
@@ -168,6 +177,9 @@ describe('TimelinePage', () => {
 
   describe('Event Filtering', () => {
     it('shows all event types as clickable filters', async () => {
+      // Mock WebSocket connection failure to trigger polling fallback
+      initializeWebSocket.mockRejectedValue(new Error('WebSocket failed'));
+      
       render(<TimelinePage {...defaultProps} />);
       
       await waitFor(() => {
@@ -180,6 +192,9 @@ describe('TimelinePage', () => {
     });
 
     it('filters events by type when event type is clicked', async () => {
+      // Mock WebSocket connection failure to trigger polling fallback
+      initializeWebSocket.mockRejectedValue(new Error('WebSocket failed'));
+      
       const user = userEvent.setup();
       render(<TimelinePage {...defaultProps} />);
       
@@ -221,6 +236,9 @@ describe('TimelinePage', () => {
     });
 
     it('resets filter when event type is clicked again', async () => {
+      // Mock WebSocket connection failure to trigger polling fallback
+      initializeWebSocket.mockRejectedValue(new Error('WebSocket failed'));
+      
       const user = userEvent.setup();
       render(<TimelinePage {...defaultProps} />);
       
@@ -270,6 +288,9 @@ describe('TimelinePage', () => {
 
   describe('Event Interaction', () => {
     it('selects event when event is clicked', async () => {
+      // Mock WebSocket connection failure to trigger polling fallback
+      initializeWebSocket.mockRejectedValue(new Error('WebSocket failed'));
+      
       const user = userEvent.setup();
       render(<TimelinePage {...defaultProps} />);
       
@@ -288,6 +309,9 @@ describe('TimelinePage', () => {
     });
 
     it('shows tooltip on event hover', async () => {
+      // Mock WebSocket connection failure to trigger polling fallback
+      initializeWebSocket.mockRejectedValue(new Error('WebSocket failed'));
+      
       const user = userEvent.setup();
       render(<TimelinePage {...defaultProps} />);
       
@@ -303,6 +327,9 @@ describe('TimelinePage', () => {
     });
 
     it('hides tooltip when mouse leaves event', async () => {
+      // Mock WebSocket connection failure to trigger polling fallback
+      initializeWebSocket.mockRejectedValue(new Error('WebSocket failed'));
+      
       const user = userEvent.setup();
       render(<TimelinePage {...defaultProps} />);
       
@@ -439,6 +466,8 @@ describe('TimelinePage', () => {
     });
 
     it('displays error message when API call fails', async () => {
+      // Mock WebSocket connection failure to trigger polling fallback
+      initializeWebSocket.mockRejectedValue(new Error('WebSocket failed'));
       getTimelineEvents.mockRejectedValue(new Error('API Error'));
       
       render(<TimelinePage {...defaultProps} />);
@@ -518,6 +547,8 @@ describe('TimelinePage', () => {
 
   describe('Empty State', () => {
     it('displays empty state when no events are available', async () => {
+      // Mock WebSocket connection failure to trigger polling fallback
+      initializeWebSocket.mockRejectedValue(new Error('WebSocket failed'));
       getTimelineEvents.mockResolvedValue({ data: [] });
       
       render(<TimelinePage {...defaultProps} />);
@@ -530,6 +561,9 @@ describe('TimelinePage', () => {
     it('shows no events when filtering by non-existent type', async () => {
       // This test is not applicable since the component only shows existing event types as filters
       // We can test that clicking an event type filter shows only events of that type
+      // Mock WebSocket connection failure to trigger polling fallback
+      initializeWebSocket.mockRejectedValue(new Error('WebSocket failed'));
+      
       const user = userEvent.setup();
       render(<TimelinePage {...defaultProps} />);
       
@@ -573,6 +607,9 @@ describe('TimelinePage', () => {
 
   describe('Accessibility', () => {
     it('renders interactive elements that can be accessed', async () => {
+      // Mock WebSocket connection failure to trigger polling fallback
+      initializeWebSocket.mockRejectedValue(new Error('WebSocket failed'));
+      
       render(<TimelinePage {...defaultProps} />);
       
       await waitFor(() => {
@@ -585,6 +622,9 @@ describe('TimelinePage', () => {
     });
 
     it('supports clicking on events for interaction', async () => {
+      // Mock WebSocket connection failure to trigger polling fallback
+      initializeWebSocket.mockRejectedValue(new Error('WebSocket failed'));
+      
       const user = userEvent.setup();
       render(<TimelinePage {...defaultProps} />);
       
