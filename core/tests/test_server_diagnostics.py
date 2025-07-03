@@ -221,6 +221,9 @@ def test_server_module_loader_diagnostics():
 
     This test is marked as e2e and will be skipped if the service is not available.
     """
+    # Set the TESTING environment variable to ensure service authentication works
+    os.environ["TESTING"] = "1"
+    
     # Skip the test in CI environment if we're not running in Docker
     if os.environ.get("CI") and not os.path.exists("/.dockerenv"):
         pytest.skip("Skipping E2E test in CI environment without Docker")

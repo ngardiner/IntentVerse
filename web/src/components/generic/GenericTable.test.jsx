@@ -38,7 +38,7 @@ describe('GenericTable', () => {
   });
 
   it('renders loading state initially', () => {
-    getModuleState.mockImplementation(() => new Promise(() => {})); // Never resolves
+    getModuleState.mockImplementation(() => new Promise(resolve => setTimeout(() => resolve({}), 100))); // Resolves after 100ms
     
     render(
       <GenericTable

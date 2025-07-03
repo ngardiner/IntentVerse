@@ -445,23 +445,39 @@ describe('VariableManager', () => {
     });
 
     it('should disable buttons during save operation', async () => {
-      // Make the API call hang
-      apiClient.setPackVariable.mockImplementation(() => new Promise(() => {}));
+      // Fix for the hanging test - ensure all promises resolve
+      apiClient.setPackVariable.mockImplementation(() => 
+        new Promise(resolve => setTimeout(() => resolve({}), 100))
+      );
       
       render(<VariableManager {...mockProps} />);
       
+      // Wait for the component to load
       await waitFor(() => {
-        const editButton = screen.getAllByText('Edit')[0];
-        fireEvent.click(editButton);
-        
-        const input = screen.getByDisplayValue('Custom Corp');
-        fireEvent.change(input, { target: { value: 'New Corp' } });
-        
-        const saveButton = screen.getByText('Save');
-        fireEvent.click(saveButton);
-        
+        expect(screen.queryByText('Loading variables...')).not.toBeInTheDocument();
+      });
+      
+      // Find and click the edit button
+      const editButton = screen.getAllByText('Edit')[0];
+      fireEvent.click(editButton);
+      
+      // Change the input value
+      const input = screen.getByDisplayValue('Custom Corp');
+      fireEvent.change(input, { target: { value: 'New Corp' } });
+      
+      // Click save button
+      const saveButton = screen.getByText('Save');
+      fireEvent.click(saveButton);
+      
+      // Check that the UI shows saving state
+      await waitFor(() => {
         expect(screen.getByText('Saving...')).toBeInTheDocument();
         expect(screen.getByText('Cancel')).toBeDisabled();
+      });
+      
+      // Wait for the save operation to complete
+      await waitFor(() => {
+        expect(apiClient.setPackVariable).toHaveBeenCalled();
       });
     });
   });

@@ -67,7 +67,7 @@ describe('VersionInfo', () => {
   });
 
   test('shows loading state initially', () => {
-    apiClient.getVersionInfo.mockImplementation(() => new Promise(() => {})); // Never resolves
+    apiClient.getVersionInfo.mockImplementation(() => new Promise(resolve => setTimeout(() => resolve({}), 100))); // Resolves after 100ms
 
     render(<VersionInfo />);
 

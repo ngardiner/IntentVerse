@@ -50,7 +50,7 @@ describe('DashboardPage', () => {
   });
 
   it('renders loading state initially', () => {
-    getUILayout.mockImplementation(() => new Promise(() => {})); // Never resolves
+    getUILayout.mockImplementation(() => new Promise(resolve => setTimeout(() => resolve({}), 100))); // Resolves after 100ms
     
     render(
       <DashboardPage
