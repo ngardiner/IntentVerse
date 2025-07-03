@@ -3,7 +3,6 @@ FROM node:20-alpine
 RUN apk add --no-cache curl
 WORKDIR /app
 COPY package.json ./
-COPY jest.config.js ./
 # Install all dependencies
 RUN npm install
 # Copy the application source code.
