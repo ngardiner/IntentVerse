@@ -21,12 +21,15 @@ from .models import (
     UserRoleLink,
     GroupRoleLink,
     RolePermissionLink,
+    RefreshToken,
 )
 from .security import (
     get_password_hash,
     verify_password,
     create_access_token,
+    create_refresh_token,
     decode_access_token,
+    decode_refresh_token,
 )
 from .rbac import (
     require_permission,
@@ -282,6 +285,10 @@ def get_current_user_or_service(
         # Validate that the API key is appropriate for the current environment
         validate_api_key_for_environment(effective_api_key)
 
+        # Log the API key comparison for debugging
+        logging.debug(f"Comparing API keys: received={effective_api_key}, expected={current_service_api_key}")
+        
+        # Use string comparison to ensure exact match
         if effective_api_key == current_service_api_key:
             return "service"
 
@@ -337,6 +344,7 @@ class UserWithGroups(UserPublic):
 
 class Token(SQLModel):
     access_token: str
+    refresh_token: str
     token_type: str
 
 
@@ -613,13 +621,335 @@ def login_for_access_token(
             status="success",
         )
 
+        # Create access token
         access_token = create_access_token(data={"sub": user.username})
+        
+        # Create refresh token
+        refresh_token_jwt, refresh_token_id, refresh_expires_at = create_refresh_token(data={"sub": user.username})
+        
+        # Store refresh token in database
+        device_info = user_agent[:255] if user_agent else None  # Limit length for database
+        db_refresh_token = RefreshToken(
+            token=refresh_token_id,
+            user_id=user.id,
+            expires_at=refresh_expires_at,
+            device_info=device_info
+        )
+        session.add(db_refresh_token)
+        session.commit()
 
-        return {"access_token": access_token, "token_type": "bearer"}
+        return {
+            "access_token": access_token, 
+            "refresh_token": refresh_token_jwt,
+            "token_type": "bearer"
+        }
     except HTTPException as e:
         raise e
     except Exception:
         logging.exception("An unhandled exception occurred during login!")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An internal server error occurred. Check core.log for details.",
+        )
+
+
+class RefreshTokenRequest(SQLModel):
+    refresh_token: str
+
+
+class RevokeTokenRequest(SQLModel):
+    refresh_token: Optional[str] = None
+    revoke_all: bool = False
+
+
+@router.post("/auth/refresh", response_model=Token, tags=["Authentication"])
+@limiter.limit("10/minute")
+def refresh_access_token(
+    request: Request,
+    session: Annotated[Session, Depends(get_session)],
+    token_request: RefreshTokenRequest,
+):
+    """
+    Refresh an access token using a valid refresh token.
+    """
+    try:
+        ip_address, user_agent = get_client_info(request)
+        
+        # Decode the refresh token
+        username, token_id = decode_refresh_token(token_request.refresh_token)
+        if not username or not token_id:
+            log_audit_event(
+                session=session,
+                user_id=None,
+                username="unknown",
+                action="token_refresh_failed",
+                details={"reason": "invalid_refresh_token"},
+                ip_address=ip_address,
+                user_agent=user_agent,
+                status="failure",
+                error_message="Invalid refresh token",
+            )
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid refresh token",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        
+        # Find the user
+        user = session.exec(select(User).where(User.username == username)).first()
+        if not user:
+            log_audit_event(
+                session=session,
+                user_id=None,
+                username=username,
+                action="token_refresh_failed",
+                details={"reason": "user_not_found"},
+                ip_address=ip_address,
+                user_agent=user_agent,
+                status="failure",
+                error_message="User not found",
+            )
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid refresh token",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        
+        # Find the refresh token in database
+        db_refresh_token = session.exec(
+            select(RefreshToken)
+            .where(RefreshToken.token == token_id)
+            .where(RefreshToken.user_id == user.id)
+            .where(RefreshToken.is_revoked == False)
+            .where(RefreshToken.expires_at > datetime.utcnow())
+        ).first()
+        
+        if not db_refresh_token:
+            log_audit_event(
+                session=session,
+                user_id=user.id,
+                username=user.username,
+                action="token_refresh_failed",
+                details={"reason": "refresh_token_not_found_or_expired"},
+                ip_address=ip_address,
+                user_agent=user_agent,
+                status="failure",
+                error_message="Refresh token not found or expired",
+            )
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid or expired refresh token",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        
+        # Create new access token
+        new_access_token = create_access_token(data={"sub": user.username})
+        
+        # Create new refresh token
+        new_refresh_token_jwt, new_refresh_token_id, new_refresh_expires_at = create_refresh_token(data={"sub": user.username})
+        
+        # Revoke the old refresh token
+        db_refresh_token.is_revoked = True
+        db_refresh_token.revoked_at = datetime.utcnow()
+        session.add(db_refresh_token)
+        
+        # Store new refresh token in database
+        device_info = user_agent[:255] if user_agent else None
+        new_db_refresh_token = RefreshToken(
+            token=new_refresh_token_id,
+            user_id=user.id,
+            expires_at=new_refresh_expires_at,
+            device_info=device_info
+        )
+        session.add(new_db_refresh_token)
+        session.commit()
+        
+        # Log successful token refresh
+        log_audit_event(
+            session=session,
+            user_id=user.id,
+            username=user.username,
+            action="token_refresh_success",
+            details={"device_info": device_info},
+            ip_address=ip_address,
+            user_agent=user_agent,
+            status="success",
+        )
+        
+        return {
+            "access_token": new_access_token,
+            "refresh_token": new_refresh_token_jwt,
+            "token_type": "bearer"
+        }
+        
+    except HTTPException as e:
+        raise e
+    except Exception:
+        logging.exception("An unhandled exception occurred during token refresh!")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An internal server error occurred. Check core.log for details.",
+        )
+
+
+@router.post("/auth/revoke", status_code=204, tags=["Authentication"])
+def revoke_refresh_token(
+    request: Request,
+    session: Annotated[Session, Depends(get_session)],
+    current_user: Annotated[User, Depends(get_current_user)],
+    revoke_request: RevokeTokenRequest,
+):
+    """
+    Revoke a specific refresh token or all refresh tokens for the current user.
+    """
+    try:
+        ip_address, user_agent = get_client_info(request)
+        
+        if revoke_request.revoke_all:
+            # Revoke all refresh tokens for the user
+            user_refresh_tokens = session.exec(
+                select(RefreshToken)
+                .where(RefreshToken.user_id == current_user.id)
+                .where(RefreshToken.is_revoked == False)
+            ).all()
+            
+            for token in user_refresh_tokens:
+                token.is_revoked = True
+                token.revoked_at = datetime.utcnow()
+                session.add(token)
+            
+            session.commit()
+            
+            log_audit_event(
+                session=session,
+                user_id=current_user.id,
+                username=current_user.username,
+                action="revoke_all_tokens",
+                details={"tokens_revoked": len(user_refresh_tokens)},
+                ip_address=ip_address,
+                user_agent=user_agent,
+                status="success",
+            )
+            
+        elif revoke_request.refresh_token:
+            # Revoke specific refresh token
+            username, token_id = decode_refresh_token(revoke_request.refresh_token)
+            if not username or not token_id or username != current_user.username:
+                log_audit_event(
+                    session=session,
+                    user_id=current_user.id,
+                    username=current_user.username,
+                    action="revoke_token_failed",
+                    details={"reason": "invalid_refresh_token"},
+                    ip_address=ip_address,
+                    user_agent=user_agent,
+                    status="failure",
+                    error_message="Invalid refresh token",
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Invalid refresh token",
+                )
+            
+            db_refresh_token = session.exec(
+                select(RefreshToken)
+                .where(RefreshToken.token == token_id)
+                .where(RefreshToken.user_id == current_user.id)
+                .where(RefreshToken.is_revoked == False)
+            ).first()
+            
+            if db_refresh_token:
+                db_refresh_token.is_revoked = True
+                db_refresh_token.revoked_at = datetime.utcnow()
+                session.add(db_refresh_token)
+                session.commit()
+                
+                log_audit_event(
+                    session=session,
+                    user_id=current_user.id,
+                    username=current_user.username,
+                    action="revoke_token_success",
+                    details={"token_id": token_id},
+                    ip_address=ip_address,
+                    user_agent=user_agent,
+                    status="success",
+                )
+            else:
+                log_audit_event(
+                    session=session,
+                    user_id=current_user.id,
+                    username=current_user.username,
+                    action="revoke_token_failed",
+                    details={"reason": "token_not_found"},
+                    ip_address=ip_address,
+                    user_agent=user_agent,
+                    status="failure",
+                    error_message="Refresh token not found",
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Refresh token not found",
+                )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Either refresh_token or revoke_all=true must be provided",
+            )
+            
+    except HTTPException as e:
+        raise e
+    except Exception:
+        logging.exception("An unhandled exception occurred during token revocation!")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An internal server error occurred. Check core.log for details.",
+        )
+
+
+@router.get("/auth/tokens", tags=["Authentication"])
+def list_user_tokens(
+    request: Request,
+    session: Annotated[Session, Depends(get_session)],
+    current_user: Annotated[User, Depends(get_current_user)],
+):
+    """
+    List all active refresh tokens for the current user.
+    """
+    try:
+        ip_address, user_agent = get_client_info(request)
+        
+        # Get all active refresh tokens for the user
+        user_refresh_tokens = session.exec(
+            select(RefreshToken)
+            .where(RefreshToken.user_id == current_user.id)
+            .where(RefreshToken.is_revoked == False)
+            .where(RefreshToken.expires_at > datetime.utcnow())
+        ).all()
+        
+        tokens_info = []
+        for token in user_refresh_tokens:
+            tokens_info.append({
+                "id": token.id,
+                "created_at": token.created_at,
+                "expires_at": token.expires_at,
+                "device_info": token.device_info,
+            })
+        
+        log_audit_event(
+            session=session,
+            user_id=current_user.id,
+            username=current_user.username,
+            action="list_tokens",
+            details={"active_tokens_count": len(tokens_info)},
+            ip_address=ip_address,
+            user_agent=user_agent,
+            status="success",
+        )
+        
+        return {"tokens": tokens_info}
+        
+    except Exception:
+        logging.exception("An unhandled exception occurred while listing tokens!")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An internal server error occurred. Check core.log for details.",

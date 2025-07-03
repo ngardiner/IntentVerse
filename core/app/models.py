@@ -141,6 +141,24 @@ class User(SQLModel, table=True):
         back_populates="users", link_model=UserGroupLink
     )
     roles: List[Role] = Relationship(back_populates="users", link_model=UserRoleLink)
+    refresh_tokens: List["RefreshToken"] = Relationship(back_populates="user")
+
+
+class RefreshToken(SQLModel, table=True):
+    """
+    Represents a refresh token for JWT authentication.
+    """
+    id: Optional[int] = Field(default=None, primary_key=True)
+    token: str = Field(index=True, unique=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    expires_at: datetime = Field(index=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    is_revoked: bool = Field(default=False, index=True)
+    revoked_at: Optional[datetime] = None
+    device_info: Optional[str] = None  # Store user agent or device identifier
+
+    # Relationship to user
+    user: User = Relationship(back_populates="refresh_tokens")
 
 
 class AuditLog(SQLModel, table=True):
