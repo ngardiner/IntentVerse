@@ -6,6 +6,7 @@
 * Shows pack compatibility conditions in the content pack UI
 * Implements JWT refresh tokens to reduce user logout frequency
 * Content packs now support both content prompts and usage prompts.
+* Content packs allow variable substitution to provide dynamic configuration of packs with local persistence.
 
 # v1.0.0
 
