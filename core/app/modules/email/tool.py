@@ -104,20 +104,35 @@ class EmailTool(BaseTool):
         logging.info(f"SENDING EMAIL to {to}: with subject: '{subject}'")
         return {"status": "Email sent successfully", "email_id": email_id}
 
-    def list_sent_items(self, limit: int = 25) -> List[Dict[str, Any]]:
+    def list_emails(self, folder: str = "inbox", limit: int = 25) -> List[Dict[str, Any]]:
         """
-        Lists a summary of emails that have been sent.
+        Lists a summary of emails from the specified folder.
+        
+        Args:
+            folder: The folder to list emails from ('inbox', 'sent_items', or 'drafts')
+            limit: Maximum number of emails to return
+            
+        Returns:
+            List of email summaries
         """
-        sent_items = self.state_manager.get("email").get("sent_items", [])
+        # Validate folder name
+        valid_folders = ["inbox", "sent_items", "drafts"]
+        if folder not in valid_folders:
+            raise ValueError(f"Invalid folder name. Must be one of: {', '.join(valid_folders)}")
+            
+        emails = self.state_manager.get("email").get(folder, [])
+        
         # Return a summary, not the full body
         summaries = [
             {
                 "email_id": e["email_id"],
-                "to": e["to"],
-                "subject": e["subject"],
-                "timestamp": e["timestamp"],
+                "from": e.get("from", ""),
+                "to": e.get("to", []),
+                "subject": e.get("subject", ""),
+                "timestamp": e.get("timestamp", ""),
+                "read": e.get("read", True) if folder == "inbox" else None
             }
-            for e in reversed(sent_items)
+            for e in reversed(emails)
         ]
         return summaries[:limit]
 

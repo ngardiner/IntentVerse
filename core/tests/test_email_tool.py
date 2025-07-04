@@ -63,7 +63,7 @@ def test_list_sent_items(email_tool: EmailTool):
     email_tool.send_email(to=["one@example.com"], subject="First Email", body="Body 1")
     email_tool.send_email(to=["two@example.com"], subject="Second Email", body="Body 2")
 
-    sent_list = email_tool.list_sent_items()
+    sent_list = email_tool.list_emails(folder="sent_items")
 
     assert len(sent_list) == 2
     sent_list.sort(key=lambda x: x["subject"])
@@ -82,7 +82,7 @@ def test_list_sent_items_with_limit(email_tool: EmailTool):
             to=[f"user{i}@test.com"], subject=f"Email {i}", body=f"Body {i}"
         )
 
-    sent_list = email_tool.list_sent_items(limit=3)
+    sent_list = email_tool.list_emails(folder="sent_items", limit=3)
     assert len(sent_list) == 3
     assert sent_list[0]["subject"] == "Email 4"
     assert sent_list[1]["subject"] == "Email 3"
@@ -91,7 +91,7 @@ def test_list_sent_items_with_limit(email_tool: EmailTool):
 
 def test_list_sent_items_empty(email_tool: EmailTool):
     """Tests listing when no emails have been sent."""
-    assert email_tool.list_sent_items() == []
+    assert email_tool.list_emails(folder="sent_items") == []
 
 
 def test_read_email(email_tool: EmailTool):
