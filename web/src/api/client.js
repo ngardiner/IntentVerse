@@ -111,7 +111,7 @@ export const exportContentPack = (filename, metadata = {}) => {
 };
 
 export const loadContentPack = (filename) => {
-  return apiClient.post('/api/v1/content-packs/load', {
+  return apiClient.post('/api/v1/content-packs/load-by-filename', {
     filename
   });
 };
