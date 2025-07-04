@@ -50,6 +50,7 @@ const UsersPage = () => {
   const [formErrors, setFormErrors] = useState({});
   const [showMembersModal, setShowMembersModal] = useState(false);
   const [managingGroup, setManagingGroup] = useState(null);
+  const [selectedUserId, setSelectedUserId] = useState('');
 
   useEffect(() => {
     loadData();
@@ -242,7 +243,61 @@ const UsersPage = () => {
 
   const openMembersModal = (group) => {
     setManagingGroup(group);
+    setSelectedUserId('');
     setShowMembersModal(true);
+  };
+
+  const handleAddUserToGroup = async () => {
+    if (!selectedUserId || !managingGroup) return;
+
+    try {
+      setLoading(true);
+      await addUserToGroup(selectedUserId, managingGroup.id);
+      
+      // Refresh the groups data to get updated member list
+      await loadData();
+      
+      // Update the managing group with fresh data
+      const updatedGroups = await getGroups();
+      const updatedGroup = updatedGroups.data.find(g => g.id === managingGroup.id);
+      setManagingGroup(updatedGroup);
+      
+      setSelectedUserId('');
+      setError(null);
+    } catch (err) {
+      console.error('Error adding user to group:', err);
+      setError('Failed to add user to group. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRemoveUserFromGroup = async (userId) => {
+    if (!managingGroup) return;
+
+    if (!window.confirm('Are you sure you want to remove this user from the group?')) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await removeUserFromGroup(userId, managingGroup.id);
+      
+      // Refresh the groups data to get updated member list
+      await loadData();
+      
+      // Update the managing group with fresh data
+      const updatedGroups = await getGroups();
+      const updatedGroup = updatedGroups.data.find(g => g.id === managingGroup.id);
+      setManagingGroup(updatedGroup);
+      
+      setError(null);
+    } catch (err) {
+      console.error('Error removing user from group:', err);
+      setError('Failed to remove user from group. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleTabChange = async (tab) => {
@@ -783,11 +838,71 @@ const UsersPage = () => {
               </button>
             </div>
             <div className="modal-body">
-              <p>Managing members for group: {managingGroup.name}</p>
-              {/* TODO: Implement actual member management */}
+              <h6>Managing members for group: {managingGroup.name}</h6>
+              
+              {/* Current Members Section */}
+              <div className="mb-4">
+                <h6>Current Members</h6>
+                {managingGroup.users && managingGroup.users.length > 0 ? (
+                  <div className="list-group">
+                    {managingGroup.users.map(user => (
+                      <div key={user.id} className="list-group-item d-flex justify-content-between align-items-center">
+                        <div>
+                          <strong>{user.username}</strong>
+                          {user.full_name && <span className="text-muted"> ({user.full_name})</span>}
+                          {user.email && <div className="small text-muted">{user.email}</div>}
+                        </div>
+                        <button
+                          className="btn btn-sm btn-outline-danger"
+                          onClick={() => handleRemoveUserFromGroup(user.id)}
+                          disabled={loading}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-muted">No members in this group.</p>
+                )}
+              </div>
+
+              {/* Add Members Section */}
+              <div>
+                <h6>Add Members</h6>
+                <div className="mb-3">
+                  <select 
+                    className="form-select" 
+                    value={selectedUserId} 
+                    onChange={(e) => setSelectedUserId(e.target.value)}
+                    disabled={loading}
+                  >
+                    <option value="">Select a user to add...</option>
+                    {users
+                      .filter(user => !managingGroup.users?.some(member => member.id === user.id))
+                      .map(user => (
+                        <option key={user.id} value={user.id}>
+                          {user.username} {user.full_name ? `(${user.full_name})` : ''}
+                        </option>
+                      ))
+                    }
+                  </select>
+                </div>
+                <button
+                  className="btn btn-primary"
+                  onClick={handleAddUserToGroup}
+                  disabled={loading || !selectedUserId}
+                >
+                  {loading ? 'Adding...' : 'Add Member'}
+                </button>
+              </div>
             </div>
             <div className="modal-footer">
-              <button type="button" className="btn btn-secondary" onClick={() => setShowMembersModal(false)}>
+              <button type="button" className="btn btn-secondary" onClick={() => {
+                setShowMembersModal(false);
+                setManagingGroup(null);
+                setSelectedUserId('');
+              }}>
                 Close
               </button>
             </div>
