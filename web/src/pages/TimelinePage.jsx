@@ -254,7 +254,7 @@ const TimelinePage = ({ isEditing, onSaveLayout, onCancelEdit, currentDashboard 
         onCancelEdit={onCancelEdit}
         currentDashboard={currentDashboard}
       >
-        <div className="module-container size-xlarge" module_id="timeline-events">
+        <div className="module-container size-xlarge" module_id="timeline-events" sizeClass="size-xlarge">
           <div className="timeline-header">
             <h2>MCP Activity Timeline</h2>
             <div className={`connection-status ${wsStatus.toLowerCase()}`}>
