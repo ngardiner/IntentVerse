@@ -70,43 +70,44 @@ TEST_USER_DATA = {
 }
 
 
-def setup_test_database(session: Session):
+def setup_test_database(test_engine):
     """Set up the test database with RBAC system and test data."""
     from app.rbac import initialize_rbac_system
 
     # Initialize RBAC system first to ensure roles and permissions exist
-    initialize_rbac_system(session)
+    with Session(test_engine) as session:
+        initialize_rbac_system(session)
 
 
-def create_test_user(session: Session) -> User:
+def create_test_user(test_engine) -> User:
     """Create a test user in the database."""
     # Check if user already exists
     from sqlmodel import select
-    existing_user = session.exec(
-        select(User).where(User.username == TEST_USER_DATA["username"])
-    ).first()
-    
-    if existing_user:
-        return existing_user
-    
-    hashed_password = get_password_hash(TEST_USER_DATA["password"])
-    user = User(
-        username=TEST_USER_DATA["username"],
-        hashed_password=hashed_password,
-        email=TEST_USER_DATA["email"],
-        full_name=TEST_USER_DATA["full_name"],
-        is_admin=TEST_USER_DATA["is_admin"],
-    )
-    session.add(user)
-    session.commit()
-    session.refresh(user)
-
-    # Ensure the admin role is assigned to the admin user
-    from app.rbac import assign_admin_role_to_admins
-
-    assign_admin_role_to_admins(session)
-
-    return user
+    with Session(test_engine) as session:
+        existing_user = session.exec(
+            select(User).where(User.username == TEST_USER_DATA["username"])
+        ).first()
+        
+        if existing_user:
+            return existing_user
+        
+        hashed_password = get_password_hash(TEST_USER_DATA["password"])
+        user = User(
+            username=TEST_USER_DATA["username"],
+            hashed_password=hashed_password,
+            email=TEST_USER_DATA["email"],
+            full_name=TEST_USER_DATA["full_name"],
+            is_admin=TEST_USER_DATA["is_admin"],
+        )
+        session.add(user)
+        session.commit()
+        session.refresh(user)
+        
+        # Ensure the admin role is assigned to the admin user
+        from app.rbac import assign_admin_role_to_admins
+        assign_admin_role_to_admins(session)
+        
+        return user
 
 
 def get_test_token() -> str:
@@ -128,10 +129,12 @@ def get_service_headers() -> dict:
 @pytest.fixture(name="test_user")
 def test_user_fixture():
     """Create a test user in the database."""
-    for session in get_session():
-        user = create_test_user(session)
-        yield user
-        break
+    # Ensure tables are created first
+    create_test_db_and_tables()
+    setup_test_database(test_engine)
+    
+    user = create_test_user(test_engine)
+    yield user
 
 
 @pytest.fixture(name="auth_headers")
@@ -167,13 +170,12 @@ def create_test_db_and_tables():
     # Create all tables
     SQLModel.metadata.create_all(test_engine)
 
-    # Verify critical tables exist
-    for session in get_session():
+    # Verify critical tables exist using the test engine directly
+    with Session(test_engine) as session:
         try:
             session.exec(text("SELECT COUNT(*) FROM auditlog")).first()
             session.exec(text("SELECT COUNT(*) FROM user")).first()
             session.exec(text("SELECT COUNT(*) FROM role")).first()
-            break
         except Exception as e:
             raise RuntimeError(f"Failed to create test database tables: {e}")
 
@@ -189,9 +191,7 @@ def client_fixture():
     create_test_db_and_tables()
 
     # Set up test database with RBAC system
-    for session in get_session():
-        setup_test_database(session)
-        break
+    setup_test_database(test_engine)
 
     # This context manager will run the startup events before yielding
     with TestClient(app) as client:
@@ -217,10 +217,12 @@ def session_fixture():
     """
     # Ensure tables are created
     create_test_db_and_tables()
+    
+    # Set up test database with RBAC system
+    setup_test_database(test_engine)
 
-    for session in get_session():
+    with Session(test_engine) as session:
         yield session
-        break
 
 
 @pytest.fixture(name="service_client")

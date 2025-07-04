@@ -27,5 +27,12 @@ def get_session():
     """
     Dependency function that provides a database session to the API endpoints.
     Delegates to the database abstraction layer.
+    
+    This function handles the generator pattern correctly for FastAPI dependency injection.
     """
-    return _get_session()
+    session_gen = _get_session()
+    session = next(session_gen)
+    try:
+        yield session
+    finally:
+        session.close()

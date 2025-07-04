@@ -10,7 +10,7 @@ from datetime import datetime
 import logging
 import os
 
-from .database import get_session
+from .database_compat import get_session
 from .models import (
     User,
     UserGroup,
@@ -236,7 +236,7 @@ async def get_token_from_cookie_or_header(
             )
         
         # Get a database session (we need to create one manually since we can't use dependencies)
-        from .database import get_session
+        from .database_compat import get_session
         session_gen = get_session()
         session = next(session_gen)
         
