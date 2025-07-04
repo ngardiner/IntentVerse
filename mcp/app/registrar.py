@@ -205,9 +205,27 @@ class ToolRegistrar:
         logging.info("Registering core tools...")
         tool_manifest = await self.core_client.get_tool_manifest()
 
+        # List of method names that should be excluded from MCP tool registration
+        excluded_methods = [
+            "get_ui_schema",           # UI-specific method
+            "load_content_pack_database",  # Database content pack loading
+            "export_database_content"      # Database content exporting
+        ]
+
         for tool_def in tool_manifest:
             tool_name = tool_def.get("name")
             if not tool_name:
+                continue
+
+            # Filter out UI-specific methods that should not be exposed to MCP clients
+            should_exclude = False
+            for excluded_method in excluded_methods:
+                if tool_name == excluded_method or tool_name.endswith(f".{excluded_method}"):
+                    should_exclude = True
+                    break
+            
+            if should_exclude:
+                logging.debug(f"Excluding UI-specific method from MCP registration: {tool_name}")
                 continue
 
             dynamic_proxy = self._create_dynamic_proxy(tool_def)
