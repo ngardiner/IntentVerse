@@ -2,8 +2,10 @@
 *.md
 *.pyc
 *venv/
+core/cache/*
 core/*venv/
 intentverse.db
 logs/*
+web/build/*
 web/node_modules/*
 web/package-lock.json

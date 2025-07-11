@@ -9,6 +9,7 @@
 * Content packs allow variable substitution to provide dynamic configuration of packs with local persistence.
 * Enhanced API versioning system with automatic feature detection and compatibility checking
 * Generate JWT secrets rather than requiring environment variables
+* Implement tool-level individual enablement toggles
 
 # v1.0.0
 
