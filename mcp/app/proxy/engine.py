@@ -267,7 +267,17 @@ class MCPProxyEngine:
                     logger.debug(f"Registered proxy tool: {tool_name}")
 
                 except Exception as e:
-                    logger.error(f"Failed to register proxy tool {tool_name}: {e}")
+                    logger.error(f"Failed to register proxy tool {tool_name}: {type(e).__name__}: {str(e)}")
+                    # Add debug info about the function
+                    import inspect
+                    try:
+                        sig = inspect.signature(proxy_func)
+                        logger.debug(f"Function signature for {tool_name}: {sig}")
+                        logger.debug(f"Function name: {getattr(proxy_func, '__name__', 'MISSING')}")
+                        logger.debug(f"Function module: {getattr(proxy_func, '__module__', 'MISSING')}")
+                        logger.debug(f"Function annotations: {getattr(proxy_func, '__annotations__', {})}")
+                    except Exception as debug_e:
+                        logger.debug(f"Failed to get debug info for {tool_name}: {debug_e}")
 
             logger.info(
                 f"Registered {registered_count} proxy tools with FastMCP server"

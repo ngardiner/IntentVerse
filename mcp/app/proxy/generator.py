@@ -696,6 +696,9 @@ class ProxyToolGenerator:
 
         # Create function signature dynamically
         self._set_function_signature(proxy_function, param_info)
+        
+        # Ensure the function has a proper __module__ attribute
+        proxy_function.__module__ = __name__
 
         # Store metadata
         import time
@@ -757,43 +760,44 @@ class ProxyToolGenerator:
     def _set_function_signature(
         self, func: Callable, param_info: Dict[str, Dict[str, Any]]
     ) -> None:
-        """Set the function signature dynamically."""
+        """Set the function signature dynamically to be compatible with FunctionTool.from_function()."""
         parameters = []
 
-        # Add required parameters first
+        # Add required parameters first (use POSITIONAL_OR_KEYWORD for better compatibility)
         for param_name, info in param_info.items():
             if info["required"]:
                 param = inspect.Parameter(
                     param_name,
-                    inspect.Parameter.KEYWORD_ONLY,
-                    annotation=self._get_python_type(info["type"]),
+                    inspect.Parameter.POSITIONAL_OR_KEYWORD,  # More compatible than KEYWORD_ONLY
+                    annotation=str,
                 )
                 parameters.append(param)
 
         # Add optional parameters with defaults
         for param_name, info in param_info.items():
             if not info["required"]:
-                default_value = (
-                    info["default"]
-                    if info["default"] is not None
-                    else inspect.Parameter.empty
-                )
-                # Use Optional type for optional parameters
-                from typing import Optional
-
-                param_type = self._get_python_type(info["type"])
-                optional_type = Optional[param_type]
+                default_value = info.get("default")
+                # Use None as default for optional parameters if no default specified
+                if default_value is None:
+                    default_value = None
+                
                 param = inspect.Parameter(
                     param_name,
-                    inspect.Parameter.KEYWORD_ONLY,
+                    inspect.Parameter.POSITIONAL_OR_KEYWORD,  # More compatible than KEYWORD_ONLY
                     default=default_value,
-                    annotation=optional_type,
+                    annotation=str,
                 )
                 parameters.append(param)
 
         # Create and set the signature
         signature = inspect.Signature(parameters)
         func.__signature__ = signature
+        
+        # Also set __annotations__ explicitly for better introspection
+        annotations = {}
+        for param_name, info in param_info.items():
+            annotations[param_name] = str
+        func.__annotations__ = annotations
 
     def _get_python_type(self, json_type: str) -> type:
         """Convert JSON Schema type to Python type."""
