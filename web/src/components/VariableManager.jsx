@@ -167,6 +167,13 @@ const VariableManager = ({ packName, packFilename, isOpen, onClose }) => {
           {error && (
             <div className="error-message">
               <strong>Error:</strong> {error}
+              <button 
+                className="retry-button"
+                onClick={loadPackData}
+                disabled={loading}
+              >
+                Retry
+              </button>
             </div>
           )}
 
