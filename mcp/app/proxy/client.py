@@ -389,11 +389,11 @@ class SSETransport(MCPTransport):
 
     def __init__(self, server_config: ServerConfig):
         super().__init__(server_config)
-        self.client: Optional[httpx.AsyncClient] = None
-        self._read_task: Optional[asyncio.Task] = None
+        self.session: Optional[Any] = None
+        self._connection_context = None
 
     async def connect(self) -> None:
-        """Connect to the SSE MCP server."""
+        """Connect to the SSE MCP server using the official MCP SSE client."""
         if self.state in [ConnectionState.CONNECTED, ConnectionState.CONNECTING]:
             return
 
@@ -401,29 +401,27 @@ class SSETransport(MCPTransport):
         logger.info(f"Connecting to SSE MCP server: {self.server_config.url}")
 
         try:
-            # Create HTTP client
-            self.client = httpx.AsyncClient(
-                timeout=httpx.Timeout(self.server_config.settings.timeout),
-                headers=self.server_config.headers or {},
-            )
-
-            # Test connection
-            response = await self.client.get(self.server_config.url)
-            response.raise_for_status()
-
-            # Start reading SSE stream
-            self._read_task = asyncio.create_task(self._read_sse_stream())
+            from mcp.client.sse import sse_client
+            from mcp import ClientSession
+            
+            # Connect using the official MCP SSE client
+            logger.info(f"Using MCP SSE client to connect to {self.server_config.url}")
+            self._connection_context = sse_client(self.server_config.url)
+            read, write = await self._connection_context.__aenter__()
+            
+            # Create MCP session
+            self.session = ClientSession(read, write)
+            await self.session.__aenter__()
 
             self.state = ConnectionState.CONNECTED
-            logger.info(f"Connected to SSE MCP server: {self.server_config.name}")
+            logger.info(f"SSE MCP server {self.server_config.name} connected successfully using official client")
 
         except Exception as e:
             self.state = ConnectionState.FAILED
-            logger.error(
-                f"Failed to connect to SSE MCP server {self.server_config.name}: {e}"
-            )
+            error_msg = f"Failed to connect to SSE MCP server {self.server_config.name}: {type(e).__name__}: {str(e)}"
+            logger.error(error_msg)
             self._handle_error(e)
-            raise
+            raise RuntimeError(error_msg) from e
 
     async def disconnect(self) -> None:
         """Disconnect from the SSE MCP server."""
@@ -432,81 +430,56 @@ class SSETransport(MCPTransport):
 
         logger.info(f"Disconnecting from SSE MCP server: {self.server_config.name}")
 
-        # Cancel read task
-        if self._read_task:
-            self._read_task.cancel()
+        # Close MCP session
+        if self.session:
             try:
-                await self._read_task
-            except asyncio.CancelledError:
-                pass
+                await self.session.__aexit__(None, None, None)
+            except Exception as e:
+                logger.warning(f"Error closing MCP session: {e}")
+            self.session = None
 
-        # Close HTTP client
-        if self.client:
-            await self.client.aclose()
-            self.client = None
+        # Close connection context
+        if self._connection_context:
+            try:
+                await self._connection_context.__aexit__(None, None, None)
+            except Exception as e:
+                logger.warning(f"Error closing connection context: {e}")
+            self._connection_context = None
 
         self.state = ConnectionState.DISCONNECTED
+        logger.info(f"Disconnected from SSE MCP server: {self.server_config.name}")
 
     async def send_message(self, message: MCPMessage) -> None:
-        """Send a message to the SSE MCP server via HTTP POST."""
-        if not self.client:
-            raise RuntimeError("Not connected to SSE MCP server")
-
-        try:
-            response = await self.client.post(
-                self.server_config.url,
-                json=message.to_dict(),
-                headers={"Content-Type": "application/json"},
-            )
-            response.raise_for_status()
-            logger.debug(f"Sent message to {self.server_config.name}: {message.method}")
-        except Exception as e:
-            logger.error(f"Failed to send message to {self.server_config.name}: {e}")
-            self._handle_error(e)
-            raise
+        """Send a message using the MCP session - not needed for SSE transport."""
+        # This method is not used for SSE transport as the MCP session handles communication
+        raise NotImplementedError("SSE transport uses MCP session directly, not send_message")
+    
+    def _get_post_url(self) -> str:
+        """Get the correct URL for POST requests."""
+        # Use announced message endpoint if available
+        message_endpoint = getattr(self, '_message_endpoint', None)
+        if message_endpoint:
+            if message_endpoint.startswith('/'):
+                # Relative URL - construct full URL
+                from urllib.parse import urljoin, urlparse
+                base_url = self.server_config.url
+                # Remove /sse from the end if present to get base URL
+                parsed = urlparse(base_url)
+                if parsed.path.endswith('/sse'):
+                    base_url = base_url.replace('/sse', '')
+                return urljoin(base_url, message_endpoint)
+            elif message_endpoint.startswith('http'):
+                # Absolute URL
+                return message_endpoint
+        
+        # Default to the SSE URL for POST requests
+        return self.server_config.url
 
     async def is_healthy(self) -> bool:
         """Check if the SSE connection is healthy."""
-        if not self.client:
-            return False
+        return self.session is not None and self.state == ConnectionState.CONNECTED
 
-        try:
-            response = await self.client.head(self.server_config.url)
-            return response.status_code < 400
-        except Exception:
-            return False
-
-    async def _read_sse_stream(self) -> None:
-        """Read Server-Sent Events stream."""
-        if not self.client:
-            return
-
-        try:
-            async with self.client.stream("GET", self.server_config.url) as response:
-                response.raise_for_status()
-
-                async for line in response.aiter_lines():
-                    if line.startswith("data: "):
-                        data = line[6:]  # Remove "data: " prefix
-                        if data.strip():
-                            try:
-                                message_data = json.loads(data)
-                                message = MCPMessage.from_dict(message_data)
-                                self._handle_message(message)
-                            except json.JSONDecodeError as e:
-                                logger.error(
-                                    f"Invalid JSON from SSE {self.server_config.name}: {e}"
-                                )
-                            except Exception as e:
-                                logger.error(
-                                    f"Error processing SSE message from {self.server_config.name}: {e}"
-                                )
-
-        except Exception as e:
-            if not isinstance(e, asyncio.CancelledError):
-                logger.error(f"Error reading SSE from {self.server_config.name}: {e}")
-                self._handle_error(e)
-                self.state = ConnectionState.FAILED
+    # All SSE parsing logic removed - using official MCP SSE client instead
 
 
 class HTTPTransport(MCPTransport):
@@ -745,7 +718,28 @@ class MCPClient:
             raise RuntimeError("Must be connected before initializing server")
 
         try:
-            # Send initialize request
+            logger.info(f"Initializing MCP server {self.server_config.name}...")
+            
+            # For SSE servers, use the MCP session directly
+            if self.server_config.type == "sse" and hasattr(self.transport, 'session') and self.transport.session:
+                logger.info(f"Using MCP session to initialize {self.server_config.name}")
+                result = await self.transport.session.initialize()
+                
+                # Convert MCP session result to our format
+                server_info = result.serverInfo
+                self._server_info = MCPServerInfo(
+                    name=server_info.name,
+                    version=server_info.version,
+                    protocol_version=result.protocolVersion,
+                    capabilities=result.capabilities.__dict__ if result.capabilities else {}
+                )
+                
+                logger.info(f"Successfully initialized SSE MCP server {self.server_config.name}: {self._server_info.name} v{self._server_info.version}")
+                return self._server_info
+            
+            # For other server types, use the old method
+            init_timeout = 15.0 if self.server_config.type == "sse" else 30.0
+            
             result = await self.send_request(
                 "initialize",
                 {
@@ -753,7 +747,12 @@ class MCPClient:
                     "capabilities": {"tools": {}},
                     "clientInfo": {"name": "mcp-proxy-client", "version": "1.0.0"},
                 },
+                timeout=init_timeout
             )
+
+            # Validate result
+            if not isinstance(result, dict):
+                raise ValueError(f"Invalid initialize response: {result}")
 
             # Parse server info
             self._server_info = MCPServerInfo.from_mcp_response(
@@ -764,15 +763,19 @@ class MCPClient:
             await self.send_notification("notifications/initialized")
 
             logger.info(
-                f"Initialized MCP server {self.server_config.name}: {self._server_info.name} v{self._server_info.version}"
+                f"Successfully initialized MCP server {self.server_config.name}: {self._server_info.name} v{self._server_info.version}"
             )
             return self._server_info
 
+        except asyncio.TimeoutError:
+            error_msg = f"Initialization timeout for {self.server_config.name}"
+            logger.error(error_msg)
+            raise RuntimeError(error_msg)
         except Exception as e:
-            logger.error(
-                f"Failed to initialize MCP server {self.server_config.name}: {e}"
-            )
-            raise
+            error_details = f"{type(e).__name__}: {str(e)}"
+            error_msg = f"Failed to initialize MCP server {self.server_config.name}: {error_details}"
+            logger.error(error_msg)
+            raise RuntimeError(f"Initialization failed for {self.server_config.name}: {error_details}") from e
 
     async def discover_tools(self, force_refresh: bool = False) -> List[MCPTool]:
         """
@@ -805,24 +808,60 @@ class MCPClient:
         try:
             logger.info(f"Discovering tools from MCP server: {self.server_config.name}")
 
-            # Send tools/list request
-            result = await self.send_request("tools/list")
+            # For SSE servers, use the MCP session directly
+            if self.server_config.type == "sse" and hasattr(self.transport, 'session') and self.transport.session:
+                logger.info(f"Using MCP session to discover tools from {self.server_config.name}")
+                result = await self.transport.session.list_tools()
+                
+                # Convert MCP session result to our format
+                tools_data = []
+                for tool in result.tools:
+                    tools_data.append({
+                        "name": tool.name,
+                        "description": tool.description,
+                        "inputSchema": tool.inputSchema
+                    })
+                
+                logger.debug(f"Raw tools data from {self.server_config.name}: {len(tools_data)} tools")
+            else:
+                # For other server types, use the old method
+                discovery_timeout = 20.0 if self.server_config.type == "sse" else 30.0
+                result = await self.send_request("tools/list", timeout=discovery_timeout)
 
-            # Parse tools from response
-            tools_data = result.get("tools", [])
-            if not isinstance(tools_data, list):
-                raise ValueError("Expected 'tools' to be a list in response")
+                # Validate response structure
+                if not isinstance(result, dict):
+                    raise ValueError(f"Invalid tools/list response: {result}")
+
+                # Parse tools from response
+                tools_data = result.get("tools", [])
+                if not isinstance(tools_data, list):
+                    raise ValueError("Expected 'tools' to be a list in response")
+                
+                logger.debug(f"Raw tools data from {self.server_config.name}: {len(tools_data)} tools")
+                
+            # Apply filter to exclude UI-specific methods
+            try:
+                from .discovery_filter import filter_tools
+                filtered_tools_data = filter_tools(tools_data)
+                logger.debug(f"Filtered out {len(tools_data) - len(filtered_tools_data)} UI-specific methods")
+            except ImportError:
+                logger.warning("Discovery filter not available, using all tools")
+                filtered_tools_data = tools_data
 
             # Convert to MCPTool objects
             discovered_tools = []
-            for tool_data in tools_data:
+            for i, tool_data in enumerate(filtered_tools_data):
                 try:
+                    if not isinstance(tool_data, dict):
+                        logger.warning(f"Tool {i} is not a dict: {type(tool_data)}")
+                        continue
+                        
                     tool = MCPTool.from_mcp_response(tool_data, self.server_config.name)
                     discovered_tools.append(tool)
                     logger.debug(f"Discovered tool: {tool.name}")
                 except Exception as e:
                     logger.warning(
-                        f"Failed to parse tool from {self.server_config.name}: {e}"
+                        f"Failed to parse tool {i} from {self.server_config.name}: {e}"
                     )
                     continue
 
@@ -831,15 +870,20 @@ class MCPClient:
             self._last_discovery = now
 
             logger.info(
-                f"Discovered {len(discovered_tools)} tools from {self.server_config.name}"
+                f"Successfully discovered {len(discovered_tools)} tools from {self.server_config.name}"
             )
             return discovered_tools
 
+        except asyncio.TimeoutError:
+            error_msg = f"Tool discovery timeout for {self.server_config.name}"
+            logger.error(error_msg)
+            raise RuntimeError(error_msg)
         except Exception as e:
-            logger.error(
-                f"Failed to discover tools from {self.server_config.name}: {e}"
-            )
-            raise
+            error_details = f"{type(e).__name__}: {str(e)}"
+            logger.error(f"Failed to discover tools from {self.server_config.name}: {error_details}")
+            # Don't re-raise, return empty list to allow partial functionality
+            logger.warning(f"Returning empty tool list for {self.server_config.name}")
+            return []
 
     async def get_tool_schema(self, tool_name: str) -> Dict[str, Any]:
         """
@@ -1064,7 +1108,8 @@ class MCPClient:
 
     def _handle_error(self, error: Exception) -> None:
         """Handle transport error."""
-        logger.error(f"Transport error for {self.server_config.name}: {error}")
+        error_details = f"{type(error).__name__}: {str(error)}"
+        logger.error(f"Transport error for {self.server_config.name}: {error_details}")
 
         # Cancel any pending requests
         for future in self._pending_requests.values():
@@ -1096,6 +1141,52 @@ class MCPClient:
             f"type={self.server_config.type}, "
             f"state={self.connection_state.value})"
         )
+    
+    async def diagnose_connection(self) -> Dict[str, Any]:
+        """
+        Comprehensive connection diagnostics for debugging.
+        
+        Returns:
+            Dictionary with diagnostic information
+        """
+        diagnostics = {
+            "server_name": self.server_config.name,
+            "server_type": self.server_config.type,
+            "server_url": self.server_config.url,
+            "connection_state": self.connection_state.value,
+            "is_connected": self.is_connected,
+            "connection_attempts": self._connection_attempts,
+            "discovered_tools_count": len(self._discovered_tools),
+            "server_info": self._server_info.__dict__ if self._server_info else None,
+            "last_discovery": self._last_discovery,
+            "last_health_check": self._last_health_check,
+        }
+        
+        # SSE-specific diagnostics
+        if self.server_config.type == "sse":
+            diagnostics.update({
+                "mcp_session_active": self.transport.session is not None if hasattr(self.transport, 'session') else False,
+            })
+        
+        # Test basic connectivity
+        if self.transport and hasattr(self.transport, 'client') and self.transport.client:
+            try:
+                test_response = await self.transport.client.head(
+                    self.server_config.url, 
+                    timeout=5.0
+                )
+                diagnostics["connectivity_test"] = {
+                    "status": "success",
+                    "status_code": test_response.status_code,
+                    "headers": dict(test_response.headers)
+                }
+            except Exception as e:
+                diagnostics["connectivity_test"] = {
+                    "status": "failed",
+                    "error": str(e)
+                }
+        
+        return diagnostics
 
 
 # Import os for environment variables

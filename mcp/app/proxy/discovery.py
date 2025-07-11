@@ -454,14 +454,43 @@ class ToolDiscoveryService:
             # Connect if not already connected
             if not client.is_connected:
                 try:
+                    logger.info(f"Connecting to MCP server: {server_name}")
                     await client.connect()
+                    
+                    # For SSE servers, wait a bit longer for initialization
+                    if client.server_config.type == "sse":
+                        logger.debug(f"Waiting for SSE server {server_name} to be ready...")
+                        await asyncio.sleep(1.0)
+                    
                     await client.initialize_server()
+                    logger.info(f"Successfully connected and initialized {server_name}")
+                    
+                except asyncio.TimeoutError:
+                    raise Exception(f"Connection timeout for {server_name}")
                 except Exception as e:
                     # Provide more descriptive error message for connection failures
-                    raise Exception(f"Client not connected: {e}")
+                    error_details = f"{type(e).__name__}: {str(e)}"
+                    error_msg = f"Connection failed: {error_details}"
+                    if client.server_config.type == "sse":
+                        error_msg += " (SSE connection issue - check server availability and endpoint)"
+                    logger.error(f"Connection error for {server_name}: {error_msg}")
+                    raise Exception(error_msg) from e
 
-            # Discover tools
-            tools = await client.discover_tools(force_refresh=force_refresh)
+            # Discover tools with retry logic for SSE servers
+            max_attempts = 3 if client.server_config.type == "sse" else 1
+            tools = []
+            
+            for attempt in range(max_attempts):
+                try:
+                    logger.debug(f"Discovering tools from {server_name} (attempt {attempt + 1}/{max_attempts})")
+                    tools = await client.discover_tools(force_refresh=force_refresh)
+                    break
+                except Exception as e:
+                    if attempt < max_attempts - 1:
+                        logger.warning(f"Tool discovery attempt {attempt + 1} failed for {server_name}: {e}")
+                        await asyncio.sleep(2 ** attempt)  # Exponential backoff
+                    else:
+                        raise
 
             # Get server configuration for prefix
             server_config = self.config.get_server(server_name)
@@ -494,15 +523,16 @@ class ToolDiscoveryService:
 
         except Exception as e:
             discovery_time = time.time() - start_time
-            logger.error(f"Failed to discover tools from {server_name}: {e}")
+            error_details = f"{type(e).__name__}: {str(e)}"
+            logger.error(f"Failed to discover tools from {server_name}: {error_details}")
 
             # Log failed discovery to timeline
-            log_discovery_event(server_name, 0, False, str(e))
+            log_discovery_event(server_name, 0, False, error_details)
 
             return DiscoveryResult(
                 server_name=server_name,
                 success=False,
-                error_message=str(e),
+                error_message=error_details,
                 discovery_time=discovery_time,
             )
 

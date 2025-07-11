@@ -48,8 +48,9 @@ async def main():
         try:
             await core_client.execute_tool(
                 {
-                    "tool_name": "timeline.log_system_event",
+                    "tool_name": "timeline.add_event",
                     "parameters": {
+                        "event_type": "system",
                         "title": "MCP Interface Started",
                         "description": "The MCP Interface service has been started and is ready to accept connections.",
                     },
@@ -72,8 +73,9 @@ async def shutdown(tool_registrar: ToolRegistrar = None):
         try:
             await temp_client.execute_tool(
                 {
-                    "tool_name": "timeline.log_system_event",
+                    "tool_name": "timeline.add_event",
                     "parameters": {
+                        "event_type": "system",
                         "title": "MCP Interface Stopped",
                         "description": "The MCP Interface service has been stopped.",
                     },

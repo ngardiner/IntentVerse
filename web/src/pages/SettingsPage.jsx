@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { getModulesStatus, toggleModule, toggleTool } from '../api/client';
+import { getModulesStatus, toggleModule, toggleTool, getMcpServers } from '../api/client';
 
 const SettingsPage = () => {
   const [modules, setModules] = useState({});
+  const [mcpServers, setMcpServers] = useState({ servers: [], stats: {} });
   const [loading, setLoading] = useState(true);
+  const [mcpLoading, setMcpLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const [toggleLoading, setToggleLoading] = useState({});
@@ -11,6 +13,7 @@ const SettingsPage = () => {
 
   useEffect(() => {
     loadModulesStatus();
+    loadMcpServers();
   }, []);
 
   const loadModulesStatus = async (isRefresh = false) => {
@@ -32,6 +35,21 @@ const SettingsPage = () => {
       } else {
         setLoading(false);
       }
+    }
+  };
+
+  const loadMcpServers = async () => {
+    try {
+      setMcpLoading(true);
+      const response = await getMcpServers();
+      if (response.data && response.data.data) {
+        setMcpServers(response.data.data);
+      }
+    } catch (err) {
+      console.error('Failed to load MCP servers:', err);
+      // Don't set error for MCP servers as it's not critical
+    } finally {
+      setMcpLoading(false);
     }
   };
 
@@ -189,6 +207,85 @@ const SettingsPage = () => {
           
           {Object.keys(modules).length === 0 && (
             <p className="no-modules">No modules found.</p>
+          )}
+        </div>
+
+        <div className="settings-section">
+          <h2>MCP Servers</h2>
+          <p className="section-description">
+            External MCP (Model Context Protocol) servers that provide additional tools and capabilities.
+            These servers are discovered automatically and their tools are made available through the proxy.
+          </p>
+          
+          {mcpLoading ? (
+            <div className="loading-state">
+              <p>Loading MCP servers...</p>
+            </div>
+          ) : (
+            <>
+              {mcpServers.stats && (
+                <div className="mcp-stats">
+                  <div className="stat-item">
+                    <span className="stat-label">Total Servers:</span>
+                    <span className="stat-value">{mcpServers.stats.total_servers || 0}</span>
+                  </div>
+                  <div className="stat-item">
+                    <span className="stat-label">Connected:</span>
+                    <span className="stat-value">{mcpServers.stats.connected_servers || 0}</span>
+                  </div>
+                  <div className="stat-item">
+                    <span className="stat-label">Total Tools:</span>
+                    <span className="stat-value">{mcpServers.stats.total_tools || 0}</span>
+                  </div>
+                </div>
+              )}
+
+              <div className="mcp-servers-list">
+                {mcpServers.servers && mcpServers.servers.length > 0 ? (
+                  mcpServers.servers.map((server, index) => (
+                    <div key={server.name || index} className="mcp-server-item">
+                      <div className="server-header">
+                        <div className="server-info">
+                          <span className="server-name">{server.name || `Server ${index + 1}`}</span>
+                          <span className={`server-status ${server.connected ? 'connected' : 'disconnected'}`}>
+                            {server.connected ? 'Connected' : 'Disconnected'}
+                          </span>
+                        </div>
+                        <div className="server-meta">
+                          <span className="tools-count">{server.tools_count || 0} tools</span>
+                        </div>
+                      </div>
+                      
+                      {server.tools && server.tools.length > 0 && (
+                        <div className="mcp-tools-section">
+                          <h4>Available Tools</h4>
+                          <div className="mcp-tools-list">
+                            {server.tools.map((tool, toolIndex) => (
+                              <div key={tool.name || toolIndex} className="mcp-tool-item">
+                                <div className="mcp-tool-info">
+                                  <span className="mcp-tool-name">{tool.display_name || tool.name}</span>
+                                  <span className="mcp-tool-description">{tool.description || 'No description available'}</span>
+                                </div>
+                                <div className="mcp-tool-status">
+                                  <span className="status-indicator available">Available</span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  <div className="no-mcp-servers">
+                    <p>No MCP servers configured or discovered.</p>
+                    <p className="help-text">
+                      MCP servers can be configured in the proxy configuration file to extend functionality with external tools.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </>
           )}
         </div>
       </div>

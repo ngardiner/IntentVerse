@@ -242,8 +242,9 @@ class ToolRegistrar:
                 try:
                     await self.core_client.execute_tool(
                         {
-                            "tool_name": "timeline.log_system_event",
+                            "tool_name": "timeline.add_event",
                             "parameters": {
+                                "event_type": "system",
                                 "title": f"Core Tool Registered: {tool_name}",
                                 "description": f"The core tool '{tool_name}' has been registered with the MCP Interface.",
                                 "details": {
@@ -284,8 +285,9 @@ class ToolRegistrar:
                 stats = self.proxy_engine.get_stats()
                 await self.core_client.execute_tool(
                     {
-                        "tool_name": "timeline.log_system_event",
+                        "tool_name": "timeline.add_event",
                         "parameters": {
+                            "event_type": "system",
                             "title": "MCP Proxy Tools Registered",
                             "description": f"Successfully registered {proxy_tools_count} proxy tools from {stats.servers_connected} external MCP servers.",
                             "details": {

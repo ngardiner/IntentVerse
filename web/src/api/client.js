@@ -333,6 +333,10 @@ export const toggleTool = (moduleName, toolName, enabled) => {
   return apiClient.post(`/api/v1/modules/${moduleName}/tools/${toolName}/toggle`, { enabled });
 };
 
+export const getMcpServers = () => {
+  return apiClient.get('/api/v1/mcp/servers');
+};
+
 // --- Database API Functions ---
 
 export const executeQuery = (sqlQuery) => {
