@@ -16,12 +16,10 @@ def test_engine():
 
 
 @pytest.fixture
-def test_session():
+def test_session(test_engine):
     """Create a test database session."""
-    from app.database_compat import get_session
-    for session in get_session():
+    with Session(test_engine) as session:
         yield session
-        break
 
 
 def test_user_model_creation():

@@ -461,11 +461,11 @@ class TestContentPackVariableAPI:
                         
                         main_content_pack_manager.get_pack_variables.assert_called_once_with("test_pack", 1)
 
-    def test_get_pack_variables_not_supported(self, authenticated_client, mock_content_pack_manager_with_variables, mock_variable_manager):
+    def test_get_pack_variables_not_supported(self, service_client, mock_content_pack_manager_with_variables, mock_variable_manager):
         """Test getting pack variables when feature is not supported."""
         with patch('app.content_pack_variables.get_variable_manager', return_value=mock_variable_manager):
             with patch('app.version_utils.supports_content_pack_variables', return_value=False):
-                response = authenticated_client.get("/api/v1/content-packs/test_pack/variables")
+                response = service_client.get("/api/v1/content-packs/test_pack/variables")
                 
                 assert response.status_code == 501
                 assert "not supported in this version" in response.json()["detail"]

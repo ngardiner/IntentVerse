@@ -53,8 +53,9 @@ from app.security import get_password_hash, create_access_token
 
 def get_session_override():
     """Dependency override to use the test database session."""
-    # Use the abstraction layer for session management
-    return get_session()
+    # Use the test engine directly to create a session
+    with Session(test_engine) as session:
+        yield session
 
 
 # Override the database session dependency
