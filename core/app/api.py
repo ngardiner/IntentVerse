@@ -1403,4 +1403,59 @@ def create_api_routes(
                 status_code=500, detail=f"Failed to toggle tool '{module_name}.{tool_name}'"
             )
 
+    @router.get("/mcp/servers")
+    def get_mcp_servers(
+        current_user: Annotated[
+            User, Depends(require_permission_or_service("system.view"))
+        ],
+        session: Annotated[Session, Depends(get_session)],
+    ) -> Dict[str, Any]:
+        """
+        Get information about MCP servers and their tools.
+        """
+        try:
+            # Try to get MCP proxy information from the MCP service
+            # This is a placeholder - in a real implementation, you'd need to
+            # establish communication with the MCP service
+            
+            # For now, return a structure that matches what we expect
+            # In the future, this could call the MCP service via HTTP or shared state
+            mcp_servers = {
+                "servers": [],
+                "stats": {
+                    "total_servers": 0,
+                    "connected_servers": 0,
+                    "total_tools": 0,
+                    "last_discovery": None
+                }
+            }
+            
+            # TODO: Implement actual MCP server discovery
+            # This would involve calling the MCP service to get:
+            # - List of configured servers
+            # - Connection status of each server
+            # - Tools available from each server
+            # - Discovery statistics
+            
+            return {
+                "status": "success",
+                "data": mcp_servers
+            }
+            
+        except Exception as e:
+            log.error(f"Failed to get MCP servers: {e}")
+            return {
+                "status": "error",
+                "message": "Failed to retrieve MCP server information",
+                "data": {
+                    "servers": [],
+                    "stats": {
+                        "total_servers": 0,
+                        "connected_servers": 0,
+                        "total_tools": 0,
+                        "last_discovery": None
+                    }
+                }
+            }
+
     return router
