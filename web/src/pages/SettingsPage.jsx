@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getModulesStatus, toggleModule } from '../api/client';
+import { getModulesStatus, toggleModule, toggleTool } from '../api/client';
 
 const SettingsPage = () => {
   const [modules, setModules] = useState({});
@@ -7,6 +7,7 @@ const SettingsPage = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const [toggleLoading, setToggleLoading] = useState({});
+  const [toolToggleLoading, setToolToggleLoading] = useState({});
 
   useEffect(() => {
     loadModulesStatus();
@@ -58,6 +59,39 @@ const SettingsPage = () => {
       setError(`Failed to ${newEnabled ? 'enable' : 'disable'} module ${moduleName}`);
     } finally {
       setToggleLoading(prev => ({ ...prev, [moduleName]: false }));
+    }
+  };
+
+  const handleToolToggle = async (moduleName, toolName, currentEnabled) => {
+    const newEnabled = !currentEnabled;
+    const toolKey = `${moduleName}.${toolName}`;
+    
+    try {
+      setToolToggleLoading(prev => ({ ...prev, [toolKey]: true }));
+      
+      await toggleTool(moduleName, toolName, newEnabled);
+      
+      // Update local state
+      setModules(prev => ({
+        ...prev,
+        [moduleName]: {
+          ...prev[moduleName],
+          tools: {
+            ...prev[moduleName].tools,
+            [toolName]: {
+              ...prev[moduleName].tools[toolName],
+              is_enabled: newEnabled
+            }
+          }
+        }
+      }));
+      
+      setError(null);
+    } catch (err) {
+      console.error(`Failed to toggle tool ${moduleName}.${toolName}:`, err);
+      setError(`Failed to ${newEnabled ? 'enable' : 'disable'} tool ${moduleName}.${toolName}`);
+    } finally {
+      setToolToggleLoading(prev => ({ ...prev, [toolKey]: false }));
     }
   };
 
@@ -118,6 +152,37 @@ const SettingsPage = () => {
                     <span className="toggle-loading">Updating...</span>
                   )}
                 </div>
+                
+                {/* Tool-level configuration */}
+                {moduleInfo.is_enabled && moduleInfo.tools && Object.keys(moduleInfo.tools).length > 0 && (
+                  <div className="tools-section">
+                    <h4>Individual Tools</h4>
+                    <div className="tools-list">
+                      {Object.entries(moduleInfo.tools).map(([toolName, toolInfo]) => (
+                        <div key={toolName} className="tool-item">
+                          <div className="tool-info">
+                            <span className="tool-name">{toolInfo.display_name}</span>
+                            <span className="tool-description">{toolInfo.description}</span>
+                          </div>
+                          <div className="tool-controls">
+                            <label className="toggle-switch tool-toggle">
+                              <input
+                                type="checkbox"
+                                checked={toolInfo.is_enabled}
+                                onChange={() => handleToolToggle(moduleName, toolName, toolInfo.is_enabled)}
+                                disabled={toolToggleLoading[`${moduleName}.${toolName}`]}
+                              />
+                              <span className="toggle-slider"></span>
+                            </label>
+                            {toolToggleLoading[`${moduleName}.${toolName}`] && (
+                              <span className="toggle-loading">Updating...</span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -125,14 +190,6 @@ const SettingsPage = () => {
           {Object.keys(modules).length === 0 && (
             <p className="no-modules">No modules found.</p>
           )}
-        </div>
-        
-        <div className="settings-section">
-          <h2>Future Tool-Level Configuration</h2>
-          <p className="future-feature">
-            In the next release, you'll be able to enable/disable individual tools within each module.
-            This will provide fine-grained control over which specific functions are available.
-          </p>
         </div>
       </div>
       
