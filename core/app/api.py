@@ -334,6 +334,29 @@ def create_api_routes(
                 status_code=404, detail=f"Tool '{tool_full_name}' not found."
             )
 
+        # Check if the specific tool is enabled
+        if not module_loader._is_tool_enabled(module_name, method_name, session):
+            log_audit_event(
+                session=session,
+                user_id=user_id,
+                username=username,
+                action="execute_tool_failed",
+                resource_type="tool",
+                resource_name=tool_full_name,
+                details={
+                    "reason": "tool_disabled",
+                    "module_name": module_name,
+                    "method_name": method_name,
+                },
+                ip_address=ip_address,
+                user_agent=user_agent,
+                status="failure",
+                error_message=f"Tool '{tool_full_name}' is disabled.",
+            )
+            raise HTTPException(
+                status_code=403, detail=f"Tool '{tool_full_name}' is disabled."
+            )
+
         try:
             method_to_call = getattr(tool_instance, method_name)
 
@@ -1306,6 +1329,78 @@ def create_api_routes(
         else:
             raise HTTPException(
                 status_code=500, detail=f"Failed to toggle module '{module_name}'"
+            )
+
+    @router.post("/modules/{module_name}/tools/{tool_name}/toggle")
+    def toggle_tool(
+        module_name: str,
+        tool_name: str,
+        payload: Dict[str, Any],
+        current_user: Annotated[
+            User, Depends(require_permission_or_service("system.config"))
+        ],
+        session: Annotated[Session, Depends(get_session)],
+        request: Request,
+    ) -> Dict[str, Any]:
+        """
+        Enable or disable a specific tool within a module.
+        """
+        ip_address, user_agent = get_client_info(request)
+        enabled = payload.get("enabled", True)
+
+        # Validate module and tool exist
+        modules_status = module_loader.get_module_status(session)
+        if module_name not in modules_status:
+            raise HTTPException(
+                status_code=404, detail=f"Module '{module_name}' not found"
+            )
+        
+        module_tools = modules_status[module_name].get("tools", {})
+        if tool_name not in module_tools:
+            raise HTTPException(
+                status_code=404, detail=f"Tool '{tool_name}' not found in module '{module_name}'"
+            )
+
+        # Toggle the tool
+        success = module_loader.set_tool_enabled(module_name, tool_name, enabled, session)
+
+        if success:
+            # Log the action
+            log_audit_event(
+                session=session,
+                user_id=current_user.id if isinstance(current_user, User) else None,
+                username=(
+                    current_user.username
+                    if isinstance(current_user, User)
+                    else "service"
+                ),
+                action="tool_toggle",
+                resource_type="tool",
+                resource_id=f"{module_name}.{tool_name}",
+                resource_name=f"{module_name}.{tool_name}",
+                details={
+                    "enabled": enabled,
+                    "module_name": module_name,
+                    "tool_name": tool_name,
+                    "previous_state": module_tools[tool_name]["is_enabled"],
+                },
+                ip_address=ip_address,
+                user_agent=user_agent,
+                status="success",
+            )
+
+            return {
+                "status": "success",
+                "message": f"Tool '{module_name}.{tool_name}' {'enabled' if enabled else 'disabled'} successfully",
+                "tool": {
+                    "module_name": module_name,
+                    "tool_name": tool_name,
+                    "enabled": enabled
+                },
+            }
+        else:
+            raise HTTPException(
+                status_code=500, detail=f"Failed to toggle tool '{module_name}.{tool_name}'"
             )
 
     return router

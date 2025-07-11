@@ -123,12 +123,16 @@ class ModuleLoader:
                     is_enabled = self._is_module_enabled(module_name, session)
                     is_loaded = module_name in self.modules
 
+                    # Get available tools for this module
+                    tools = self._get_module_tools(module_name, session)
+
                     all_modules[module_name] = {
                         "name": module_name,
                         "display_name": module_name.replace("_", " ").title(),
                         "is_enabled": is_enabled,
                         "is_loaded": is_loaded,
                         "description": self._get_module_description(module_name),
+                        "tools": tools,
                     }
 
         return all_modules
@@ -240,3 +244,117 @@ class ModuleLoader:
             log.info(f"Disabled module: '{module_name}'")
             return True
         return False
+
+    def _get_module_tools(self, module_name: str, session: Session) -> Dict[str, Dict[str, Any]]:
+        """Get all available tools for a module with their enabled status."""
+        from .models import ModuleConfiguration
+        import inspect
+
+        tools = {}
+        
+        try:
+            # Try to get the tool class methods
+            if module_name in self.modules:
+                tool_instance = self.modules[module_name]
+            elif module_name in self.disabled_modules:
+                tool_instance = self.disabled_modules[module_name]
+            else:
+                # Try to import and inspect without instantiating
+                tool_module = importlib.import_module(
+                    f".modules.{module_name}.tool", package="app"
+                )
+                tool_class = None
+                for name, obj in inspect.getmembers(tool_module):
+                    if (
+                        inspect.isclass(obj)
+                        and issubclass(obj, BaseTool)
+                        and obj is not BaseTool
+                    ):
+                        tool_class = obj
+                        break
+                
+                if not tool_class:
+                    return tools
+                
+                # Get methods from the class
+                for method_name, method in inspect.getmembers(tool_class, inspect.isfunction):
+                    if not method_name.startswith("_") and method_name not in ["get_ui_schema", "__init__"]:
+                        is_enabled = self._is_tool_enabled(module_name, method_name, session)
+                        tools[method_name] = {
+                            "name": method_name,
+                            "display_name": method_name.replace("_", " ").title(),
+                            "is_enabled": is_enabled,
+                            "description": inspect.getdoc(method) or f"{method_name} tool",
+                        }
+                return tools
+            
+            # Get public methods from the tool instance
+            for method_name, method in inspect.getmembers(tool_instance, inspect.ismethod):
+                if not method_name.startswith("_") and method_name not in ["get_ui_schema"]:
+                    is_enabled = self._is_tool_enabled(module_name, method_name, session)
+                    tools[method_name] = {
+                        "name": method_name,
+                        "display_name": method_name.replace("_", " ").title(),
+                        "is_enabled": is_enabled,
+                        "description": inspect.getdoc(method) or f"{method_name} tool",
+                    }
+                    
+        except Exception as e:
+            log.error(f"Error getting tools for module '{module_name}': {e}")
+            
+        return tools
+
+    def _is_tool_enabled(self, module_name: str, tool_name: str, session: Session) -> bool:
+        """Check if a specific tool is enabled in the database configuration."""
+        from .models import ModuleConfiguration
+
+        # Query for tool-level configuration
+        stmt = select(ModuleConfiguration).where(
+            ModuleConfiguration.module_name == module_name,
+            ModuleConfiguration.tool_name == tool_name,
+        )
+        config = session.exec(stmt).first()
+
+        # If no tool-specific configuration exists, check if the module is enabled
+        if not config:
+            return self._is_module_enabled(module_name, session)
+        
+        return config.is_enabled
+
+    def set_tool_enabled(
+        self, module_name: str, tool_name: str, enabled: bool, session: Session
+    ) -> bool:
+        """Enable or disable a specific tool within a module."""
+        from .models import ModuleConfiguration
+        from datetime import datetime
+
+        # Validate that the module and tool exist
+        modules_status = self.get_module_status(session)
+        if module_name not in modules_status:
+            return False
+        
+        if tool_name not in modules_status[module_name].get("tools", {}):
+            return False
+
+        # Get or create tool configuration
+        stmt = select(ModuleConfiguration).where(
+            ModuleConfiguration.module_name == module_name,
+            ModuleConfiguration.tool_name == tool_name,
+        )
+        config = session.exec(stmt).first()
+
+        if not config:
+            config = ModuleConfiguration(
+                module_name=module_name,
+                tool_name=tool_name,
+                is_enabled=enabled,
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow(),
+            )
+            session.add(config)
+        else:
+            config.is_enabled = enabled
+            config.updated_at = datetime.utcnow()
+
+        session.commit()
+        return True
