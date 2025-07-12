@@ -58,30 +58,39 @@ async def lifespan(app: FastAPI):
     else:
         logging.info("Skipping content pack loading during tests")
 
-    # Log system startup event
-    from .modules.timeline.tool import log_system_event
+    # Log system startup event (skip during tests to avoid database issues)
+    if not is_testing:
+        from .modules.timeline.tool import log_system_event
 
-    log_system_event(
-        title="Core Service Started",
-        description="The IntentVerse Core Engine has been started and is ready to accept connections.",
-    )
-    logging.info("Logged system startup event")
+        log_system_event(
+            title="Core Service Started",
+            description="The IntentVerse Core Engine has been started and is ready to accept connections.",
+        )
+        logging.info("Logged system startup event")
+    else:
+        logging.info("Skipping startup event logging during tests")
 
     yield
     # This code runs on server shutdown
     logging.info("--- IntentVerse Core Engine Shutting Down ---")
 
-    # Log system shutdown event
-    try:
-        from .modules.timeline.tool import log_system_event
+    # Log system shutdown event (skip during tests to avoid database issues)
+    import os
+    is_testing = os.getenv("SERVICE_API_KEY") == "test-service-key-12345"
+    
+    if not is_testing:
+        try:
+            from .modules.timeline.tool import log_system_event
 
-        log_system_event(
-            title="Core Service Stopped",
-            description="The IntentVerse Core Engine has been stopped.",
-        )
-        logging.info("Logged system shutdown event")
-    except Exception as e:
-        logging.error(f"Failed to log shutdown event: {e}")
+            log_system_event(
+                title="Core Service Stopped",
+                description="The IntentVerse Core Engine has been stopped.",
+            )
+            logging.info("Logged system shutdown event")
+        except Exception as e:
+            logging.error(f"Failed to log shutdown event: {e}")
+    else:
+        logging.info("Skipping shutdown event logging during tests")
 
 
 # --- Application Initialization ---

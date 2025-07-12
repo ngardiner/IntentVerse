@@ -254,6 +254,10 @@ class MCPProxyEngine:
             registered_count = 0
             for tool_name, proxy_func in proxy_functions.items():
                 try:
+                    # Ensure the proxy function has the correct name for registration
+                    if not hasattr(proxy_func, '__name__') or proxy_func.__name__ != tool_name:
+                        proxy_func.__name__ = tool_name
+                    
                     # Create FunctionTool from proxy function
                     function_tool = FunctionTool.from_function(proxy_func)
 

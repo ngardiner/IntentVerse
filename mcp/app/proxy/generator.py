@@ -713,10 +713,10 @@ class ProxyToolGenerator:
             created_at=time.time(),
         )
 
-        self._function_metadata[tool.name] = metadata
-        self._generated_functions[tool.name] = proxy_function
-
         prefixed_name = f"{tool.server_name}.{tool.name}"
+        self._function_metadata[prefixed_name] = metadata
+        self._generated_functions[prefixed_name] = proxy_function
+
         logger.info(f"Generated proxy function: {prefixed_name} -> {tool.server_name}")
         return proxy_function
 
@@ -905,7 +905,8 @@ class ProxyToolGenerator:
         for tool in tools:
             try:
                 proxy_func = self.generate_proxy_function(tool)
-                generated[tool.name] = proxy_func
+                prefixed_name = f"{tool.server_name}.{tool.name}"
+                generated[prefixed_name] = proxy_func
             except Exception as e:
                 logger.error(f"Failed to generate proxy function for {tool.name}: {e}")
 
@@ -917,24 +918,42 @@ class ProxyToolGenerator:
         Get a generated proxy function by name.
 
         Args:
-            tool_name: Name of the tool
+            tool_name: Name of the tool (can be bare name or prefixed name)
 
         Returns:
             The proxy function if it exists, None otherwise
         """
-        return self._generated_functions.get(tool_name)
+        # Try prefixed name first, then bare name for backward compatibility
+        if tool_name in self._generated_functions:
+            return self._generated_functions[tool_name]
+        
+        # Try to find by bare name (search through prefixed names)
+        for prefixed_name, func in self._generated_functions.items():
+            if prefixed_name.endswith(f".{tool_name}"):
+                return func
+        
+        return None
 
     def get_function_metadata(self, tool_name: str) -> Optional[ProxyFunctionMetadata]:
         """
         Get metadata for a generated proxy function.
 
         Args:
-            tool_name: Name of the tool
+            tool_name: Name of the tool (can be bare name or prefixed name)
 
         Returns:
             Function metadata if it exists, None otherwise
         """
-        return self._function_metadata.get(tool_name)
+        # Try prefixed name first, then bare name for backward compatibility
+        if tool_name in self._function_metadata:
+            return self._function_metadata[tool_name]
+        
+        # Try to find by bare name (search through prefixed names)
+        for prefixed_name, metadata in self._function_metadata.items():
+            if prefixed_name.endswith(f".{tool_name}"):
+                return metadata
+        
+        return None
 
     def get_all_proxy_functions(self) -> Dict[str, Callable]:
         """Get all generated proxy functions."""
