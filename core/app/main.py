@@ -2,7 +2,6 @@ import logging
 from fastapi import FastAPI, APIRouter, Depends
 from typing import Dict, Any, Annotated, Union
 from contextlib import asynccontextmanager
-from fastapi.middleware.cors import CORSMiddleware
 
 from .state_manager import state_manager
 from .module_loader import ModuleLoader
@@ -22,6 +21,7 @@ from slowapi.errors import RateLimitExceeded
 from .version_manager import VersionMiddleware, create_version_router
 from .migration_api import create_migration_router
 from .health_api import create_health_router
+from .security_headers import create_security_headers_middleware
 
 # Apply the JSON logging configuration at the earliest point
 setup_logging()
@@ -105,15 +105,6 @@ app = FastAPI(
     redoc_url="/api/redoc",
 )
 
-# Add CORS middleware to allow cross-origin requests from the web client
-origins = ["*"]
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "OPTIONS"],
-    allow_headers=["*"],
-)
 
 # Add authentication middleware (must be first to set user state)
 app.add_middleware(AuthenticationMiddleware)
@@ -126,6 +117,12 @@ app.add_middleware(RequestLoggingMiddleware)
 
 # Add API versioning middleware
 app.add_middleware(VersionMiddleware)
+
+# Add security headers middleware
+import os
+environment = os.getenv("INTENTVERSE_ENVIRONMENT", "production")
+security_middleware = create_security_headers_middleware(environment)
+app.add_middleware(security_middleware)
 
 # Add the rate limiter to the app
 # Rate limits are configured as follows:
