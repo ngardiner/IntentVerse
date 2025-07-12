@@ -1539,7 +1539,7 @@ def create_api_routes(
             
             session.commit()
             
-            log.info(f"Registered {len(tools)} MCP tools from server '{server_name}'")
+            logging.info(f"Registered {len(tools)} MCP tools from server '{server_name}'")
             
             return {
                 "status": "success",
@@ -1549,7 +1549,7 @@ def create_api_routes(
             
         except Exception as e:
             session.rollback()
-            log.error(f"Failed to register MCP tools: {e}")
+            logging.error(f"Failed to register MCP tools: {e}")
             return {
                 "status": "error",
                 "message": f"Failed to register MCP tools: {str(e)}"
