@@ -389,6 +389,61 @@ jobs:
           path: test-results/
           retention-days: 7
 
+  database-tests:
+    name: Database Compatibility Tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        database: [postgresql, mysql, mariadb]
+      fail-fast: false
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Start ${{ matrix.database }} test database
+        run: |
+          echo "Starting ${{ matrix.database }} test database..."
+          cd docs/deploy
+          docker-compose -f docker-compose.testing.yml up -d ${{ matrix.database }}-test
+          
+      - name: Wait for ${{ matrix.database }} to be ready
+        run: |
+          echo "Waiting for ${{ matrix.database }} to be ready..."
+          timeout 60 bash -c 'until docker-compose -f docs/deploy/docker-compose.testing.yml ps | grep "${{ matrix.database }}-test.*healthy"; do sleep 2; done'
+          docker-compose -f docs/deploy/docker-compose.testing.yml ps
+
+      - name: Run ${{ matrix.database }} database tests
+        run: |
+          echo "Running ${{ matrix.database }} database tests..."
+          docker-compose -f docs/deploy/docker-compose.testing.yml run --rm \
+            -e INTENTVERSE_DB_TYPE=${{ matrix.database }} \
+            -e INTENTVERSE_DB_HOST=${{ matrix.database }}-test \
+            -e INTENTVERSE_DB_PORT=${{ matrix.database == 'postgresql' && '5432' || '3306' }} \
+            -e INTENTVERSE_DB_NAME=intentverse_test \
+            -e INTENTVERSE_DB_USER=intentverse \
+            -e INTENTVERSE_DB_PASSWORD=intentverse_password \
+            -e LOG_LEVEL=ERROR \
+            test-runner python -m pytest tests/ -v \
+            --tb=short \
+            --disable-warnings \
+            --no-header \
+            -m "database_integration" \
+            --junitxml=/app/test-results-${{ matrix.database }}.xml
+
+      - name: Stop ${{ matrix.database }} test database
+        if: always()
+        run: |
+          cd docs/deploy
+          docker-compose -f docker-compose.testing.yml down -v
+
+      - name: Upload ${{ matrix.database }} test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: database-test-results-${{ matrix.database }}
+          path: core/test-results-${{ matrix.database }}.xml
+          retention-days: 7
+
   gitleaks-scan:
     name: Gitleaks Secret Scan
     runs-on: ubuntu-latest

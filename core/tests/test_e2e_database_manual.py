@@ -1,15 +1,12 @@
 """
-Manual E2E tests for database implementations.
+Database Integration E2E Tests
 
-These tests require actual database instances and are meant for manual testing.
-They are not run in CI but provide comprehensive validation for self-hosted testing.
+These tests validate database implementations across different engines.
+They are run automatically in CI using Docker containers with the
+database_integration marker.
 
-Usage:
-    # Test PostgreSQL
-    INTENTVERSE_DB_TYPE=postgresql INTENTVERSE_DB_HOST=localhost python -m pytest tests/test_e2e_database_manual.py::TestPostgreSQLManual -v
-
-    # Test MySQL
-    INTENTVERSE_DB_TYPE=mysql INTENTVERSE_DB_HOST=localhost python -m pytest tests/test_e2e_database_manual.py::TestMySQLManual -v
+The tests are executed as part of the database compatibility matrix
+in GitHub Actions, testing PostgreSQL, MySQL, and MariaDB.
 """
 
 import pytest
@@ -22,7 +19,7 @@ from app.models import User, UserGroup, AuditLog
 from app.config import Config
 
 
-@pytest.mark.e2e
+@pytest.mark.database_integration
 class TestPostgreSQLManual:
     """Manual E2E tests for PostgreSQL."""
     
@@ -133,7 +130,7 @@ class TestPostgreSQLManual:
                 session.close()
 
 
-@pytest.mark.e2e
+@pytest.mark.database_integration
 class TestMySQLManual:
     """Manual E2E tests for MySQL."""
     
@@ -200,7 +197,7 @@ class TestMySQLManual:
             assert found_user is not None
 
 
-@pytest.mark.e2e
+@pytest.mark.database_integration
 class TestCrossDatabaseCompatibility:
     """Test compatibility across different database engines."""
     

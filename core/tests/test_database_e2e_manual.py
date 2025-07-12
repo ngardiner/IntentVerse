@@ -1,21 +1,12 @@
 """
-Manual End-to-End Database Tests
+Database Integration Tests
 
-These tests require actual database instances and are designed for manual testing
-during development. They are not run in CI but provide comprehensive validation
-of real database connectivity and operations.
+These tests validate database connectivity and operations across different
+database engines (PostgreSQL, MySQL, MariaDB). They are run automatically
+in CI using Docker containers.
 
-Usage:
-    # Test with local PostgreSQL
-    pytest tests/test_database_e2e_manual.py::TestPostgreSQLManual -v
-    
-    # Test with local MySQL
-    pytest tests/test_database_e2e_manual.py::TestMySQLManual -v
-    
-    # Test with Docker databases
-    docker-compose -f docs/deploy/docker-compose.postgresql.yml up -d
-    pytest tests/test_database_e2e_manual.py::TestPostgreSQLManual -v
-    docker-compose -f docs/deploy/docker-compose.postgresql.yml down
+The tests are marked with @pytest.mark.database_integration and are executed
+as part of the database compatibility test matrix in GitHub Actions.
 """
 
 import pytest
@@ -29,8 +20,8 @@ from app.models import User, UserGroup, AuditLog
 from app.database.migrations import get_migration_manager
 
 
-# Mark all tests in this module as manual E2E tests
-pytestmark = pytest.mark.e2e
+# Mark all tests in this module as database integration tests
+pytestmark = pytest.mark.database_integration
 
 
 class DatabaseE2ETestBase:
@@ -445,19 +436,14 @@ class TestCloudDatabasesManual(DatabaseE2ETestBase):
 
 
 if __name__ == "__main__":
-    print("Manual E2E Database Tests")
+    print("Database Integration Tests")
     print("=" * 50)
     print()
-    print("These tests require actual database instances.")
-    print("Set up databases using Docker Compose:")
+    print("These tests are run automatically in CI.")
+    print("To run locally with Docker:")
     print()
-    print("PostgreSQL:")
-    print("  docker-compose -f docs/deploy/docker-compose.postgresql.yml up -d")
-    print("  pytest tests/test_database_e2e_manual.py::TestPostgreSQLManual -v")
+    print("All database tests:")
+    print("  pytest tests/ -m database_integration -v")
     print()
-    print("MySQL:")
-    print("  docker-compose -f docs/deploy/docker-compose.mysql.yml up -d")
-    print("  pytest tests/test_database_e2e_manual.py::TestMySQLManual -v")
-    print()
-    print("Run all manual tests:")
-    print("  pytest tests/test_database_e2e_manual.py -v")
+    print("Specific database:")
+    print("  INTENTVERSE_DB_TYPE=postgresql pytest tests/test_database_e2e_manual.py -v")
