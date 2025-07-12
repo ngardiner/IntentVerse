@@ -172,7 +172,10 @@ jobs:
             --tb=short \
             --disable-warnings \
             --no-header \
-            --junitxml=/app/test-results-mcp.xml
+            --junitxml=/app/test-results-mcp.xml \
+            --cov=app \
+            --cov-report=xml:/app/coverage-mcp.xml \
+            --cov-report=term-missing
         continue-on-error: true
 
       - name: Run web core tests
@@ -258,6 +261,7 @@ jobs:
           # Extract coverage files
           docker cp intentverse-core-unit-tests:/app/coverage-unit.xml ./test-results/coverage-unit.xml 2>/dev/null || true
           docker cp intentverse-core-e2e-tests:/app/coverage-e2e.xml ./test-results/coverage-e2e.xml 2>/dev/null || true
+          docker cp intentverse-mcp-tests:/app/coverage-mcp.xml ./test-results/coverage-mcp.xml 2>/dev/null || true
           
           echo "Core unit tests:"
           extract_counts "./test-results/core-unit.xml"
@@ -328,7 +332,8 @@ jobs:
             failures=$(grep -o 'failures="[0-9]*"' "./test-results/mcp.xml" | head -1 | grep -o '[0-9]*')
             errors=$(grep -o 'errors="[0-9]*"' "./test-results/mcp.xml" | head -1 | grep -o '[0-9]*')
             skipped=$(grep -o 'skipped="[0-9]*"' "./test-results/mcp.xml" | head -1 | grep -o '[0-9]*')
-            echo "| MCP | ${{ steps.mcp-tests.outcome }} | ${tests:-0} | ${failures:-0} | ${errors:-0} | ${skipped:-0} | N/A |" >> test-results/summary.md
+            coverage=$(extract_coverage "./test-results/coverage-mcp.xml")
+            echo "| MCP | ${{ steps.mcp-tests.outcome }} | ${tests:-0} | ${failures:-0} | ${errors:-0} | ${skipped:-0} | ${coverage} |" >> test-results/summary.md
           else
             echo "| MCP | ${{ steps.mcp-tests.outcome }} | - | - | - | - | N/A |" >> test-results/summary.md
           fi

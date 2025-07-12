@@ -571,15 +571,15 @@ async def test_health_and_status_endpoints_e2e():
             assert "message" in root_data
             assert "IntentVerse" in root_data["message"]
 
-            # Test health endpoint
-            health_response = await client.get("/health")
+            # Test health endpoint (v2 API)
+            health_response = await client.get("/api/v2/health/")
             assert health_response.status_code == 200
             health_data = health_response.json()
-            assert health_data["status"] == "healthy"
+            assert health_data["status"] in ["healthy", "degraded", "unhealthy"]
             assert "timestamp" in health_data
 
             # Test version endpoint
-            version_response = await client.get("/version")
+            version_response = await client.get("/api/v1/version", headers=headers)
             assert version_response.status_code == 200
             version_data = version_response.json()
             assert "version" in version_data

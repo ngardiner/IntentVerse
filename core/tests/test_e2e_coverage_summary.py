@@ -179,11 +179,14 @@ def test_e2e_coverage_summary():
     import os
     import glob
     
-    test_files = glob.glob("test_*_e2e.py")
+    # Get current directory and look for e2e test files
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    test_files = glob.glob(os.path.join(current_dir, "test_*_e2e.py"))
     total_tests = 0
     
     for test_file in test_files:
-        if os.path.exists(test_file) and test_file != "test_e2e_coverage_summary.py":
+        filename = os.path.basename(test_file)
+        if filename != "test_e2e_coverage_summary.py":
             with open(test_file, 'r') as f:
                 content = f.read()
                 # Count test functions - look for both async and regular test functions
@@ -192,11 +195,11 @@ def test_e2e_coverage_summary():
                 for line in lines:
                     stripped = line.strip()
                     if (stripped.startswith('async def test_') or 
-                        stripped.startswith('def test_')) and not stripped.startswith('def test_e2e_coverage_summary'):
+                        stripped.startswith('def test_')) and 'test_e2e_coverage_summary' not in stripped:
                         test_functions.append(stripped)
                 
                 total_tests += len(test_functions)
-                print(f"✓ {test_file}: {len(test_functions)} test functions")
+                print(f"✓ {filename}: {len(test_functions)} test functions")
     
     print(f"✓ Total new e2e test functions: {total_tests}")
     

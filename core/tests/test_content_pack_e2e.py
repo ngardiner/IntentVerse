@@ -38,7 +38,7 @@ async def test_content_pack_operations_e2e():
     try:
         async with httpx.AsyncClient(base_url=CORE_API_URL, headers=headers) as client:
             # Step 1: List available content packs
-            list_response = await client.get("/api/v1/content-packs")
+            list_response = await client.get("/api/v1/content-packs/available", headers=headers)
             if list_response.status_code == 401:
                 pytest.skip(f"Authentication failed: {list_response.text}")
             
@@ -61,26 +61,25 @@ async def test_content_pack_operations_e2e():
                     pack_details = detail_response.json()
                     assert "name" in pack_details or "id" in pack_details
 
-            # Step 3: Test content pack variable operations
-            # Set a variable
-            set_var_payload = {
-                "variable_name": "test_variable",
-                "value": "e2e_test_value"
-            }
-            
-            set_var_response = await client.post("/api/v1/content-packs/variables", json=set_var_payload)
-            # This might return 404 if endpoint doesn't exist, which is fine for discovery
-            if set_var_response.status_code not in [404, 405]:
-                assert set_var_response.status_code in [200, 201]
+            # Step 3: Test content pack validation (if available)
+            if content_packs:
+                first_pack_name = content_packs[0].get("name") or content_packs[0].get("id")
+                if first_pack_name:
+                    validate_payload = {"filename": f"{first_pack_name}.json"}
+                    validate_response = await client.post("/api/v1/content-packs/validate", json=validate_payload, headers=headers)
+                    # This might return 404 if file doesn't exist, which is fine for discovery
+                    if validate_response.status_code not in [404, 405]:
+                        assert validate_response.status_code in [200, 422]
 
-            # Step 4: Get variables
-            get_vars_response = await client.get("/api/v1/content-packs/variables")
-            if get_vars_response.status_code == 200:
-                variables = get_vars_response.json()
-                assert isinstance(variables, (dict, list))
+            # Step 4: Get loaded content packs
+            get_loaded_response = await client.get("/api/v1/content-packs/loaded", headers=headers)
+            if get_loaded_response.status_code == 200:
+                loaded_packs = get_loaded_response.json()
+                assert isinstance(loaded_packs, list)
 
             # Step 5: Test content pack export (if available)
-            export_response = await client.get("/api/v1/content-packs/export")
+            export_payload = {"filename": "test_export.json", "metadata": {"name": "test_export"}}
+            export_response = await client.post("/api/v1/content-packs/export", json=export_payload, headers=headers)
             if export_response.status_code == 200:
                 export_data = export_response.json()
                 # Should be valid JSON content pack format

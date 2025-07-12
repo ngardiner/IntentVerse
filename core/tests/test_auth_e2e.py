@@ -99,7 +99,7 @@ async def test_api_versioning_e2e():
     try:
         async with httpx.AsyncClient(base_url=CORE_API_URL, headers=headers) as client:
             # Test version endpoint
-            version_response = await client.get("/version")
+            version_response = await client.get("/api/v1/version", headers=headers)
             if version_response.status_code == 401:
                 pytest.skip(f"Authentication failed: {version_response.text}")
             
