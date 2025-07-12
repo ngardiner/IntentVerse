@@ -616,7 +616,7 @@ class TestMCPClient:
 
             assert len(tools) == 1
             assert tools[0].name == "new_tool"
-            mock_request.assert_called_once_with("tools/list")
+            mock_request.assert_called_once_with("tools/list", timeout=30.0)
 
     @pytest.mark.asyncio
     async def test_get_tool_by_name(self, stdio_config):

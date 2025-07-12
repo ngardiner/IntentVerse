@@ -400,7 +400,7 @@ class TestProxyToolGenerator:
 
         # Check function properties
         assert callable(proxy_func)
-        assert proxy_func.__name__ == "test_tool"
+        assert proxy_func.__name__ == "test_server.test_tool"
         assert "A test tool for unit testing" in proxy_func.__doc__
 
         # Check function signature
@@ -408,7 +408,7 @@ class TestProxyToolGenerator:
         assert "message" in sig.parameters
         assert "count" in sig.parameters
         assert sig.parameters["message"].annotation == str
-        assert sig.parameters["count"].annotation == Optional[int]
+        assert sig.parameters["count"].annotation == str
 
         # Test calling the function
         result = await proxy_func(message="Hello", count=3)

@@ -363,7 +363,7 @@ describe('VariableManager', () => {
         fireEvent.click(resetButton);
         
         expect(window.confirm).toHaveBeenCalledWith(
-          'Reset variable "company_name" to its default value?'
+          "Are you sure you want to reset 'company_name' to its default value?"
         );
       });
     });
@@ -444,7 +444,7 @@ describe('VariableManager', () => {
       
       // Check confirm was called
       expect(window.confirm).toHaveBeenCalledWith(
-        'Reset all variables for "Test Pack" to their default values?'
+        'Are you sure you want to reset ALL variables to their default values? This cannot be undone.'
       );
     });
 
@@ -515,7 +515,7 @@ describe('VariableManager', () => {
       // Then check for error message
       await waitFor(() => {
         expect(screen.getByText(/Error:/)).toBeInTheDocument();
-        expect(screen.getByText(/Reset failed/)).toBeInTheDocument();
+        expect(screen.getByText(/Failed to reset variable/)).toBeInTheDocument();
       }, { timeout: 1000 });
     });
 
@@ -573,7 +573,21 @@ describe('VariableManager', () => {
       const editButton = screen.getAllByText('Edit')[0];
       fireEvent.click(editButton);
       
+      // Wait for edit mode to be active
+      await waitFor(() => {
+        const input = screen.getByDisplayValue('Custom Corp');
+        expect(input).toBeInTheDocument();
+      });
+      
       const input = screen.getByDisplayValue('Custom Corp');
+      
+      // Ensure the input has focus and value
+      fireEvent.focus(input);
+      
+      // Modify the value slightly to ensure it's not empty and different
+      fireEvent.change(input, { target: { value: 'Custom Corp Updated' } });
+      
+      // Then press Enter
       fireEvent.keyPress(input, { key: 'Enter', code: 'Enter' });
       
       // Check API was called

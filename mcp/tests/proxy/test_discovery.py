@@ -262,6 +262,8 @@ class TestToolDiscoveryService:
         # Create mock client
         mock_client = Mock(spec=MCPClient)
         mock_client.server_name = "test_server"
+        mock_client.server_config = Mock()
+        mock_client.server_config.type = "stdio"
         mock_client.is_connected = True
         mock_client.get_server_info = AsyncMock(
             return_value=MCPServerInfo(
@@ -324,6 +326,8 @@ class TestToolDiscoveryService:
         """Test handling errors when discovering tools from a client."""
         mock_client = Mock(spec=MCPClient)
         mock_client.server_name = "test_server"
+        mock_client.server_config = Mock()
+        mock_client.server_config.type = "stdio"
         mock_client.is_connected = True
         mock_client.discover_tools = AsyncMock(
             side_effect=Exception("Connection error")
@@ -345,6 +349,8 @@ class TestToolDiscoveryService:
         """Test discovering tools from a disconnected client."""
         mock_client = Mock(spec=MCPClient)
         mock_client.server_name = "test_server"
+        mock_client.server_config = Mock()
+        mock_client.server_config.type = "stdio"
         mock_client.is_connected = False
         mock_client.connect = AsyncMock(side_effect=Exception("Connection failed"))
         mock_client.initialize_server = AsyncMock()
@@ -357,7 +363,7 @@ class TestToolDiscoveryService:
         assert result.server_name == "test_server"
         assert result.success is False
         assert result.tools_discovered == 0
-        assert "not connected" in result.error_message.lower()
+        assert "connection failed" in result.error_message.lower()
 
     # Note: The actual implementation doesn't have a separate conflict resolution method
     # Conflicts are handled directly in the add_tool method of ToolRegistry

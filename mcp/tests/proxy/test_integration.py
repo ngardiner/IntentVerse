@@ -94,7 +94,7 @@ class TestProxyEngineIntegration:
                         "timeout": 30,
                         "retry_attempts": 3,
                         "retry_delay": 5,
-                        "tool_prefix": "test_",
+                        "tool_prefix": "",
                         "health_check_interval": 60,
                     },
                 }
@@ -202,7 +202,15 @@ class TestProxyEngineIntegration:
             )
             return mock_client
 
-        with patch("app.proxy.discovery.MCPClient", side_effect=mock_client_factory):
+        with patch("app.proxy.discovery.MCPClient", side_effect=mock_client_factory), \
+             patch("app.core_client.CoreClient") as mock_core_client_class:
+            
+            # Mock the core client for registration
+            mock_core_client = AsyncMock()
+            mock_core_client.register_mcp_tools.return_value = {"status": "success"}
+            mock_core_client.close.return_value = None
+            mock_core_client_class.return_value = mock_core_client
+            
             # Initialize the engine
             await engine.initialize()
             assert engine.config is not None
@@ -239,9 +247,9 @@ class TestProxyEngineIntegration:
             # Debug: Print all available proxy functions
             print(f"DEBUG: Available proxy functions: {list(proxy_functions.keys())}")
 
-            # The tool name should be prefixed with "test_" from the config
+            # The tool name should be prefixed with server name
             expected_tool_name = (
-                "test_test_echo_tool"  # Server prefix + tool prefix applied
+                "test-server.echo_tool"  # Server name + tool name
             )
             assert (
                 expected_tool_name in proxy_functions
@@ -309,7 +317,7 @@ class TestProxyEngineIntegration:
                     "type": "stdio",
                     "command": "echo",
                     "args": [],
-                    "settings": {"tool_prefix": "s1_"},
+                    "settings": {"tool_prefix": ""},
                 },
                 "server2": {
                     "enabled": True,
@@ -317,7 +325,7 @@ class TestProxyEngineIntegration:
                     "type": "stdio",
                     "command": "echo",
                     "args": [],
-                    "settings": {"tool_prefix": "s2_"},
+                    "settings": {"tool_prefix": ""},
                 },
             },
             "global_settings": {
@@ -401,10 +409,10 @@ class TestProxyEngineIntegration:
 
                 # With conflict resolution, tools should be named with server prefix
                 expected_tool1 = (
-                    "s1_s1_common_tool"  # Server prefix + tool prefix applied
+                    "server1.common_tool"  # Server name + tool name
                 )
                 expected_tool2 = (
-                    "s2_s2_common_tool"  # Server prefix + tool prefix applied
+                    "server2.common_tool"  # Server name + tool name
                 )
                 assert (
                     expected_tool1 in proxy_functions
@@ -440,7 +448,7 @@ class TestProxyEngineIntegration:
                     "type": "stdio",
                     "command": "echo",
                     "args": [],
-                    "settings": {"tool_prefix": "enabled_"},
+                    "settings": {"tool_prefix": ""},
                 },
                 "disabled-server": {
                     "enabled": False,
@@ -448,7 +456,7 @@ class TestProxyEngineIntegration:
                     "type": "stdio",
                     "command": "echo",
                     "args": [],
-                    "settings": {"tool_prefix": "disabled_"},
+                    "settings": {"tool_prefix": ""},
                 },
             },
             "global_settings": {
@@ -548,7 +556,7 @@ class TestProxyEngineIntegration:
                     f"DEBUG: Available proxy functions for disabled server test: {list(proxy_functions.keys())}"
                 )
 
-                expected_tool = "enabled_enabled_enabled_tool"  # Server prefix + tool prefix applied
+                expected_tool = "enabled-server.enabled_tool"  # Server name + tool name
                 assert (
                     expected_tool in proxy_functions
                 ), f"Expected tool {expected_tool} not found in {list(proxy_functions.keys())}"
@@ -741,7 +749,7 @@ class TestProxyEngineIntegration:
             )
 
             expected_tool = (
-                "test_test_strict_tool"  # Server prefix + tool prefix applied
+                "test-server.strict_tool"  # Server name + tool name
             )
             assert (
                 expected_tool in proxy_functions

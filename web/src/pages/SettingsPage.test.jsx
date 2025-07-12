@@ -304,11 +304,11 @@ describe('SettingsPage', () => {
       
       await waitFor(() => {
         expect(screen.getByText('Module Configuration')).toBeInTheDocument();
-        expect(screen.getByText('Future Tool-Level Configuration')).toBeInTheDocument();
+        expect(screen.getByText('MCP Servers')).toBeInTheDocument();
       });
 
       expect(screen.getByText('Enable or disable modules to control which tools are available in the system.')).toBeInTheDocument();
-      expect(screen.getByText(/In the next release, you'll be able to enable\/disable individual tools/)).toBeInTheDocument();
+      expect(screen.getByText(/External MCP \(Model Context Protocol\) servers that provide additional tools/)).toBeInTheDocument();
     });
 
     it('applies correct CSS classes for module status', async () => {
@@ -336,7 +336,7 @@ describe('SettingsPage', () => {
       await waitFor(() => {
         expect(screen.getByRole('heading', { level: 1, name: 'Settings' })).toBeInTheDocument();
         expect(screen.getByRole('heading', { level: 2, name: 'Module Configuration' })).toBeInTheDocument();
-        expect(screen.getByRole('heading', { level: 2, name: 'Future Tool-Level Configuration' })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { level: 2, name: 'MCP Servers' })).toBeInTheDocument();
       });
     });
 
