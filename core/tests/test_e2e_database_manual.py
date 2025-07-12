@@ -59,7 +59,7 @@ class TestPostgreSQLManual:
         # Test basic CRUD operations
         with Session(database.engine) as session:
             # Create a test user
-            test_user = User(username="test_pg_user", email="test@example.com")
+            test_user = User(username="test_pg_user", email="test@example.com", hashed_password="test_hash")
             session.add(test_user)
             session.commit()
             session.refresh(test_user)
@@ -169,7 +169,7 @@ class TestMySQLManual:
         # Test basic CRUD operations
         with Session(database.engine) as session:
             # Create a test user
-            test_user = User(username="test_mysql_user", email="test@example.com")
+            test_user = User(username="test_mysql_user", email="test@example.com", hashed_password="test_hash")
             session.add(test_user)
             session.commit()
             session.refresh(test_user)
@@ -189,7 +189,7 @@ class TestMySQLManual:
         
         # Test unicode handling
         with Session(database.engine) as session:
-            test_user = User(username="test_unicode", email="test@example.com")
+            test_user = User(username="test_unicode", email="test@example.com", hashed_password="test_hash")
             session.add(test_user)
             session.commit()
             
