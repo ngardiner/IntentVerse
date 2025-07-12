@@ -446,7 +446,7 @@ jobs:
             DB_PORT=5432
           elif [ "${{ matrix.database }}" = "mysql" ]; then
             TEST_FILE="tests/test_e2e_database_manual.py::TestMySQLManual"
-            DB_PORT=3307
+            DB_PORT=3306
           elif [ "${{ matrix.database }}" = "mariadb" ]; then
             TEST_FILE="tests/test_e2e_database_manual.py::TestMySQLManual"
             DB_PORT=3306
