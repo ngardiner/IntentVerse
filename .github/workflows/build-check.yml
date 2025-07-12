@@ -417,19 +417,29 @@ jobs:
         working-directory: docs/deploy
         run: |
           echo "Running ${{ matrix.database }} database tests..."
+          if [ "${{ matrix.database }}" = "postgresql" ]; then
+            TEST_FILE="tests/test_e2e_database_manual.py::TestPostgreSQLManual"
+            DB_PORT=5432
+          elif [ "${{ matrix.database }}" = "mysql" ]; then
+            TEST_FILE="tests/test_e2e_database_manual.py::TestMySQLManual"
+            DB_PORT=3307
+          elif [ "${{ matrix.database }}" = "mariadb" ]; then
+            TEST_FILE="tests/test_e2e_database_manual.py::TestMySQLManual"
+            DB_PORT=3306
+          fi
+          
           docker compose -f docker-compose.testing.yml run --rm \
             -e INTENTVERSE_DB_TYPE=${{ matrix.database }} \
             -e INTENTVERSE_DB_HOST=${{ matrix.database }}-test \
-            -e INTENTVERSE_DB_PORT=${{ matrix.database == 'postgresql' && '5432' || '3306' }} \
+            -e INTENTVERSE_DB_PORT=$DB_PORT \
             -e INTENTVERSE_DB_NAME=intentverse_test \
             -e INTENTVERSE_DB_USER=intentverse \
             -e INTENTVERSE_DB_PASSWORD=intentverse_password \
             -e LOG_LEVEL=ERROR \
-            test-runner python -m pytest tests/ -v \
+            test-runner python -m pytest $TEST_FILE -v \
             --tb=short \
             --disable-warnings \
             --no-header \
-            -m "database_integration" \
             --junitxml=/app/test-results-${{ matrix.database }}.xml
 
       - name: Stop ${{ matrix.database }} test database

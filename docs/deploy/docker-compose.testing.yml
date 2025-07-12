@@ -35,7 +35,7 @@ services:
       MYSQL_CHARSET: utf8mb4
       MYSQL_COLLATION: utf8mb4_unicode_ci
     ports:
-      - "3306:3306"
+      - "3307:3306"  # MySQL on different port to avoid conflict with MariaDB
     volumes:
       - mysql_test_data:/var/lib/mysql
       - ../init-scripts-mysql:/docker-entrypoint-initdb.d
@@ -63,7 +63,7 @@ services:
       MARIADB_PASSWORD: intentverse_password
       MARIADB_ROOT_PASSWORD: root_password
     ports:
-      - "3307:3306"  # Different port to avoid conflict with MySQL
+      - "3306:3306"  # MariaDB on standard port (MySQL will use different port)
     volumes:
       - mariadb_test_data:/var/lib/mysql
       - ../init-scripts-mysql:/docker-entrypoint-initdb.d
