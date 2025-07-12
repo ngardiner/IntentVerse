@@ -10,9 +10,13 @@ from sqlalchemy.pool import StaticPool
 # Set test database configuration BEFORE importing any app modules
 TEST_DATABASE_URL = "sqlite:///:memory:"
 
-# Override database configuration for testing
-os.environ["INTENTVERSE_DB_TYPE"] = "sqlite"
-os.environ["INTENTVERSE_DB_URL"] = TEST_DATABASE_URL
+# Only override database configuration for unit tests, not integration tests
+# Integration tests (marked with @pytest.mark.database_integration) should use
+# the actual database configuration provided by CI environment variables
+if not os.getenv("INTENTVERSE_DB_TYPE") or os.getenv("INTENTVERSE_DB_TYPE") == "sqlite":
+    # Override database configuration for testing only if not already set to a real database
+    os.environ["INTENTVERSE_DB_TYPE"] = "sqlite"
+    os.environ["INTENTVERSE_DB_URL"] = TEST_DATABASE_URL
 
 # Create test engine with proper configuration for in-memory SQLite
 test_engine = create_engine(
@@ -35,7 +39,17 @@ def override_database_for_testing():
     # Reset any existing database instance
     reset_database()
     
-    # Create a test configuration
+    # Check if we're running integration tests with a real database
+    db_type = os.getenv("INTENTVERSE_DB_TYPE", "sqlite")
+    
+    if db_type != "sqlite":
+        # For integration tests, use the actual database configuration
+        # Don't override with SQLite test engine
+        config = Config.get_database_config()
+        db_instance = initialize_database(config)
+        return db_instance._engine if hasattr(db_instance, '_engine') else None
+    
+    # For unit tests, use SQLite in-memory database
     test_config = {
         "type": "sqlite",
         "url": TEST_DATABASE_URL,
