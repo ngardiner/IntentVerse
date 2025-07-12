@@ -10,7 +10,7 @@ from packaging import version
 
 
 # Application version - single source of truth
-APP_VERSION = "1.1.0"
+APP_VERSION = "1.2.0"
 
 
 def get_app_version() -> str:

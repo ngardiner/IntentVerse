@@ -45,7 +45,7 @@ const VersionInfo = ({
     if (inline) {
       return (
         <span className={`version-info inline ${className}`} title={error}>
-          IntentVerse v1.1.0
+          IntentVerse v1.2.0
         </span>
       );
     }
@@ -63,7 +63,7 @@ const VersionInfo = ({
   const { version, major, minor, patch, semantic_version } = versionInfo;
 
   // Fallback to hardcoded version if API response is missing version
-  const displayVersion = version || '1.1.0';
+  const displayVersion = version || '1.2.0';
 
   if (inline) {
     return (

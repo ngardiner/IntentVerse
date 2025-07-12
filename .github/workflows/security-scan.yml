@@ -280,7 +280,7 @@ jobs:
           to: ${{ secrets.TELEGRAM_CHAT_ID }}
           token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           message: |
-            ⚠️ *Security scan detected issues in IntentVerse v1\.1\.0*
+            ⚠️ *Security scan detected issues in IntentVerse v1\.2\.0*
             
             Please review the security report in the workflow artifacts\.
             
