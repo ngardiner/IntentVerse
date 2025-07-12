@@ -87,13 +87,13 @@ const VersionInfo = ({
         <div className="version-details">
           <div className="version-breakdown">
             <span className="breakdown-item">
-              <strong>Major:</strong> {major || 1}
+              <strong>Major:</strong> {major ?? 1}
             </span>
             <span className="breakdown-item">
-              <strong>Minor:</strong> {minor || 1}
+              <strong>Minor:</strong> {minor ?? 1}
             </span>
             <span className="breakdown-item">
-              <strong>Patch:</strong> {patch || 0}
+              <strong>Patch:</strong> {patch ?? 0}
             </span>
           </div>
           
