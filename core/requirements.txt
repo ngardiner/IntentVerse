@@ -19,3 +19,6 @@ slowapi
 redis
 # WebSockets
 websockets
+# Database drivers (v1.2.0)
+psycopg2-binary  # PostgreSQL driver
+pymysql  # MySQL/MariaDB driver (pure Python, recommended)

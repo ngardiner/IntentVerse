@@ -8,6 +8,22 @@ from typing import Dict, Type
 from .base import DatabaseInterface
 from .sqlite import SQLiteDatabase
 
+# Import PostgreSQL implementation (v1.2.0)
+try:
+    from .postgresql import PostgreSQLDatabase
+    _POSTGRESQL_AVAILABLE = True
+except ImportError:
+    _POSTGRESQL_AVAILABLE = False
+    PostgreSQLDatabase = None
+
+# Import MySQL implementation (v1.2.0)
+try:
+    from .mysql import MySQLDatabase
+    _MYSQL_AVAILABLE = True
+except ImportError:
+    _MYSQL_AVAILABLE = False
+    MySQLDatabase = None
+
 
 class DatabaseFactory:
     """Factory for creating database instances."""
@@ -15,10 +31,16 @@ class DatabaseFactory:
     # Registry of available database implementations
     _implementations: Dict[str, Type[DatabaseInterface]] = {
         "sqlite": SQLiteDatabase,
-        # Future implementations will be added here:
-        # "postgresql": PostgreSQLDatabase,  # v1.2.0
-        # "mysql": MySQLDatabase,            # v1.2.0
     }
+    
+    # Add PostgreSQL if available (v1.2.0)
+    if _POSTGRESQL_AVAILABLE:
+        _implementations["postgresql"] = PostgreSQLDatabase
+    
+    # Add MySQL if available (v1.2.0)
+    if _MYSQL_AVAILABLE:
+        _implementations["mysql"] = MySQLDatabase
+        _implementations["mariadb"] = MySQLDatabase  # MariaDB uses same implementation
 
     @classmethod
     def create_database(cls, config: dict) -> DatabaseInterface:
@@ -50,10 +72,26 @@ class DatabaseFactory:
         # Create and validate the database instance
         database = implementation_class(config)
         
+        # Enhanced configuration validation
+        from .validation import validate_database_config
+        
+        is_valid, errors, warnings = validate_database_config(config)
+        
+        if not is_valid:
+            error_msg = "Database configuration validation failed:\n" + "\n".join(f"  - {error}" for error in errors)
+            logging.error(error_msg)
+            raise ValueError(error_msg)
+        
+        if warnings:
+            logging.warning("Database configuration warnings:")
+            for warning in warnings:
+                logging.warning(f"  - {warning}")
+        
+        # Validate basic database interface requirements
         try:
             database.validate_config()
         except Exception as e:
-            logging.error(f"Database configuration validation failed: {e}")
+            logging.error(f"Database interface validation failed: {e}")
             raise
         
         return database
@@ -88,20 +126,43 @@ def get_database() -> DatabaseInterface:
     return _database_instance
 
 
-def initialize_database(config: dict) -> DatabaseInterface:
+def initialize_database(config: dict, validate_connection: bool = True) -> DatabaseInterface:
     """
-    Initialize the global database instance.
+    Initialize the global database instance with enhanced validation.
     
     Args:
         config: Database configuration dictionary
+        validate_connection: Whether to validate connection on startup (default: True)
         
     Returns:
         DatabaseInterface: The initialized database instance
+        
+    Raises:
+        RuntimeError: If database initialization or validation fails
     """
     global _database_instance
-    _database_instance = DatabaseFactory.create_database(config)
-    logging.info("Database initialized successfully")
-    return _database_instance
+    
+    try:
+        _database_instance = DatabaseFactory.create_database(config)
+        
+        # Validate connection on startup if requested
+        if validate_connection:
+            if not _database_instance.validate_startup_connection():
+                raise RuntimeError("Database connection validation failed during initialization")
+        
+        logging.info("Database initialized successfully")
+        return _database_instance
+        
+    except Exception as e:
+        logging.error(f"Database initialization failed: {e}")
+        # Clean up partial initialization
+        if _database_instance:
+            try:
+                _database_instance.close()
+            except Exception:
+                pass
+            _database_instance = None
+        raise RuntimeError(f"Database initialization failed: {e}") from e
 
 
 def reset_database() -> None:

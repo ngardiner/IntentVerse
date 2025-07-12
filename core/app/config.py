@@ -31,6 +31,13 @@ class Config:
     DB_USER: Optional[str] = os.getenv("INTENTVERSE_DB_USER")
     DB_PASSWORD: Optional[str] = os.getenv("INTENTVERSE_DB_PASSWORD")
     DB_SSL_MODE: Optional[str] = os.getenv("INTENTVERSE_DB_SSL_MODE")
+    
+    # PostgreSQL-specific configuration (v1.2.0)
+    DB_POOL_SIZE: int = int(os.getenv("INTENTVERSE_DB_POOL_SIZE", "10"))
+    DB_MAX_OVERFLOW: int = int(os.getenv("INTENTVERSE_DB_MAX_OVERFLOW", "20"))
+    DB_POOL_RECYCLE: int = int(os.getenv("INTENTVERSE_DB_POOL_RECYCLE", "3600"))
+    DB_CONNECT_TIMEOUT: Optional[int] = int(os.getenv("INTENTVERSE_DB_CONNECT_TIMEOUT", "30")) if os.getenv("INTENTVERSE_DB_CONNECT_TIMEOUT") else None
+    DB_APPLICATION_NAME: str = os.getenv("INTENTVERSE_DB_APPLICATION_NAME", "IntentVerse")
 
     @classmethod
     def get_remote_repo_url(cls) -> str:
@@ -66,8 +73,9 @@ class Config:
 
     @classmethod
     def get_database_config(cls) -> dict:
-        """Get database configuration as a dictionary."""
-        return {
+        """Get database configuration as a dictionary with enhanced parsing."""
+        # Build raw configuration
+        raw_config = {
             "type": cls.get_database_type(),
             "url": cls.DB_URL,
             "host": cls.DB_HOST,
@@ -77,6 +85,46 @@ class Config:
             "password": cls.DB_PASSWORD,
             "ssl_mode": cls.DB_SSL_MODE,
         }
+        
+        # Add database-specific configuration
+        db_type = cls.get_database_type()
+        
+        if db_type == "postgresql":
+            raw_config.update({
+                "pool_size": cls.DB_POOL_SIZE,
+                "max_overflow": cls.DB_MAX_OVERFLOW,
+                "pool_recycle": cls.DB_POOL_RECYCLE,
+                "connect_timeout": cls.DB_CONNECT_TIMEOUT,
+                "application_name": cls.DB_APPLICATION_NAME,
+            })
+        
+        elif db_type in ["mysql", "mariadb"]:
+            raw_config.update({
+                "pool_size": cls.DB_POOL_SIZE,
+                "max_overflow": cls.DB_MAX_OVERFLOW,
+                "pool_recycle": cls.DB_POOL_RECYCLE,
+                "connect_timeout": cls.DB_CONNECT_TIMEOUT,
+                "charset": os.getenv("INTENTVERSE_DB_CHARSET", "utf8mb4"),
+                "sql_mode": os.getenv("INTENTVERSE_DB_SQL_MODE", "STRICT_TRANS_TABLES,NO_ZERO_DATE,NO_ZERO_IN_DATE,ERROR_FOR_DIVISION_BY_ZERO"),
+                "autocommit": os.getenv("INTENTVERSE_DB_AUTOCOMMIT", "false").lower() == "true",
+            })
+        
+        # Parse and normalize configuration (handles connection strings)
+        from .config_parser import parse_database_config
+        return parse_database_config(raw_config)
+    
+    @classmethod
+    def validate_database_config(cls) -> tuple[bool, list[str], list[str]]:
+        """
+        Validate the current database configuration.
+        
+        Returns:
+            Tuple of (is_valid, errors, warnings)
+        """
+        from .database.validation import validate_database_config
+        
+        config = cls.get_database_config()
+        return validate_database_config(config)
 
     @classmethod
     def get_default_sqlite_url(cls) -> str:

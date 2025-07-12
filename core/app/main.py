@@ -20,6 +20,8 @@ from .middleware import AuthenticationMiddleware, RateLimitHeaderMiddleware, Req
 from .rate_limiter import limiter, custom_rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from .version_manager import VersionMiddleware, create_version_router
+from .migration_api import create_migration_router
+from .health_api import create_health_router
 
 # Apply the JSON logging configuration at the earliest point
 setup_logging()
@@ -149,6 +151,14 @@ api_router_v2 = create_api_routes_v2(module_loader, content_pack_manager)
 # Add version information router
 version_router = create_version_router()
 app.include_router(version_router)
+
+# Add migration management router
+migration_router = create_migration_router()
+app.include_router(migration_router)
+
+# Add health check router
+health_router = create_health_router()
+app.include_router(health_router)
 
 # Add API routers for different versions
 app.include_router(api_router_v1)

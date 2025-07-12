@@ -57,60 +57,44 @@ class SQLiteDatabase(DatabaseInterface):
 
     def create_db_and_tables(self) -> None:
         """
-        Creates the database file and all tables defined by our SQLModel classes.
-        For development, we'll recreate the database if schema changes are detected.
+        Creates the database file and all tables using the migration system.
         """
-        current_engine = self.engine
-
-        logging.info("Initializing SQLite database and creating tables...")
+        logging.info("Initializing SQLite database...")
 
         # Import all models to ensure they're registered with SQLModel
-        from ..models import User, UserGroup, UserGroupLink, AuditLog, ModuleConfiguration, ContentPackVariable
-
-        # Import RBAC models to ensure they're registered
         from ..models import (
-            Role,
-            Permission,
-            UserRoleLink,
-            GroupRoleLink,
-            RolePermissionLink,
+            User, UserGroup, UserGroupLink, AuditLog, ModuleConfiguration, 
+            ContentPackVariable, Role, Permission, UserRoleLink, GroupRoleLink,
+            RolePermissionLink, RefreshToken, MCPServerInfo, MCPToolInfo
         )
 
         # Check if this is an in-memory database (used for testing)
-        is_memory_db = str(current_engine.url).startswith("sqlite:///:memory:")
+        is_memory_db = str(self.engine.url).startswith("sqlite:///:memory:")
+        
+        if is_memory_db:
+            # For in-memory databases (testing), create all tables directly
+            from sqlmodel import SQLModel
+            SQLModel.metadata.create_all(self.engine)
+            logging.info("Created in-memory SQLite database for testing")
+            return
 
-        if not is_memory_db:
-            # Only check for file recreation if using a file-based database
-            db_file = "./intentverse.db"
-            needs_recreation = False
-
-            if os.path.exists(db_file):
-                # Check if we need to recreate due to schema changes
-                try:
-                    # Test if the current schema matches by trying to access new columns
-                    with Session(current_engine) as session:
-                        # Try to query a user with the new email field
-                        test_query = select(User.id, User.email).limit(1)
-                        session.exec(test_query).first()
-
-                        # Try to query the audit log table
-                        test_audit_query = select(AuditLog.id).limit(1)
-                        session.exec(test_audit_query).first()
-
-                except Exception as e:
-                    logging.warning(f"Database schema appears outdated: {e}")
-                    logging.info("Recreating database...")
-                    needs_recreation = True
-
-            if needs_recreation:
-                # Remove the old database file
-                if os.path.exists(db_file):
-                    os.remove(db_file)
-                    logging.info("Removed old database file")
-
-        # Create all tables
-        SQLModel.metadata.create_all(current_engine)
-        logging.info("SQLite database and tables initialized.")
+        # For file-based databases, use migration system
+        try:
+            # Run migrations to ensure database is up to date
+            success = self.run_migrations()
+            if not success:
+                logging.error("Database migrations failed")
+                raise RuntimeError("Database migrations failed")
+            
+            logging.info("SQLite database initialized with migrations")
+            
+        except Exception as e:
+            logging.error(f"Migration system failed, falling back to direct table creation: {e}")
+            
+            # Fallback: create tables directly (for backward compatibility)
+            from sqlmodel import SQLModel
+            SQLModel.metadata.create_all(self.engine)
+            logging.warning("Used fallback table creation method")
 
     def get_session(self) -> Generator[Session, None, None]:
         """

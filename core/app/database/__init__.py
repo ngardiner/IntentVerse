@@ -41,3 +41,15 @@ __all__ = [
     "get_session",
     "get_engine",
 ]
+
+# Migration system exports
+from .migrations import get_migration_manager, MigrationManager, Migration, DatabaseVersion
+from .migration_scripts import get_all_migrations
+
+__all__.extend([
+    "get_migration_manager",
+    "MigrationManager", 
+    "Migration",
+    "DatabaseVersion",
+    "get_all_migrations",
+])
