@@ -1,5 +1,8 @@
 # v1.2.0
 
+## Features
+* Adds external database abstraction support for MySQL and PostgreSQL, as well as database migration support
+
 # v1.1.0
 
 ## Features
