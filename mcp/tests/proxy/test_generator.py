@@ -503,10 +503,10 @@ class TestProxyToolGenerator:
         functions = generator.generate_all_proxy_functions()
 
         assert len(functions) == 2
-        assert "tool1" in functions
-        assert "tool2" in functions
-        assert callable(functions["tool1"])
-        assert callable(functions["tool2"])
+        assert "server1.tool1" in functions
+        assert "server2.tool2" in functions
+        assert callable(functions["server1.tool1"])
+        assert callable(functions["server2.tool2"])
 
     def test_get_function_metadata(self, generator, sample_tool_info):
         """Test getting metadata for a generated function."""

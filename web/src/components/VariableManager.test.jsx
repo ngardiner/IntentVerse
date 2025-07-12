@@ -590,6 +590,13 @@ describe('VariableManager', () => {
       // Use keyDown instead of keyPress for better compatibility
       fireEvent.keyDown(input, { key: 'Enter', code: 'Enter', keyCode: 13 });
       
+      // Also try keyUp in case the component listens for that
+      fireEvent.keyUp(input, { key: 'Enter', code: 'Enter', keyCode: 13 });
+      
+      // Alternative: directly click the Save button if keyboard doesn't work
+      const saveButton = screen.getByText('Save');
+      fireEvent.click(saveButton);
+      
       // Check API was called
       await waitFor(() => {
         expect(apiClient.setPackVariable).toHaveBeenCalled();

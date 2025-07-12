@@ -30,13 +30,13 @@ jobs:
       - name: Scan Python dependencies (Core)
         run: |
           echo "Scanning core dependencies..."
-          cd IntentVerse/core
+          cd core
           safety check -r requirements.txt --full-report --output text
 
       - name: Scan Python dependencies (MCP)
         run: |
           echo "Scanning MCP dependencies..."
-          cd IntentVerse/mcp
+          cd mcp
           safety check -r requirements.txt --full-report --output text
 
       - name: Set up Node.js
@@ -47,7 +47,7 @@ jobs:
       - name: Scan JavaScript dependencies
         run: |
           echo "Scanning web dependencies..."
-          cd IntentVerse/web
+          cd web
           npm install
           npm audit --audit-level=moderate
 
@@ -71,12 +71,12 @@ jobs:
       - name: Run Bandit scan (Core)
         run: |
           echo "Running Bandit security scan on core..."
-          bandit -r IntentVerse/core/app -f json -o bandit-core-results.json || true
+          bandit -r core/app -f json -o bandit-core-results.json || true
           
       - name: Run Bandit scan (MCP)
         run: |
           echo "Running Bandit security scan on MCP..."
-          bandit -r IntentVerse/mcp/app -f json -o bandit-mcp-results.json || true
+          bandit -r mcp/app -f json -o bandit-mcp-results.json || true
 
       - name: Upload Bandit results
         uses: actions/upload-artifact@v4
@@ -100,8 +100,8 @@ jobs:
       - name: Run custom security checks
         run: |
           echo "Running custom IntentVerse security checks..."
-          chmod +x IntentVerse/scripts/security_checks.py
-          python IntentVerse/scripts/security_checks.py --path ./IntentVerse --output custom-security-results.json
+          chmod +x scripts/security_checks.py
+          python scripts/security_checks.py --path ./ --output custom-security-results.json
         continue-on-error: true
 
       - name: Upload custom security check results
@@ -149,7 +149,7 @@ jobs:
       - name: Build core image for scanning
         uses: docker/build-push-action@v4
         with:
-          context: ./IntentVerse/core
+          context: ./core
           push: false
           load: true
           tags: intentverse-core:scan
@@ -167,7 +167,7 @@ jobs:
       - name: Build MCP image for scanning
         uses: docker/build-push-action@v4
         with:
-          context: ./IntentVerse/mcp
+          context: ./mcp
           push: false
           load: true
           tags: intentverse-mcp:scan

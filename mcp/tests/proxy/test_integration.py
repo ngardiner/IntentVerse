@@ -410,11 +410,12 @@ class TestProxyEngineIntegration:
                 )
 
                 # With conflict resolution, tools should be named with server prefix
+                # The first server keeps the original name, the second gets renamed
                 expected_tool1 = (
-                    "server1.common_tool"  # Server name + tool name
+                    "server1.common_tool"  # First server keeps original name
                 )
                 expected_tool2 = (
-                    "server2.common_tool"  # Server name + tool name
+                    "server2.server2_common_tool"  # Second server gets renamed to avoid conflict
                 )
                 assert (
                     expected_tool1 in proxy_functions
