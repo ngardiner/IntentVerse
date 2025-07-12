@@ -26,53 +26,6 @@ class EmailTool(BaseTool):
                 "email", {"inbox": [], "sent_items": [], "drafts": []}
             )
 
-            # Add some sample emails to the inbox for demonstration
-            inbox = self.state_manager.get("email")["inbox"]
-            inbox.append(
-                {
-                    "email_id": f"inbox-{uuid.uuid4()}",
-                    "from": "support@example.com",
-                    "to": ["user@intentverse.ai"],
-                    "cc": [],
-                    "subject": "Welcome to our service",
-                    "body": "Thank you for signing up! We're excited to have you on board.",
-                    "timestamp": (
-                        datetime.now(timezone.utc) - timedelta(days=1)
-                    ).isoformat(),
-                    "read": False,
-                }
-            )
-
-            inbox.append(
-                {
-                    "email_id": f"inbox-{uuid.uuid4()}",
-                    "from": "newsletter@tech-updates.com",
-                    "to": ["user@intentverse.ai"],
-                    "cc": [],
-                    "subject": "Weekly Technology Digest",
-                    "body": "Here are this week's top stories in technology...",
-                    "timestamp": (
-                        datetime.now(timezone.utc) - timedelta(hours=12)
-                    ).isoformat(),
-                    "read": False,
-                }
-            )
-
-            inbox.append(
-                {
-                    "email_id": f"inbox-{uuid.uuid4()}",
-                    "from": "team@project-x.org",
-                    "to": ["user@intentverse.ai", "team@intentverse.ai"],
-                    "cc": ["manager@intentverse.ai"],
-                    "subject": "Project Update - Q3 Goals",
-                    "body": "Dear team,\n\nHere's an update on our Q3 goals and progress...",
-                    "timestamp": (
-                        datetime.now(timezone.utc) - timedelta(hours=3)
-                    ).isoformat(),
-                    "read": False,
-                }
-            )
-
     def get_ui_schema(self) -> Dict[str, Any]:
         """Returns the UI schema for the email module."""
         from .schema import UI_SCHEMA
@@ -119,12 +72,25 @@ class EmailTool(BaseTool):
         valid_folders = ["inbox", "sent_items", "drafts"]
         if folder not in valid_folders:
             raise ValueError(f"Invalid folder name. Must be one of: {', '.join(valid_folders)}")
-            
-        emails = self.state_manager.get("email").get(folder, [])
+        
+        # Ensure the email state exists
+        if "email" not in self.state_manager.get_full_state():
+            self.state_manager.set(
+                "email", {"inbox": [], "sent_items": [], "drafts": []}
+            )
+        
+        # Get emails from the specified folder
+        email_state = self.state_manager.get("email") or {}
+        emails = email_state.get(folder, [])
         
         # Return a summary, not the full body
-        summaries = [
-            {
+        summaries = []
+        for e in reversed(emails):
+            # Ensure each email has an ID
+            if "email_id" not in e:
+                e["email_id"] = f"{folder}-{uuid.uuid4()}"
+                
+            summary = {
                 "email_id": e["email_id"],
                 "from": e.get("from", ""),
                 "to": e.get("to", []),
@@ -132,20 +98,26 @@ class EmailTool(BaseTool):
                 "timestamp": e.get("timestamp", ""),
                 "read": e.get("read", True) if folder == "inbox" else None
             }
-            for e in reversed(emails)
-        ]
+            summaries.append(summary)
         return summaries[:limit]
 
     def read_email(self, email_id: str) -> Dict[str, Any]:
         """
         Reads the full content of a specific email in any folder using its unique ID.
         """
-        inbox = self.state_manager.get("email").get("inbox", [])
-        sent_items = self.state_manager.get("email").get("sent_items", [])
-        drafts = self.state_manager.get("email").get("drafts", [])
+        # Ensure the email state exists
+        if "email" not in self.state_manager.get_full_state():
+            self.state_manager.set(
+                "email", {"inbox": [], "sent_items": [], "drafts": []}
+            )
+            
+        email_state = self.state_manager.get("email") or {}
+        inbox = email_state.get("inbox", [])
+        sent_items = email_state.get("sent_items", [])
+        drafts = email_state.get("drafts", [])
 
         for email in inbox + sent_items + drafts:
-            if email["email_id"] == email_id:
+            if email.get("email_id") == email_id:
                 # If this is an inbox email, mark it as read
                 if email.get("read") is False and email in inbox:
                     email["read"] = True
