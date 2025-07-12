@@ -1,6 +1,8 @@
 fastapi
 uvicorn[standard]
 pytest
+pytest-cov
+coverage[toml]
 httpx
 sqlmodel
 passlib[bcrypt]

@@ -113,7 +113,10 @@ jobs:
             --disable-warnings \
             --no-header \
             -m "not e2e and not database_integration" \
-            --junitxml=/app/test-results-unit.xml
+            --junitxml=/app/test-results-unit.xml \
+            --cov=app \
+            --cov-report=xml:/app/coverage-unit.xml \
+            --cov-report=term-missing
         continue-on-error: true
 
       - name: Run core e2e tests
@@ -130,7 +133,10 @@ jobs:
             --disable-warnings \
             --no-header \
             -m "e2e and not database_integration" \
-            --junitxml=/app/test-results-e2e.xml
+            --junitxml=/app/test-results-e2e.xml \
+            --cov=app \
+            --cov-report=xml:/app/coverage-e2e.xml \
+            --cov-report=term-missing
         continue-on-error: true
 
       - name: Verify Core service is ready for MCP tests
@@ -249,6 +255,10 @@ jobs:
           docker cp intentverse-web-component-tests:/app/test-results/web-components-test-results.xml ./test-results/web-components.xml 2>/dev/null || true
           docker cp intentverse-web-page-tests:/app/test-results/web-pages-test-results.xml ./test-results/web-pages.xml 2>/dev/null || true
           
+          # Extract coverage files
+          docker cp intentverse-core-unit-tests:/app/coverage-unit.xml ./test-results/coverage-unit.xml 2>/dev/null || true
+          docker cp intentverse-core-e2e-tests:/app/coverage-e2e.xml ./test-results/coverage-e2e.xml 2>/dev/null || true
+          
           echo "Core unit tests:"
           extract_counts "./test-results/core-unit.xml"
           
@@ -270,11 +280,23 @@ jobs:
           echo "Web page tests:"
           extract_counts "./test-results/web-pages.xml"
           
+          # Function to extract coverage percentage from XML
+          extract_coverage() {
+            local file="$1"
+            if [ -f "$file" ]; then
+              # Extract line coverage percentage from coverage XML
+              coverage=$(grep -o 'line-rate="[0-9.]*"' "$file" | head -1 | grep -o '[0-9.]*' | awk '{printf "%.1f", $1*100}')
+              echo "${coverage:-0}%"
+            else
+              echo "N/A"
+            fi
+          }
+          
           # Create a summary file
           echo "# Test Results Summary" > test-results/summary.md
           echo "" >> test-results/summary.md
-          echo "| Test Suite | Status | Tests | Failures | Errors | Skipped |" >> test-results/summary.md
-          echo "|-----------|--------|-------|----------|--------|---------|" >> test-results/summary.md
+          echo "| Test Suite | Status | Tests | Failures | Errors | Skipped | Coverage |" >> test-results/summary.md
+          echo "|-----------|--------|-------|----------|--------|---------|----------|" >> test-results/summary.md
           
           # Add core unit tests
           if [ -f "./test-results/core-unit.xml" ]; then
@@ -282,9 +304,10 @@ jobs:
             failures=$(grep -o 'failures="[0-9]*"' "./test-results/core-unit.xml" | head -1 | grep -o '[0-9]*')
             errors=$(grep -o 'errors="[0-9]*"' "./test-results/core-unit.xml" | head -1 | grep -o '[0-9]*')
             skipped=$(grep -o 'skipped="[0-9]*"' "./test-results/core-unit.xml" | head -1 | grep -o '[0-9]*')
-            echo "| Core Unit | ${{ steps.core-unit-tests.outcome }} | ${tests:-0} | ${failures:-0} | ${errors:-0} | ${skipped:-0} |" >> test-results/summary.md
+            coverage=$(extract_coverage "./test-results/coverage-unit.xml")
+            echo "| Core Unit | ${{ steps.core-unit-tests.outcome }} | ${tests:-0} | ${failures:-0} | ${errors:-0} | ${skipped:-0} | ${coverage} |" >> test-results/summary.md
           else
-            echo "| Core Unit | ${{ steps.core-unit-tests.outcome }} | - | - | - | - |" >> test-results/summary.md
+            echo "| Core Unit | ${{ steps.core-unit-tests.outcome }} | - | - | - | - | N/A |" >> test-results/summary.md
           fi
           
           # Add core e2e tests
@@ -293,9 +316,10 @@ jobs:
             failures=$(grep -o 'failures="[0-9]*"' "./test-results/core-e2e.xml" | head -1 | grep -o '[0-9]*')
             errors=$(grep -o 'errors="[0-9]*"' "./test-results/core-e2e.xml" | head -1 | grep -o '[0-9]*')
             skipped=$(grep -o 'skipped="[0-9]*"' "./test-results/core-e2e.xml" | head -1 | grep -o '[0-9]*')
-            echo "| Core E2E | ${{ steps.core-e2e-tests.outcome }} | ${tests:-0} | ${failures:-0} | ${errors:-0} | ${skipped:-0} |" >> test-results/summary.md
+            coverage=$(extract_coverage "./test-results/coverage-e2e.xml")
+            echo "| Core E2E | ${{ steps.core-e2e-tests.outcome }} | ${tests:-0} | ${failures:-0} | ${errors:-0} | ${skipped:-0} | ${coverage} |" >> test-results/summary.md
           else
-            echo "| Core E2E | ${{ steps.core-e2e-tests.outcome }} | - | - | - | - |" >> test-results/summary.md
+            echo "| Core E2E | ${{ steps.core-e2e-tests.outcome }} | - | - | - | - | N/A |" >> test-results/summary.md
           fi
           
           # Add MCP tests
@@ -304,9 +328,9 @@ jobs:
             failures=$(grep -o 'failures="[0-9]*"' "./test-results/mcp.xml" | head -1 | grep -o '[0-9]*')
             errors=$(grep -o 'errors="[0-9]*"' "./test-results/mcp.xml" | head -1 | grep -o '[0-9]*')
             skipped=$(grep -o 'skipped="[0-9]*"' "./test-results/mcp.xml" | head -1 | grep -o '[0-9]*')
-            echo "| MCP | ${{ steps.mcp-tests.outcome }} | ${tests:-0} | ${failures:-0} | ${errors:-0} | ${skipped:-0} |" >> test-results/summary.md
+            echo "| MCP | ${{ steps.mcp-tests.outcome }} | ${tests:-0} | ${failures:-0} | ${errors:-0} | ${skipped:-0} | N/A |" >> test-results/summary.md
           else
-            echo "| MCP | ${{ steps.mcp-tests.outcome }} | - | - | - | - |" >> test-results/summary.md
+            echo "| MCP | ${{ steps.mcp-tests.outcome }} | - | - | - | - | N/A |" >> test-results/summary.md
           fi
           
           # Add Web Core tests
@@ -315,9 +339,9 @@ jobs:
             failures=$(grep -o 'failures="[0-9]*"' "./test-results/web-core.xml" | head -1 | grep -o '[0-9]*')
             errors=$(grep -o 'errors="[0-9]*"' "./test-results/web-core.xml" | head -1 | grep -o '[0-9]*')
             skipped=$(grep -o 'skipped="[0-9]*"' "./test-results/web-core.xml" | head -1 | grep -o '[0-9]*')
-            echo "| Web Core | ${{ steps.web-core-tests.outcome }} | ${tests:-0} | ${failures:-0} | ${errors:-0} | ${skipped:-0} |" >> test-results/summary.md
+            echo "| Web Core | ${{ steps.web-core-tests.outcome }} | ${tests:-0} | ${failures:-0} | ${errors:-0} | ${skipped:-0} | N/A |" >> test-results/summary.md
           else
-            echo "| Web Core | ${{ steps.web-core-tests.outcome }} | - | - | - | - |" >> test-results/summary.md
+            echo "| Web Core | ${{ steps.web-core-tests.outcome }} | - | - | - | - | N/A |" >> test-results/summary.md
           fi
           
           # Add Web Authentication tests
@@ -326,9 +350,9 @@ jobs:
             failures=$(grep -o 'failures="[0-9]*"' "./test-results/web-auth.xml" | head -1 | grep -o '[0-9]*')
             errors=$(grep -o 'errors="[0-9]*"' "./test-results/web-auth.xml" | head -1 | grep -o '[0-9]*')
             skipped=$(grep -o 'skipped="[0-9]*"' "./test-results/web-auth.xml" | head -1 | grep -o '[0-9]*')
-            echo "| Web Authentication | ${{ steps.web-auth-tests.outcome }} | ${tests:-0} | ${failures:-0} | ${errors:-0} | ${skipped:-0} |" >> test-results/summary.md
+            echo "| Web Authentication | ${{ steps.web-auth-tests.outcome }} | ${tests:-0} | ${failures:-0} | ${errors:-0} | ${skipped:-0} | N/A |" >> test-results/summary.md
           else
-            echo "| Web Authentication | ${{ steps.web-auth-tests.outcome }} | - | - | - | - |" >> test-results/summary.md
+            echo "| Web Authentication | ${{ steps.web-auth-tests.outcome }} | - | - | - | - | N/A |" >> test-results/summary.md
           fi
           
           # Add Web Component tests
@@ -337,9 +361,9 @@ jobs:
             failures=$(grep -o 'failures="[0-9]*"' "./test-results/web-components.xml" | head -1 | grep -o '[0-9]*')
             errors=$(grep -o 'errors="[0-9]*"' "./test-results/web-components.xml" | head -1 | grep -o '[0-9]*')
             skipped=$(grep -o 'skipped="[0-9]*"' "./test-results/web-components.xml" | head -1 | grep -o '[0-9]*')
-            echo "| Web Components | ${{ steps.web-component-tests.outcome }} | ${tests:-0} | ${failures:-0} | ${errors:-0} | ${skipped:-0} |" >> test-results/summary.md
+            echo "| Web Components | ${{ steps.web-component-tests.outcome }} | ${tests:-0} | ${failures:-0} | ${errors:-0} | ${skipped:-0} | N/A |" >> test-results/summary.md
           else
-            echo "| Web Components | ${{ steps.web-component-tests.outcome }} | - | - | - | - |" >> test-results/summary.md
+            echo "| Web Components | ${{ steps.web-component-tests.outcome }} | - | - | - | - | N/A |" >> test-results/summary.md
           fi
           
           # Add Web Page tests
@@ -348,9 +372,9 @@ jobs:
             failures=$(grep -o 'failures="[0-9]*"' "./test-results/web-pages.xml" | head -1 | grep -o '[0-9]*')
             errors=$(grep -o 'errors="[0-9]*"' "./test-results/web-pages.xml" | head -1 | grep -o '[0-9]*')
             skipped=$(grep -o 'skipped="[0-9]*"' "./test-results/web-pages.xml" | head -1 | grep -o '[0-9]*')
-            echo "| Web Pages | ${{ steps.web-page-tests.outcome }} | ${tests:-0} | ${failures:-0} | ${errors:-0} | ${skipped:-0} |" >> test-results/summary.md
+            echo "| Web Pages | ${{ steps.web-page-tests.outcome }} | ${tests:-0} | ${failures:-0} | ${errors:-0} | ${skipped:-0} | N/A |" >> test-results/summary.md
           else
-            echo "| Web Pages | ${{ steps.web-page-tests.outcome }} | - | - | - | - |" >> test-results/summary.md
+            echo "| Web Pages | ${{ steps.web-page-tests.outcome }} | - | - | - | - | N/A |" >> test-results/summary.md
           fi
           
           # Display the summary
