@@ -459,7 +459,13 @@ class TestContentPackVariableAPI:
                         assert data["variables"]["company_name"] == "ACME Corp"
                         assert data["variable_count"] == 2
                         
-                        main_content_pack_manager.get_pack_variables.assert_called_once_with("test_pack", 1)
+                        # Check that get_pack_variables was called with the correct arguments (including session)
+                        call_args = main_content_pack_manager.get_pack_variables.call_args
+                        assert call_args[0][:2] == ("test_pack", 1)  # first two positional args
+                        assert len(call_args[0]) == 3  # three positional args (pack_name, user_id, session)
+                        # Third argument should be a session object
+                        from sqlmodel.orm.session import Session
+                        assert isinstance(call_args[0][2], Session)
 
     def test_get_pack_variables_not_supported(self, service_client, mock_content_pack_manager_with_variables, mock_variable_manager):
         """Test getting pack variables when feature is not supported."""
@@ -488,7 +494,13 @@ class TestContentPackVariableAPI:
                         assert data["variable_name"] == "test_var"
                         assert data["variable_value"] == "new_value"
                         
-                        main_content_pack_manager.set_pack_variable.assert_called_once_with("test_pack", "test_var", "new_value", 1)
+                        # Check that set_pack_variable was called with the correct arguments (including session)
+                        call_args = main_content_pack_manager.set_pack_variable.call_args
+                        assert call_args[0][:4] == ("test_pack", "test_var", "new_value", 1)  # first four positional args
+                        assert len(call_args[0]) == 5  # five positional args (pack_name, variable_name, value, user_id, session)
+                        # Fifth argument should be a session object
+                        from sqlmodel.orm.session import Session
+                        assert isinstance(call_args[0][4], Session)
 
     def test_set_pack_variable_missing_value(self, authenticated_client, mock_content_pack_manager_with_variables, mock_variable_manager):
         """Test setting a pack variable without providing a value."""
@@ -564,7 +576,13 @@ class TestContentPackVariableAPI:
                         assert data["pack_name"] == "test_pack"
                         assert "All variables reset" in data["message"]
                         
-                        main_content_pack_manager.reset_pack_variables.assert_called_once_with("test_pack", 1)
+                        # Check that reset_pack_variables was called with the correct arguments (including session)
+                        call_args = main_content_pack_manager.reset_pack_variables.call_args
+                        assert call_args[0][:2] == ("test_pack", 1)  # first two positional args
+                        assert len(call_args[0]) == 3  # three positional args (pack_name, user_id, session)
+                        # Third argument should be a session object
+                        from sqlmodel.orm.session import Session
+                        assert isinstance(call_args[0][2], Session)
 
     def test_reset_all_pack_variables_failure(self, authenticated_client, mock_content_pack_manager_with_variables, mock_variable_manager):
         """Test resetting all pack variables when the operation fails."""
