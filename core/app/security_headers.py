@@ -80,7 +80,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         ])
         
         # API paths that need CORS headers
-        self.api_paths = self.config.get("api_paths", ["/api/", "/auth/", "/health/"])
+        self.api_paths = self.config.get("api_paths", ["/api/", "/auth/", "/health/", "/users/"])
     
     def _build_csp_header(self) -> str:
         """Build Content Security Policy header."""
@@ -137,20 +137,23 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         from .security_config import security_config
         config = security_config.get_security_headers_config()
         allowed_origins = config.get("cors_allowed_origins", ["*"])
-        
-        # Handle wildcard or specific origins
-        if "*" in allowed_origins:
-            response.headers["Access-Control-Allow-Origin"] = "*"
-        elif origin and origin in allowed_origins:
-            response.headers["Access-Control-Allow-Origin"] = origin
-        else:
-            response.headers["Access-Control-Allow-Origin"] = "null"
-        
-        # Use centralized CORS configuration for methods and headers
         allowed_methods = config.get("cors_allowed_methods", ["GET", "POST", "OPTIONS"])
         allowed_headers = config.get("cors_allowed_headers", ["Content-Type", "Authorization"])
         allow_credentials = config.get("cors_allow_credentials", True)
         max_age = config.get("cors_max_age", 86400)
+        
+        # Handle wildcard or specific origins
+        if "*" in allowed_origins:
+            # When using credentials, we can't use wildcard with specific origin
+            if allow_credentials and origin:
+                response.headers["Access-Control-Allow-Origin"] = origin
+            else:
+                response.headers["Access-Control-Allow-Origin"] = "*"
+        elif origin and origin in allowed_origins:
+            response.headers["Access-Control-Allow-Origin"] = origin
+        else:
+            # For internal applications, be more permissive
+            response.headers["Access-Control-Allow-Origin"] = origin or "*"
         
         response.headers["Access-Control-Allow-Methods"] = ", ".join(allowed_methods)
         response.headers["Access-Control-Allow-Headers"] = ", ".join(allowed_headers)
@@ -238,7 +241,7 @@ class SecurityConfig:
                 "/static/", "/assets/", "/favicon.ico", "/manifest.json",
                 "/", "/login", "/dashboard"  # UI routes
             ],
-            "api_paths": ["/api/", "/auth/", "/health/"]
+            "api_paths": ["/api/", "/auth/", "/health/", "/users/"]
         }
     
     @staticmethod
@@ -256,7 +259,7 @@ class SecurityConfig:
             "relaxed_csp_paths": [
                 "/static/", "/assets/", "/favicon.ico", "/manifest.json"
             ],
-            "api_paths": ["/api/", "/auth/", "/health/"]
+            "api_paths": ["/api/", "/auth/", "/health/", "/users/"]
         }
     
     @staticmethod
@@ -272,7 +275,7 @@ class SecurityConfig:
                 "/static/", "/assets/", "/favicon.ico", "/manifest.json",
                 "/", "/test", "/debug"
             ],
-            "api_paths": ["/api/", "/auth/", "/health/", "/test/"]
+            "api_paths": ["/api/", "/auth/", "/health/", "/users/", "/test/"]
         }
 
 

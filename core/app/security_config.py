@@ -69,7 +69,7 @@ class SecuritySettings:
         if self.cors_allowed_headers is None:
             self.cors_allowed_headers = [
                 "Content-Type", "Authorization", "X-Requested-With", "Accept", 
-                "Origin", "Cache-Control", "Pragma", "X-API-Key"
+                "Origin", "Cache-Control", "Pragma", "X-API-Key", "X-API-Version"
             ]
         
         if self.no_cache_paths is None:
