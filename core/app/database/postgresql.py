@@ -241,15 +241,16 @@ class PostgreSQLDatabase(DatabaseInterface):
             finally:
                 session.close()
 
-    def test_connection(self) -> bool:
+    def test_connection(self, timeout: float = None) -> tuple[bool, str]:
         """Test the database connection."""
         try:
             with Session(self.engine) as session:
                 session.exec(select(1)).first()
-            return True
+            return True, None
         except Exception as e:
-            logging.error(f"PostgreSQL connection test failed: {e}")
-            return False
+            error_msg = f"PostgreSQL connection test failed: {e}"
+            logging.error(error_msg)
+            return False, error_msg
 
     def get_database_info(self) -> dict:
         """Get PostgreSQL database information."""

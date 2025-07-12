@@ -41,8 +41,8 @@ class DatabaseE2ETestBase:
         database = DatabaseFactory.create_database(config)
         
         # Test connection
-        success = database.test_connection()
-        assert success, "Connection failed"
+        success, error = database.test_connection()
+        assert success, f"Connection failed: {error}"
         
         # Test health status
         health = database.get_health_status()
@@ -176,10 +176,10 @@ class DatabaseE2ETestBase:
         
         # Test connection time
         start_time = time.time()
-        success = database.test_connection()
+        success, error = database.test_connection()
         connection_time = time.time() - start_time
         
-        assert success, "Connection failed"
+        assert success, f"Connection failed: {error}"
         assert connection_time < 5.0, f"Connection took too long: {connection_time}s"
         
         # Test bulk operations
@@ -250,13 +250,13 @@ class TestPostgreSQLManual(DatabaseE2ETestBase):
             
             try:
                 database = DatabaseFactory.create_database(test_config)
-                success = database.test_connection()
+                success, error = database.test_connection()
                 
                 # Connection should work (may fail for require if SSL not available)
                 if ssl_mode == "require" and not success:
                     pytest.skip(f"SSL required but not available")
                 else:
-                    assert success, f"Connection failed with SSL mode {ssl_mode}"
+                    assert success, f"Connection failed with SSL mode {ssl_mode}: {error}"
                 
                 database.close()
             except Exception as e:
@@ -332,8 +332,8 @@ class TestMySQLManual(DatabaseE2ETestBase):
             test_config["charset"] = charset
             
             database = DatabaseFactory.create_database(test_config)
-            success = database.test_connection()
-            assert success, f"Connection failed with charset {charset}"
+            success, error = database.test_connection()
+            assert success, f"Connection failed with charset {charset}: {error}"
             
             database.close()
     
