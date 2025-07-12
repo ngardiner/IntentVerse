@@ -4,6 +4,7 @@ These tests verify the PostgreSQL database functionality without requiring a rea
 """
 
 import pytest
+import sys
 from unittest.mock import Mock, patch, MagicMock
 from sqlalchemy.engine import Engine
 
@@ -180,7 +181,7 @@ class TestPostgreSQLDatabase:
             "database": "test_db"
         }
         
-        with patch('psycopg2.connect', Mock()):
+        with patch.dict('sys.modules', {'psycopg2': Mock()}), patch('app.database.factory._POSTGRESQL_AVAILABLE', True):
             with patch('app.database.validation.validate_database_config', return_value=(True, [], [])):
                 with patch('app.database.factory._POSTGRESQL_AVAILABLE', True):
                     db = DatabaseFactory.create_database(config)

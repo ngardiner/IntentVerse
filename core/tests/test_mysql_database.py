@@ -4,6 +4,7 @@ These tests verify the MySQL database functionality without requiring a real MyS
 """
 
 import pytest
+import sys
 from unittest.mock import Mock, patch, MagicMock
 from sqlalchemy.engine import Engine
 
@@ -227,7 +228,7 @@ class TestMySQLDatabase:
             "name": "test_db"
         }
         
-        with patch('pymysql.connect', Mock()):
+        with patch('sys.modules', {'pymysql': Mock()}), patch('app.database.factory._MYSQL_AVAILABLE', True):
             with patch('app.database.validation.validate_database_config', return_value=(True, [], [])):
                 with patch('app.database.factory._MYSQL_AVAILABLE', True):
                     db = DatabaseFactory.create_database(config)
@@ -242,7 +243,7 @@ class TestMySQLDatabase:
             "name": "test_db"
         }
         
-        with patch('pymysql.connect', Mock()):
+        with patch('sys.modules', {'pymysql': Mock()}), patch('app.database.factory._MYSQL_AVAILABLE', True):
             with patch('app.database.validation.validate_database_config', return_value=(True, [], [])):
                 with patch('app.database.factory._MYSQL_AVAILABLE', True):
                     db = DatabaseFactory.create_database(config)
