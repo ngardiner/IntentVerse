@@ -1,0 +1,160 @@
+version: '3.8'
+
+services:
+  # PostgreSQL for testing
+  postgresql-test:
+    image: postgres:15-alpine
+    container_name: intentverse-postgres-test
+    environment:
+      POSTGRES_DB: intentverse_test
+      POSTGRES_USER: intentverse
+      POSTGRES_PASSWORD: intentverse_password
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_test_data:/var/lib/postgresql/data
+      - ../init-scripts:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U intentverse -d intentverse_test"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - intentverse-test
+
+  # MySQL for testing
+  mysql-test:
+    image: mysql:8.0
+    container_name: intentverse-mysql-test
+    environment:
+      MYSQL_DATABASE: intentverse_test
+      MYSQL_USER: intentverse
+      MYSQL_PASSWORD: intentverse_password
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_CHARSET: utf8mb4
+      MYSQL_COLLATION: utf8mb4_unicode_ci
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_test_data:/var/lib/mysql
+      - ../init-scripts-mysql:/docker-entrypoint-initdb.d
+    command: >
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --default-authentication-plugin=mysql_native_password
+      --innodb-buffer-pool-size=256M
+      --max-connections=200
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "intentverse", "-pintentverse_password"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - intentverse-test
+
+  # MariaDB for testing
+  mariadb-test:
+    image: mariadb:10.11
+    container_name: intentverse-mariadb-test
+    environment:
+      MARIADB_DATABASE: intentverse_test
+      MARIADB_USER: intentverse
+      MARIADB_PASSWORD: intentverse_password
+      MARIADB_ROOT_PASSWORD: root_password
+    ports:
+      - "3307:3306"  # Different port to avoid conflict with MySQL
+    volumes:
+      - mariadb_test_data:/var/lib/mysql
+      - ../init-scripts-mysql:/docker-entrypoint-initdb.d
+    command: >
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --innodb-buffer-pool-size=256M
+      --max-connections=200
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - intentverse-test
+
+  # Redis for caching tests (future use)
+  redis-test:
+    image: redis:7-alpine
+    container_name: intentverse-redis-test
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - intentverse-test
+
+  # Test runner service
+  test-runner:
+    build:
+      context: ../../core
+      dockerfile: Dockerfile
+    container_name: intentverse-test-runner
+    environment:
+      # PostgreSQL test configuration
+      POSTGRES_HOST: postgresql-test
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: intentverse_test
+      POSTGRES_USER: intentverse
+      POSTGRES_PASSWORD: intentverse_password
+      POSTGRES_SSL_MODE: prefer
+      
+      # MySQL test configuration
+      MYSQL_HOST: mysql-test
+      MYSQL_PORT: 3306
+      MYSQL_DATABASE: intentverse_test
+      MYSQL_USER: intentverse
+      MYSQL_PASSWORD: intentverse_password
+      
+      # MariaDB test configuration
+      MARIADB_HOST: mariadb-test
+      MARIADB_PORT: 3306
+      MARIADB_DATABASE: intentverse_test
+      MARIADB_USER: intentverse
+      MARIADB_PASSWORD: intentverse_password
+      
+      # Test configuration
+      LOG_LEVEL: INFO
+      SERVICE_API_KEY: test-service-key-12345
+    depends_on:
+      postgresql-test:
+        condition: service_healthy
+      mysql-test:
+        condition: service_healthy
+      mariadb-test:
+        condition: service_healthy
+    volumes:
+      - ../../core:/app
+    working_dir: /app
+    command: >
+      sh -c "
+        echo 'Waiting for databases to be ready...' &&
+        sleep 10 &&
+        echo 'Running database E2E tests...' &&
+        python -m pytest tests/test_database_e2e_manual.py -v --tb=short
+      "
+    networks:
+      - intentverse-test
+
+volumes:
+  postgres_test_data:
+    driver: local
+  mysql_test_data:
+    driver: local
+  mariadb_test_data:
+    driver: local
+
+networks:
+  intentverse-test:
+    driver: bridge
