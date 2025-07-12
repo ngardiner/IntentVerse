@@ -164,6 +164,7 @@ class TestProxyEngineIntegration:
         # Mock the MCP client creation to return our mock server
         def mock_client_factory(server_config):
             mock_client = Mock(spec=MCPClient)
+            mock_client.server_config = server_config  # Add missing server_config attribute
             mock_client.server_name = server_config.name
             mock_client.is_connected = True
             mock_client.connect = AsyncMock(return_value=True)
@@ -352,6 +353,7 @@ class TestProxyEngineIntegration:
                     mock_server = mock_server2
 
                 mock_client = Mock(spec=MCPClient)
+                mock_client.server_config = server_config  # Add missing server_config attribute
                 mock_client.server_name = server_config.name
                 mock_client.is_connected = True
                 mock_client.connect = AsyncMock(return_value=True)
@@ -494,6 +496,7 @@ class TestProxyEngineIntegration:
                 assert server_config.name == "enabled-server"
 
                 mock_client = Mock(spec=MCPClient)
+                mock_client.server_config = server_config  # Add missing server_config attribute
                 mock_client.server_name = server_config.name
                 mock_client.is_connected = True
                 mock_client.connect = AsyncMock(return_value=True)
@@ -575,6 +578,7 @@ class TestProxyEngineIntegration:
         # Mock client that fails to connect
         def mock_failing_client_factory(server_config):
             mock_client = Mock(spec=MCPClient)
+            mock_client.server_config = server_config  # Add missing server_config attribute
             mock_client.server_name = server_config.name
             mock_client.is_connected = False
             mock_client.connect = AsyncMock(return_value=False)  # Connection fails
@@ -613,6 +617,7 @@ class TestProxyEngineIntegration:
         # Mock client creation
         def mock_client_factory(server_config):
             mock_client = Mock(spec=MCPClient)
+            mock_client.server_config = server_config  # Add missing server_config attribute
             mock_client.server_name = server_config.name
             mock_client.is_connected = True
             mock_client.connect = AsyncMock(return_value=True)
@@ -696,6 +701,7 @@ class TestProxyEngineIntegration:
 
         def mock_client_factory(server_config):
             mock_client = Mock(spec=MCPClient)
+            mock_client.server_config = server_config  # Add missing server_config attribute
             mock_client.server_name = server_config.name
             mock_client.is_connected = True
             mock_client.connect = AsyncMock(return_value=True)

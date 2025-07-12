@@ -53,8 +53,10 @@ from app.security import get_password_hash, create_access_token
 
 def get_session_override():
     """Dependency override to use the test database session."""
-    # Use the test engine directly to create a session
-    with Session(test_engine) as session:
+    # Get the current test engine to ensure we use the same one
+    from tests.conftest_database import get_test_engine
+    current_test_engine = get_test_engine()
+    with Session(current_test_engine) as session:
         yield session
 
 
@@ -168,15 +170,20 @@ def create_test_db_and_tables():
         RolePermissionLink,
     )
 
+    # Get the current test engine to ensure we use the same one
+    from tests.conftest_database import get_test_engine
+    current_test_engine = get_test_engine()
+    
     # Create all tables
-    SQLModel.metadata.create_all(test_engine)
+    SQLModel.metadata.create_all(current_test_engine)
 
-    # Verify critical tables exist using the test engine directly
-    with Session(test_engine) as session:
+    # Verify critical tables exist using the same test engine
+    with Session(current_test_engine) as session:
         try:
             session.exec(text("SELECT COUNT(*) FROM auditlog")).first()
             session.exec(text("SELECT COUNT(*) FROM user")).first()
             session.exec(text("SELECT COUNT(*) FROM role")).first()
+            session.exec(text("SELECT COUNT(*) FROM contentpackvariable")).first()
         except Exception as e:
             raise RuntimeError(f"Failed to create test database tables: {e}")
 

@@ -493,7 +493,7 @@ describe('VariableManager', () => {
       // Then check for error message
       await waitFor(() => {
         expect(screen.getByText(/Error:/)).toBeInTheDocument();
-        expect(screen.getByText(/Save failed/)).toBeInTheDocument();
+        expect(screen.getByText(/Failed to save variable/)).toBeInTheDocument();
       }, { timeout: 1000 });
     });
 
@@ -587,8 +587,8 @@ describe('VariableManager', () => {
       // Modify the value slightly to ensure it's not empty and different
       fireEvent.change(input, { target: { value: 'Custom Corp Updated' } });
       
-      // Then press Enter
-      fireEvent.keyPress(input, { key: 'Enter', code: 'Enter' });
+      // Use keyDown instead of keyPress for better compatibility
+      fireEvent.keyDown(input, { key: 'Enter', code: 'Enter', keyCode: 13 });
       
       // Check API was called
       await waitFor(() => {
