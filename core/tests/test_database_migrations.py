@@ -11,6 +11,9 @@ from unittest.mock import Mock, patch
 from sqlmodel import Session, select, text
 from sqlalchemy.exc import SQLAlchemyError
 
+# Mark all tests in this file as database integration tests
+pytestmark = pytest.mark.database_integration
+
 from app.database.migrations import (
     MigrationManager, Migration, DatabaseVersion, get_migration_manager
 )

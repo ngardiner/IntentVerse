@@ -214,6 +214,7 @@ class TestDatabaseInitialization:
         assert isinstance(database, SQLiteDatabase)
         assert get_database() is database
     
+    @pytest.mark.database_integration
     def test_initialize_database_validation_failure(self):
         """Test database initialization with validation failure."""
         config = {
@@ -317,6 +318,7 @@ class TestErrorHandling:
             with pytest.raises(Exception, match="Database interface validation failed"):
                 DatabaseFactory.create_database(config)
     
+    @pytest.mark.database_integration
     def test_initialization_cleanup_on_failure(self):
         """Test that initialization cleans up on failure."""
         config = {

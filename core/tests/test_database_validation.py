@@ -10,6 +10,9 @@ import os
 from unittest.mock import Mock, patch, MagicMock
 from sqlalchemy.exc import OperationalError, DisconnectionError
 
+# Mark all tests in this file as database integration tests
+pytestmark = pytest.mark.database_integration
+
 from app.database.validation import (
     DatabaseConfigValidator, DatabaseConnectionManager, 
     validate_database_config, test_database_connection, get_database_health
