@@ -227,7 +227,7 @@ class TestMySQLDatabase:
             "name": "test_db"
         }
         
-        with patch('app.database.mysql.pymysql', Mock()):
+        with patch('pymysql.connect', Mock()):
             with patch('app.database.validation.validate_database_config', return_value=(True, [], [])):
                 with patch('app.database.factory._MYSQL_AVAILABLE', True):
                     db = DatabaseFactory.create_database(config)
@@ -242,7 +242,7 @@ class TestMySQLDatabase:
             "name": "test_db"
         }
         
-        with patch('app.database.mysql.pymysql', Mock()):
+        with patch('pymysql.connect', Mock()):
             with patch('app.database.validation.validate_database_config', return_value=(True, [], [])):
                 with patch('app.database.factory._MYSQL_AVAILABLE', True):
                     db = DatabaseFactory.create_database(config)

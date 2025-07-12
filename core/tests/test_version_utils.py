@@ -548,7 +548,7 @@ class TestIntegrationScenarios:
         # Test comparisons
         assert compare_versions(current_version, current_version) == 0
         assert compare_versions("0.9.0", current_version) == -1
-        assert compare_versions("1.2.0", current_version) == 1
+        assert compare_versions("1.3.0", current_version) == 1
 
     @pytest.mark.unit
     def test_compatibility_with_version_info(self):

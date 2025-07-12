@@ -72,6 +72,7 @@ class TestPostgreSQLManual:
             # Test audit log
             audit_entry = AuditLog(
                 user_id=test_user.id,
+                username=test_user.username,
                 action="test_action",
                 resource_type="test_resource",
                 resource_id="test_id",

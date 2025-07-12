@@ -180,7 +180,7 @@ class TestPostgreSQLDatabase:
             "database": "test_db"
         }
         
-        with patch('app.database.postgresql.psycopg2', Mock()):
+        with patch('psycopg2.connect', Mock()):
             with patch('app.database.validation.validate_database_config', return_value=(True, [], [])):
                 with patch('app.database.factory._POSTGRESQL_AVAILABLE', True):
                     db = DatabaseFactory.create_database(config)

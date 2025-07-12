@@ -277,9 +277,10 @@ class TestConfigurationIntegration:
     })
     def test_config_environment_variables(self):
         """Test configuration from environment variables."""
-        # Clear any cached config
-        if hasattr(Config, '_cached_config'):
-            delattr(Config, '_cached_config')
+        # Force reload of Config class attributes
+        Config.DB_TYPE = os.getenv("INTENTVERSE_DB_TYPE", "sqlite")
+        Config.DB_HOST = os.getenv("INTENTVERSE_DB_HOST")
+        Config.DB_NAME = os.getenv("INTENTVERSE_DB_NAME")
         
         config = Config.get_database_config()
         
@@ -292,9 +293,9 @@ class TestConfigurationIntegration:
     })
     def test_config_connection_string(self):
         """Test configuration from connection string."""
-        # Clear any cached config
-        if hasattr(Config, '_cached_config'):
-            delattr(Config, '_cached_config')
+        # Force reload of Config class attributes
+        Config.DB_URL = os.getenv("INTENTVERSE_DB_URL")
+        Config.DB_TYPE = os.getenv("INTENTVERSE_DB_TYPE", "sqlite")
             
         config = Config.get_database_config()
         
