@@ -41,6 +41,14 @@ const VersionInfo = ({
   }
 
   if (error) {
+    // Show a fallback version when API fails
+    if (inline) {
+      return (
+        <span className={`version-info inline ${className}`} title={error}>
+          IntentVerse v1.1.0
+        </span>
+      );
+    }
     return (
       <div className={`version-info error ${className}`}>
         <span>⚠️ {error}</span>
@@ -54,10 +62,13 @@ const VersionInfo = ({
 
   const { version, major, minor, patch, semantic_version } = versionInfo;
 
+  // Fallback to hardcoded version if API response is missing version
+  const displayVersion = version || '1.1.0';
+
   if (inline) {
     return (
       <span className={`version-info inline ${className}`}>
-        IntentVerse v{version}
+        IntentVerse v{displayVersion}
       </span>
     );
   }
@@ -66,7 +77,7 @@ const VersionInfo = ({
     <div className={`version-info ${className}`}>
       <div className="version-summary">
         <span className="version-label">IntentVerse</span>
-        <span className="version-number">v{version}</span>
+        <span className="version-number">v{displayVersion}</span>
         {semantic_version && (
           <span className="version-badge">SemVer</span>
         )}
@@ -76,13 +87,13 @@ const VersionInfo = ({
         <div className="version-details">
           <div className="version-breakdown">
             <span className="breakdown-item">
-              <strong>Major:</strong> {major}
+              <strong>Major:</strong> {major || 1}
             </span>
             <span className="breakdown-item">
-              <strong>Minor:</strong> {minor}
+              <strong>Minor:</strong> {minor || 1}
             </span>
             <span className="breakdown-item">
-              <strong>Patch:</strong> {patch}
+              <strong>Patch:</strong> {patch || 0}
             </span>
           </div>
           
