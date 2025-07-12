@@ -168,7 +168,7 @@ async def test_filesystem_large_file_operations_e2e():
     try:
         async with httpx.AsyncClient(base_url=CORE_API_URL, headers=headers) as client:
             # Create a larger text file
-            large_content = "Line {}\n".format(i) for i in range(1000)
+            large_content = ("Line {}\n".format(i) for i in range(1000))
             large_text = "".join(large_content)
             
             write_large_payload = {

@@ -183,13 +183,18 @@ def test_e2e_coverage_summary():
     total_tests = 0
     
     for test_file in test_files:
-        if os.path.exists(test_file):
+        if os.path.exists(test_file) and test_file != "test_e2e_coverage_summary.py":
             with open(test_file, 'r') as f:
                 content = f.read()
-                # Count test functions
-                test_functions = [line for line in content.split('\n') 
-                                if line.strip().startswith('async def test_') or 
-                                   line.strip().startswith('def test_')]
+                # Count test functions - look for both async and regular test functions
+                lines = content.split('\n')
+                test_functions = []
+                for line in lines:
+                    stripped = line.strip()
+                    if (stripped.startswith('async def test_') or 
+                        stripped.startswith('def test_')) and not stripped.startswith('def test_e2e_coverage_summary'):
+                        test_functions.append(stripped)
+                
                 total_tests += len(test_functions)
                 print(f"✓ {test_file}: {len(test_functions)} test functions")
     
