@@ -1,0 +1,96 @@
+version: '3.8'
+
+services:
+  # MySQL database for local development and testing
+  mysql:
+    image: mysql:8.0
+    container_name: intentverse-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: intentverse
+      MYSQL_USER: intentverse_user
+      MYSQL_PASSWORD: intentverse_pass
+      MYSQL_CHARSET: utf8mb4
+      MYSQL_COLLATION: utf8mb4_unicode_ci
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./init-scripts-mysql:/docker-entrypoint-initdb.d
+    command: >
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --sql-mode=STRICT_TRANS_TABLES,NO_ZERO_DATE,NO_ZERO_IN_DATE,ERROR_FOR_DIVISION_BY_ZERO
+      --max-connections=100
+      --innodb-buffer-pool-size=256M
+      --innodb-log-file-size=64M
+      --slow-query-log=1
+      --slow-query-log-file=/var/log/mysql/slow.log
+      --long-query-time=1
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "intentverse_user", "-pintentverse_pass"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - intentverse-network
+
+  # IntentVerse Core with MySQL
+  intentverse-core:
+    build:
+      context: ../../core
+      dockerfile: Dockerfile
+    container_name: intentverse-core-mysql
+    environment:
+      # MySQL configuration
+      INTENTVERSE_DB_TYPE: mysql
+      INTENTVERSE_DB_HOST: mysql
+      INTENTVERSE_DB_PORT: 3306
+      INTENTVERSE_DB_NAME: intentverse
+      INTENTVERSE_DB_USER: intentverse_user
+      INTENTVERSE_DB_PASSWORD: intentverse_pass
+      INTENTVERSE_DB_SSL_MODE: PREFERRED
+      INTENTVERSE_DB_CHARSET: utf8mb4
+      INTENTVERSE_DB_POOL_SIZE: 10
+      INTENTVERSE_DB_MAX_OVERFLOW: 20
+      INTENTVERSE_DB_SQL_MODE: STRICT_TRANS_TABLES,NO_ZERO_DATE,NO_ZERO_IN_DATE,ERROR_FOR_DIVISION_BY_ZERO
+      
+      # Other configuration
+      INTENTVERSE_LOG_LEVEL: INFO
+    ports:
+      - "8000:8000"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - intentverse-network
+    volumes:
+      - ../../core/content_packs:/app/content_packs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Web interface
+  intentverse-web:
+    build:
+      context: ../../web
+      dockerfile: Dockerfile
+    container_name: intentverse-web-mysql
+    environment:
+      REACT_APP_API_BASE_URL: http://localhost:8000
+    ports:
+      - "3000:80"
+    depends_on:
+      - intentverse-core
+    networks:
+      - intentverse-network
+
+volumes:
+  mysql_data:
+    driver: local
+
+networks:
+  intentverse-network:
+    driver: bridge
