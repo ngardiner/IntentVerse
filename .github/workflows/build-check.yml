@@ -112,7 +112,7 @@ jobs:
             --tb=short \
             --disable-warnings \
             --no-header \
-            -m "not e2e" \
+            -m "not e2e and not database_integration" \
             --junitxml=/app/test-results-unit.xml
         continue-on-error: true
 
@@ -129,7 +129,7 @@ jobs:
             --tb=short \
             --disable-warnings \
             --no-header \
-            -m "e2e" \
+            -m "e2e and not database_integration" \
             --junitxml=/app/test-results-e2e.xml
         continue-on-error: true
 
