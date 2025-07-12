@@ -877,7 +877,7 @@ def create_api_routes(
                         detail=f"Content pack '{pack_name}' not found"
                     )
                 
-                variables = content_pack_manager.get_pack_variables(pack_name, current_user.id)
+                variables = content_pack_manager.get_pack_variables(pack_name, current_user.id, session)
                 return {
                     "status": "success",
                     "pack_name": pack_name,
@@ -947,7 +947,7 @@ def create_api_routes(
                     )
                 
                 success = content_pack_manager.set_pack_variable(
-                    pack_name, variable_name, str(variable_value), current_user.id
+                    pack_name, variable_name, str(variable_value), current_user.id, session
                 )
                 
                 if success:
@@ -1071,7 +1071,7 @@ def create_api_routes(
                         detail=f"Content pack '{pack_name}' not found"
                     )
                 
-                success = content_pack_manager.reset_pack_variables(pack_name, current_user.id)
+                success = content_pack_manager.reset_pack_variables(pack_name, current_user.id, session)
                 
                 if success:
                     return {

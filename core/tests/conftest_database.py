@@ -42,7 +42,10 @@ def override_database_for_testing():
     }
     
     # Initialize with test configuration
-    initialize_database(test_config)
+    db_instance = initialize_database(test_config)
+    
+    # Force the database instance to use our test engine
+    db_instance._engine = test_engine
     
     # Also override the compatibility layer
     from app import database_compat

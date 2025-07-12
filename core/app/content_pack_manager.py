@@ -312,13 +312,14 @@ class ContentPackManager:
             logging.error(f"Error exporting content pack to {output_path}: {e}")
             return False
 
-    def get_pack_variables(self, pack_name: str, user_id: int) -> Dict[str, str]:
+    def get_pack_variables(self, pack_name: str, user_id: int, session=None) -> Dict[str, str]:
         """
         Get all variable overrides for a specific content pack and user.
 
         Args:
             pack_name: Name of the content pack
             user_id: ID of the user
+            session: Database session to use (optional, will create new if not provided)
 
         Returns:
             Dictionary mapping variable names to their values
@@ -328,15 +329,21 @@ class ContentPackManager:
                 logging.warning("Content pack variables not supported in this version")
                 return {}
 
-            for session in get_session():
+            if session:
+                # Use provided session
                 variable_manager = get_variable_manager(session)
                 return variable_manager.get_pack_variables(pack_name, user_id)
+            else:
+                # Create new session (backward compatibility)
+                for session in get_session():
+                    variable_manager = get_variable_manager(session)
+                    return variable_manager.get_pack_variables(pack_name, user_id)
 
         except Exception as e:
             logging.error(f"Error getting variables for pack '{pack_name}' and user {user_id}: {e}")
             return {}
 
-    def set_pack_variable(self, pack_name: str, variable_name: str, value: str, user_id: int) -> bool:
+    def set_pack_variable(self, pack_name: str, variable_name: str, value: str, user_id: int, session=None) -> bool:
         """
         Set a variable value for a content pack and user.
 
@@ -345,6 +352,7 @@ class ContentPackManager:
             variable_name: Name of the variable
             value: Value to set
             user_id: ID of the user
+            session: Database session to use (optional, will create new if not provided)
 
         Returns:
             True if successful, False otherwise
@@ -354,21 +362,28 @@ class ContentPackManager:
                 logging.warning("Content pack variables not supported in this version")
                 return False
 
-            for session in get_session():
+            if session:
+                # Use provided session
                 variable_manager = get_variable_manager(session)
                 return variable_manager.set_variable_value(pack_name, variable_name, value, user_id)
+            else:
+                # Create new session (backward compatibility)
+                for session in get_session():
+                    variable_manager = get_variable_manager(session)
+                    return variable_manager.set_variable_value(pack_name, variable_name, value, user_id)
 
         except Exception as e:
             logging.error(f"Error setting variable '{variable_name}' for pack '{pack_name}' and user {user_id}: {e}")
             return False
 
-    def reset_pack_variables(self, pack_name: str, user_id: int) -> bool:
+    def reset_pack_variables(self, pack_name: str, user_id: int, session=None) -> bool:
         """
         Reset all variable overrides for a specific content pack and user.
 
         Args:
             pack_name: Name of the content pack
             user_id: ID of the user
+            session: Database session to use (optional, will create new if not provided)
 
         Returns:
             True if successful, False otherwise
@@ -378,9 +393,15 @@ class ContentPackManager:
                 logging.warning("Content pack variables not supported in this version")
                 return False
 
-            for session in get_session():
+            if session:
+                # Use provided session
                 variable_manager = get_variable_manager(session)
                 return variable_manager.reset_pack_variables(pack_name, user_id)
+            else:
+                # Create new session (backward compatibility)
+                for session in get_session():
+                    variable_manager = get_variable_manager(session)
+                    return variable_manager.reset_pack_variables(pack_name, user_id)
 
         except Exception as e:
             logging.error(f"Error resetting variables for pack '{pack_name}' and user {user_id}: {e}")
