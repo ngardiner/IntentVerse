@@ -56,7 +56,12 @@ class DatabaseFactory:
         Raises:
             ValueError: If database type is not supported
         """
-        db_type = config.get("type", "sqlite").lower()
+        db_type = config.get("type")
+        
+        if not db_type:
+            raise ValueError("Database type must be specified in configuration")
+        
+        db_type = db_type.lower()
         
         if db_type not in cls._implementations:
             available_types = ", ".join(cls._implementations.keys())

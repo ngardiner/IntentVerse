@@ -180,10 +180,11 @@ class TestPostgreSQLDatabase:
             "database": "test_db"
         }
         
-        with patch('builtins.__import__', side_effect=lambda name, *args: Mock() if name == 'psycopg2' else __import__(name, *args)):
-            with patch('app.database.factory._POSTGRESQL_AVAILABLE', True):
-                db = DatabaseFactory.create_database(config)
-                assert isinstance(db, PostgreSQLDatabase)
+        with patch('app.database.postgresql.psycopg2', Mock()):
+            with patch('app.database.validation.validate_database_config', return_value=(True, [], [])):
+                with patch('app.database.factory._POSTGRESQL_AVAILABLE', True):
+                    db = DatabaseFactory.create_database(config)
+                    assert isinstance(db, PostgreSQLDatabase)
 
     @patch('app.database.postgresql.Session')
     def test_database_info(self, mock_session_class):

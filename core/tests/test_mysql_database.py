@@ -224,13 +224,14 @@ class TestMySQLDatabase:
             "type": "mysql",
             "host": "localhost",
             "user": "test_user",
-            "database": "test_db"
+            "name": "test_db"
         }
         
-        with patch('builtins.__import__', side_effect=lambda name, *args: Mock() if name == 'pymysql' else __import__(name, *args)):
-            with patch('app.database.factory._MYSQL_AVAILABLE', True):
-                db = DatabaseFactory.create_database(config)
-                assert isinstance(db, MySQLDatabase)
+        with patch('app.database.mysql.pymysql', Mock()):
+            with patch('app.database.validation.validate_database_config', return_value=(True, [], [])):
+                with patch('app.database.factory._MYSQL_AVAILABLE', True):
+                    db = DatabaseFactory.create_database(config)
+                    assert isinstance(db, MySQLDatabase)
 
     def test_factory_creation_mariadb(self):
         """Test creating MariaDB database through factory (uses MySQL implementation)."""
@@ -238,13 +239,14 @@ class TestMySQLDatabase:
             "type": "mariadb",
             "host": "localhost",
             "user": "test_user",
-            "database": "test_db"
+            "name": "test_db"
         }
         
-        with patch('builtins.__import__', side_effect=lambda name, *args: Mock() if name == 'pymysql' else __import__(name, *args)):
-            with patch('app.database.factory._MYSQL_AVAILABLE', True):
-                db = DatabaseFactory.create_database(config)
-                assert isinstance(db, MySQLDatabase)
+        with patch('app.database.mysql.pymysql', Mock()):
+            with patch('app.database.validation.validate_database_config', return_value=(True, [], [])):
+                with patch('app.database.factory._MYSQL_AVAILABLE', True):
+                    db = DatabaseFactory.create_database(config)
+                    assert isinstance(db, MySQLDatabase)
 
     @patch('app.database.mysql.Session')
     def test_database_info_mysql(self, mock_session_class):
