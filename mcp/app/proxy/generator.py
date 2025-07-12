@@ -690,8 +690,9 @@ class ProxyToolGenerator:
                 logger.error(f"Proxy function call failed for {tool.name}: {e}")
                 raise
 
-        # Set function metadata
-        proxy_function.__name__ = tool.name
+        # Set function metadata with server prefix (like core modules do)
+        prefixed_name = f"{tool.server_name}.{tool.name}"
+        proxy_function.__name__ = prefixed_name
         proxy_function.__doc__ = self._generate_docstring(tool, param_info)
 
         # Create function signature dynamically
@@ -715,7 +716,8 @@ class ProxyToolGenerator:
         self._function_metadata[tool.name] = metadata
         self._generated_functions[tool.name] = proxy_function
 
-        logger.info(f"Generated proxy function: {tool.name} -> {tool.server_name}")
+        prefixed_name = f"{tool.server_name}.{tool.name}"
+        logger.info(f"Generated proxy function: {prefixed_name} -> {tool.server_name}")
         return proxy_function
 
     def _generate_docstring(

@@ -450,9 +450,54 @@ class SSETransport(MCPTransport):
         logger.info(f"Disconnected from SSE MCP server: {self.server_config.name}")
 
     async def send_message(self, message: MCPMessage) -> None:
-        """Send a message using the MCP session - not needed for SSE transport."""
-        # This method is not used for SSE transport as the MCP session handles communication
-        raise NotImplementedError("SSE transport uses MCP session directly, not send_message")
+        """Send a message using the MCP session."""
+        if not self.session:
+            raise RuntimeError("MCP session not available")
+        
+        try:
+            # Convert MCPMessage to the format expected by the MCP session
+            if message.method == "tools/call":
+                # This is a tool execution request
+                tool_name = message.params.get("name")
+                tool_arguments = message.params.get("arguments", {})
+                
+                # Call the tool via the MCP session
+                result = await self.session.call_tool(tool_name, tool_arguments)
+                
+                # Convert CallToolResult to dictionary format
+                if hasattr(result, 'model_dump'):
+                    # CallToolResult is a Pydantic model, convert to dict
+                    result_dict = result.model_dump()
+                else:
+                    # Fallback for other result types
+                    result_dict = result
+                
+                # Create response message and handle it through the message system
+                response = MCPMessage(
+                    id=message.id,
+                    result=result_dict
+                )
+                
+                # Handle the response through the normal message handler
+                self._handle_message(response)
+                
+            else:
+                # For other message types, we might need different handling
+                logger.warning(f"Unsupported message method for SSE transport: {message.method}")
+                raise NotImplementedError(f"Message method '{message.method}' not supported by SSE transport")
+                
+        except Exception as e:
+            logger.error(f"Failed to send message via MCP session: {e}")
+            
+            # Create error response if this was a request
+            if message.id is not None:
+                error_response = MCPMessage(
+                    id=message.id,
+                    error={"code": -1, "message": str(e)}
+                )
+                self._handle_message(error_response)
+            else:
+                raise
     
     def _get_post_url(self) -> str:
         """Get the correct URL for POST requests."""
@@ -941,14 +986,15 @@ class MCPClient:
                 "tools/call", {"name": tool_name, "arguments": arguments}
             )
 
-            # Extract content from result
-            content = result.get("content", [])
-            if isinstance(content, list) and len(content) > 0:
-                # Return the first content item's text if available
-                first_content = content[0]
-                if isinstance(first_content, dict):
-                    return first_content.get("text", result)
-
+            # Extract content from result (handle both old and new formats)
+            if isinstance(result, dict):
+                content = result.get("content", [])
+                if isinstance(content, list) and len(content) > 0:
+                    # Return the first content item's text if available
+                    first_content = content[0]
+                    if isinstance(first_content, dict):
+                        return first_content.get("text", result)
+            
             return result
 
         except Exception as e:

@@ -9,3 +9,4 @@ logs/*
 web/build/*
 web/node_modules/*
 web/package-lock.json
+mcp/mcp-proxy.json

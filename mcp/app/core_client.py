@@ -155,6 +155,41 @@ class CoreClient:
 
             return {"status": "error", "result": error_message}
 
+    async def register_mcp_tools(self, server_name: str, tools: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """
+        Register MCP tools with the Core Engine.
+        
+        Args:
+            server_name: Name of the MCP server
+            tools: List of tool definitions
+            
+        Returns:
+            Registration result
+        """
+        try:
+            payload = {
+                "server_name": server_name,
+                "tools": tools
+            }
+            logging.info(f"CoreClient: Registering {len(tools)} MCP tools from {server_name}")
+            response = await self.client.post("/api/v1/mcp/register-tools", json=payload)
+            response.raise_for_status()
+            result = response.json()
+            logging.info(f"CoreClient: Successfully registered MCP tools from {server_name}")
+            return result
+        except (httpx.RequestError, httpx.HTTPStatusError) as e:
+            error_message = str(e)
+            if isinstance(e, httpx.HTTPStatusError):
+                try:
+                    response_data = e.response.json()
+                    if "detail" in response_data:
+                        error_message = f"{str(e)} - {response_data['detail']}"
+                except Exception:
+                    pass
+            
+            logging.error(f"Failed to register MCP tools from {server_name}: {error_message}")
+            return {"status": "error", "message": error_message}
+
     async def close(self):
         """
         Closes the HTTP client session.

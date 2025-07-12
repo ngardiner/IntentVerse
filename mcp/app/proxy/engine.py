@@ -282,11 +282,63 @@ class MCPProxyEngine:
             logger.info(
                 f"Registered {registered_count} proxy tools with FastMCP server"
             )
+
+            # Now register tools with core service
+            await self._register_tools_with_core()
+
             return registered_count
 
         except Exception as e:
             logger.error(f"Failed to register proxy tools: {e}")
             raise RuntimeError(f"Tool registration failed: {e}")
+
+    async def _register_tools_with_core(self) -> None:
+        """Register discovered tools with the core service."""
+        try:
+            # Get all discovered tools from the discovery service
+            if not self.discovery_service:
+                logger.error("Discovery service not available for core registration")
+                return
+                
+            all_tools = self.discovery_service.get_all_tools()
+            if not all_tools:
+                logger.info("No tools discovered to register with core")
+                return
+            
+            # Group tools by server
+            tools_by_server = {}
+            for tool in all_tools:
+                server_name = tool.server_name
+                if server_name not in tools_by_server:
+                    tools_by_server[server_name] = []
+                
+                # Use the prefixed tool name (e.g., "sse-server.read_query")
+                prefixed_name = f"{server_name}.{tool.name}"
+                
+                tools_by_server[server_name].append({
+                    "name": prefixed_name,
+                    "display_name": tool.name.replace("_", " ").title(),
+                    "description": tool.description
+                })
+            
+            # Register tools for each server with core
+            from ..core_client import CoreClient
+            core_client = CoreClient()
+            
+            for server_name, tools in tools_by_server.items():
+                try:
+                    result = await core_client.register_mcp_tools(server_name, tools)
+                    if result.get("status") == "success":
+                        logger.info(f"Successfully registered {len(tools)} tools with core for server {server_name}")
+                    else:
+                        logger.error(f"Failed to register tools with core for server {server_name}: {result.get('message')}")
+                except Exception as e:
+                    logger.error(f"Error registering tools with core for server {server_name}: {e}")
+            
+            await core_client.close()
+            
+        except Exception as e:
+            logger.error(f"Failed to register tools with core service: {e}")
 
     async def refresh_tools(self, force_discovery: bool = False) -> DiscoveryResult:
         """

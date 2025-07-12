@@ -243,3 +243,31 @@ class ContentPackVariable(SQLModel, table=True):
 
     # Relationship to user
     user: Optional[User] = Relationship()
+
+
+class MCPServerInfo(SQLModel, table=True):
+    """Information about MCP servers and their tools."""
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    server_name: str = Field(index=True, unique=True)
+    server_type: str = Field(default="unknown")
+    server_url: Optional[str] = Field(default=None)
+    is_connected: bool = Field(default=False)
+    description: Optional[str] = Field(default=None)
+    tools_count: int = Field(default=0)
+    last_discovery: Optional[datetime] = Field(default=None)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class MCPToolInfo(SQLModel, table=True):
+    """Information about individual MCP tools."""
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    server_name: str = Field(index=True)
+    tool_name: str = Field(index=True)
+    display_name: str
+    description: Optional[str] = Field(default=None)
+    is_available: bool = Field(default=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)

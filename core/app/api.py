@@ -1411,90 +1411,64 @@ def create_api_routes(
         session: Annotated[Session, Depends(get_session)],
     ) -> Dict[str, Any]:
         """
-        Get information about MCP servers and their tools.
+        Get information about MCP servers and their tools from stored state.
         """
+        from .models import MCPServerInfo, MCPToolInfo
+        from datetime import datetime
+        
         try:
-            import httpx
+            # Get all servers from database
+            servers = session.query(MCPServerInfo).all()
             
-            # Call the MCP proxy service to get server information
-            mcp_proxy_url = "http://localhost:8001"  # MCP proxy service URL
+            servers_data = []
+            total_tools = 0
+            connected_servers = 0
             
-            try:
-                # Try to get server information from MCP proxy
-                with httpx.Client(timeout=5.0) as client:
-                    # The MCP proxy should expose an endpoint for server info
-                    # For now, we'll construct the response based on what we know
-                    
-                    # Get discovery stats from MCP proxy (if available)
-                    # This is a simplified approach - in production you'd have a proper API
-                    
-                    mcp_servers = {
-                        "servers": [
-                            {
-                                "name": "sse-server",
-                                "type": "sse",
-                                "url": "http://192.168.22.150:8101/sse",
-                                "connected": True,
-                                "description": "SQLite database server via SSE",
-                                "tools_count": 6,
-                                "tools": [
-                                    {
-                                        "name": "read_query",
-                                        "display_name": "Read Query",
-                                        "description": "Execute a SELECT query on the database"
-                                    },
-                                    {
-                                        "name": "write_query", 
-                                        "display_name": "Write Query",
-                                        "description": "Execute an INSERT, UPDATE, or DELETE query"
-                                    },
-                                    {
-                                        "name": "create_table",
-                                        "display_name": "Create Table", 
-                                        "description": "Create a new table in the database"
-                                    },
-                                    {
-                                        "name": "list_tables",
-                                        "display_name": "List Tables",
-                                        "description": "List all tables in the database"
-                                    },
-                                    {
-                                        "name": "describe_table",
-                                        "display_name": "Describe Table",
-                                        "description": "Get the schema information for a table"
-                                    },
-                                    {
-                                        "name": "append_insight",
-                                        "display_name": "Append Insight",
-                                        "description": "Add an insight to the insights table"
-                                    }
-                                ]
-                            }
-                        ],
-                        "stats": {
-                            "total_servers": 1,
-                            "connected_servers": 1,
-                            "total_tools": 6,
-                            "last_discovery": "2025-07-11T23:24:41Z"
-                        }
-                    }
-                    
-            except Exception as proxy_error:
-                log.warning(f"Could not connect to MCP proxy: {proxy_error}")
-                # Return empty data if MCP proxy is not available
-                mcp_servers = {
-                    "servers": [],
-                    "stats": {
-                        "total_servers": 0,
-                        "connected_servers": 0,
-                        "total_tools": 0,
-                        "last_discovery": None
-                    }
-                }
+            for server in servers:
+                if server.is_connected:
+                    connected_servers += 1
+                
+                # Get tools for this server
+                tools = session.query(MCPToolInfo).filter(MCPToolInfo.server_name == server.server_name).all()
+                
+                tools_data = []
+                for tool in tools:
+                    tools_data.append({
+                        "name": tool.tool_name,
+                        "display_name": tool.display_name,
+                        "description": tool.description or ""
+                    })
+                
+                total_tools += len(tools_data)
+                
+                servers_data.append({
+                    "name": server.server_name,
+                    "type": server.server_type,
+                    "url": server.server_url,
+                    "connected": server.is_connected,
+                    "description": server.description or "",
+                    "tools_count": len(tools_data),
+                    "tools": tools_data
+                })
+            
+            # Get the latest discovery time
+            latest_discovery = None
+            if servers:
+                latest_server = max(servers, key=lambda s: s.last_discovery or datetime.min)
+                if latest_server.last_discovery:
+                    latest_discovery = latest_server.last_discovery.isoformat() + "Z"
             
             return {
                 "status": "success",
-                "data": mcp_servers
+                "data": {
+                    "servers": servers_data,
+                    "stats": {
+                        "total_servers": len(servers),
+                        "connected_servers": connected_servers,
+                        "total_tools": total_tools,
+                        "last_discovery": latest_discovery
+                    }
+                }
             }
             
         except Exception as e:
@@ -1511,6 +1485,74 @@ def create_api_routes(
                         "last_discovery": None
                     }
                 }
+            }
+
+    @router.post("/mcp/register-tools")
+    def register_mcp_tools(
+        payload: Dict[str, Any],
+        current_user: Annotated[
+            User, Depends(require_permission_or_service("system.config"))
+        ],
+        session: Annotated[Session, Depends(get_session)],
+    ) -> Dict[str, Any]:
+        """
+        Register MCP tools from external servers.
+        """
+        from .models import MCPServerInfo, MCPToolInfo
+        from datetime import datetime
+        
+        try:
+            server_name = payload.get("server_name")
+            tools = payload.get("tools", [])
+            
+            if not server_name:
+                raise ValueError("server_name is required")
+            
+            # Update or create server info
+            existing_server = session.query(MCPServerInfo).filter(MCPServerInfo.server_name == server_name).first()
+            if existing_server:
+                server_info = existing_server
+            else:
+                server_info = MCPServerInfo(server_name=server_name, created_at=datetime.utcnow())
+                session.add(server_info)
+            
+            server_info.tools_count = len(tools)
+            server_info.is_connected = True
+            server_info.last_discovery = datetime.utcnow()
+            server_info.updated_at = datetime.utcnow()
+            
+            # Clear existing tools for this server
+            session.query(MCPToolInfo).filter(MCPToolInfo.server_name == server_name).delete()
+            
+            # Add new tools
+            for tool_data in tools:
+                tool_info = MCPToolInfo(
+                    server_name=server_name,
+                    tool_name=tool_data.get("name", ""),
+                    display_name=tool_data.get("display_name", tool_data.get("name", "")),
+                    description=tool_data.get("description", ""),
+                    is_available=True,
+                    created_at=datetime.utcnow(),
+                    updated_at=datetime.utcnow()
+                )
+                session.add(tool_info)
+            
+            session.commit()
+            
+            log.info(f"Registered {len(tools)} MCP tools from server '{server_name}'")
+            
+            return {
+                "status": "success",
+                "message": f"Registered {len(tools)} tools from {server_name}",
+                "tools_count": len(tools)
+            }
+            
+        except Exception as e:
+            session.rollback()
+            log.error(f"Failed to register MCP tools: {e}")
+            return {
+                "status": "error",
+                "message": f"Failed to register MCP tools: {str(e)}"
             }
 
     return router
