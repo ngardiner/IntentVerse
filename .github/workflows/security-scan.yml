@@ -183,10 +183,18 @@ jobs:
           severity: 'CRITICAL,HIGH'
 
       - name: Upload Trivy scan results
-        uses: github/codeql-action/upload-sarif@v2
+        uses: github/codeql-action/upload-sarif@v3
         with:
-          sarif_file: trivy-*.sarif
-          category: trivy
+          sarif_file: trivy-core-results.sarif
+          category: trivy-core
+        continue-on-error: true
+
+      - name: Upload Trivy MCP scan results
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-mcp-results.sarif
+          category: trivy-mcp
+        continue-on-error: true
 
   secret-scanning:
     name: Advanced Secret Scanning
@@ -196,7 +204,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Run TruffleHog
-        uses: trufflesecurity/trufflehog-actions-scan@master
+        uses: trufflesecurity/trufflehog@main
         with:
           path: ./
           base: ${{ github.event.repository.default_branch }}
@@ -242,39 +250,39 @@ jobs:
           
           # Process custom security check results if available
           python -c "
-            import json
-            import os
-            import sys
+import json
+import os
+import sys
 
-            try:
-                custom_results_path = 'security-artifacts/custom-security-results/custom-security-results.json'
-                if os.path.exists(custom_results_path):
-                    with open(custom_results_path, 'r') as f:
-                        data = json.load(f)
-                        
-                    with open('security-report.md', 'a') as report:
-                        report.write('## Custom Security Check Findings\n\n')
-                        
-                        summary = data.get('summary', {})
-                        report.write(f'- **Total Issues**: {summary.get(\"total\", 0)}\n')
-                        report.write(f'- **Critical**: {summary.get(\"critical\", 0)}\n')
-                        report.write(f'- **High**: {summary.get(\"high\", 0)}\n')
-                        report.write(f'- **Medium**: {summary.get(\"medium\", 0)}\n')
-                        report.write(f'- **Low**: {summary.get(\"low\", 0)}\n\n')
-                        
-                        # List high and critical issues
-                        high_issues = [i for i in data.get('issues', []) if i.get('severity') in ['HIGH', 'CRITICAL']]
-                        if high_issues:
-                            report.write('### High/Critical Issues\n\n')
-                            for issue in high_issues:
-                                report.write(f'- **{issue.get(\"issue_type\")}** ({issue.get(\"severity\")}) in \`{issue.get(\"file_path\")}:{issue.get(\"line_number\")}\`\n')
-                                report.write(f'  - {issue.get(\"description\")}\n')
-                                if issue.get('recommendation'):
-                                    report.write(f'  - Recommendation: {issue.get(\"recommendation\")}\n')
-                            report.write('\n')
-            except Exception as e:
-                print(f'Error processing custom security results: {e}')
-            "
+try:
+    custom_results_path = 'security-artifacts/custom-security-results/custom-security-results.json'
+    if os.path.exists(custom_results_path):
+        with open(custom_results_path, 'r') as f:
+            data = json.load(f)
+            
+        with open('security-report.md', 'a') as report:
+            report.write('## Custom Security Check Findings\n\n')
+            
+            summary = data.get('summary', {})
+            report.write(f'- **Total Issues**: {summary.get(\"total\", 0)}\n')
+            report.write(f'- **Critical**: {summary.get(\"critical\", 0)}\n')
+            report.write(f'- **High**: {summary.get(\"high\", 0)}\n')
+            report.write(f'- **Medium**: {summary.get(\"medium\", 0)}\n')
+            report.write(f'- **Low**: {summary.get(\"low\", 0)}\n\n')
+            
+            # List high and critical issues
+            high_issues = [i for i in data.get('issues', []) if i.get('severity') in ['HIGH', 'CRITICAL']]
+            if high_issues:
+                report.write('### High/Critical Issues\n\n')
+                for issue in high_issues:
+                    report.write(f'- **{issue.get(\"issue_type\")}** ({issue.get(\"severity\")}) in \`{issue.get(\"file_path\")}:{issue.get(\"line_number\")}\`\n')
+                    report.write(f'  - {issue.get(\"description\")}\n')
+                    if issue.get('recommendation'):
+                        report.write(f'  - Recommendation: {issue.get(\"recommendation\")}\n')
+                report.write('\n')
+except Exception as e:
+    print(f'Error processing custom security results: {e}')
+"
           
           echo "## Recommendations" >> security-report.md
           echo "" >> security-report.md
@@ -293,42 +301,21 @@ jobs:
           path: security-report.md
           retention-days: 30
 
-  notify-slack:
+  notify-telegram:
     name: Notify Security Issues
     needs: [security-report]
     runs-on: ubuntu-latest
     if: ${{ failure() }}
     steps:
-      - name: Send Slack notification
-        uses: slackapi/slack-github-action@v1.24.0
+      - name: Send Telegram notification
+        uses: appleboy/telegram-action@v0.1.1
         with:
-          payload: |
-            {
-              "text": "⚠️ Security scan detected issues in IntentVerse v1.1.0",
-              "blocks": [
-                {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": "⚠️ *Security scan detected issues in IntentVerse v1.1.0*"
-                  }
-                },
-                {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": "Please review the security report in the workflow artifacts."
-                  }
-                },
-                {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": "<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Security Scan Results>"
-                  }
-                }
-              ]
-            }
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+          to: ${{ secrets.TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          message: |
+            ⚠️ *Security scan detected issues in IntentVerse v1\.1\.0*
+            
+            Please review the security report in the workflow artifacts\.
+            
+            [View Security Scan Results](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          format: MarkdownV2
