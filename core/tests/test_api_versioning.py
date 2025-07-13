@@ -13,14 +13,10 @@ from unittest.mock import patch
 # Set up test environment with authentication
 os.environ["SERVICE_API_KEY"] = "test-service-key-12345"
 
-# Create a test client with service authentication
-client = TestClient(app)
-client.headers["X-API-Key"] = "test-service-key-12345"
 
-
-def test_api_versions_endpoint():
+def test_api_versions_endpoint(service_client):
     """Test the API versions endpoint."""
-    response = client.get("/api/versions")
+    response = service_client.get("/api/versions")
     assert response.status_code == 200
     data = response.json()
 
@@ -35,36 +31,36 @@ def test_api_versions_endpoint():
     assert "v2" in versions
 
 
-def test_api_version_info_endpoint():
+def test_api_version_info_endpoint(service_client):
     """Test the API version info endpoint."""
     # Test v1 info
-    response = client.get("/api/versions/v1")
+    response = service_client.get("/api/versions/v1")
     assert response.status_code == 200
     data = response.json()
     assert data["version"] == "v1"
     assert data["status"] == "stable"
 
     # Test v2 info
-    response = client.get("/api/versions/v2")
+    response = service_client.get("/api/versions/v2")
     assert response.status_code == 200
     data = response.json()
     assert data["version"] == "v2"
     assert data["status"] == "current"
 
     # Test non-existent version
-    response = client.get("/api/versions/v999")
+    response = service_client.get("/api/versions/v999")
     assert response.status_code == 410  # Gone instead of 404 for non-existent versions
 
 
-def test_url_based_versioning():
+def test_url_based_versioning(service_client):
     """Test URL-based versioning."""
     # Test v1 endpoint
-    response = client.get("/api/v1/ui/layout")
+    response = service_client.get("/api/v1/ui/layout")
     assert response.status_code == 200
     assert response.headers["X-API-Version"] == "v1"
 
     # Test v2 endpoint
-    response = client.get("/api/v2/ui/layout")
+    response = service_client.get("/api/v2/ui/layout")
     assert response.status_code == 200
     assert response.headers["X-API-Version"] == "v2"
 
@@ -76,27 +72,27 @@ def test_url_based_versioning():
     # assert data["status"] == "healthy"
 
 
-def test_header_based_versioning():
+def test_header_based_versioning(service_client):
     """Test header-based versioning."""
     # Test with v1 header - use a known endpoint instead of /api/ui/layout
-    response = client.get(
+    response = service_client.get(
         "/api/v1/ui/layout"  # Use a known working endpoint
     )
     assert response.status_code == 200
     assert response.headers["X-API-Version"] == "v1"
 
     # Test with v2 header
-    response = client.get(
+    response = service_client.get(
         "/api/v2/ui/layout"  # Use a known working endpoint
     )
     assert response.status_code == 200
     assert response.headers["X-API-Version"] == "v2"
 
 
-def test_version_precedence():
+def test_version_precedence(service_client):
     """Test version precedence (URL > header > default)."""
     # URL should take precedence over header
-    response = client.get(
+    response = service_client.get(
         "/api/v1/ui/layout",  # v1 in URL
         headers={"X-API-Version": "v2"},  # v2 in header
     )
@@ -117,7 +113,7 @@ def test_version_precedence():
     # assert response.headers["X-API-Version"] == "v2"  # Default is v2
 
 
-def test_deprecated_version_headers():
+def test_deprecated_version_headers(service_client):
     """Test headers for deprecated versions."""
     # First, deprecate v1
     v1 = version_manager.get_version("v1")
@@ -127,7 +123,7 @@ def test_deprecated_version_headers():
 
     try:
         # Test that deprecated headers are added
-        response = client.get("/api/v1/ui/layout", headers={"X-API-Version": "v1"})
+        response = service_client.get("/api/v1/ui/layout", headers={"X-API-Version": "v1"})
         assert response.status_code == 200
         assert response.headers["X-API-Version"] == "v1"
         

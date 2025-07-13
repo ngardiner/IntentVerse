@@ -72,14 +72,23 @@ describe('DashboardPage', () => {
             module_id: 'filesystem',
             title: 'File System',
             component_type: 'file_tree',
-            size: 'medium'
+            size: 'medium',
+            category: 'productivity'
           },
           {
             module_id: 'email',
             title: 'Email',
             component_type: 'table',
             size: 'large',
-            data_path: 'inbox'
+            data_path: 'inbox',
+            category: 'productivity'
+          }
+        ],
+        categories: [
+          {
+            name: 'productivity',
+            display_name: 'Productivity',
+            is_enabled: true
           }
         ]
       }
@@ -116,7 +125,15 @@ describe('DashboardPage', () => {
             component_type: 'key_value_viewer',
             size: 'small',
             data_path: 'short_term',
-            display_as: 'json'
+            display_as: 'json',
+            category: 'productivity'
+          }
+        ],
+        categories: [
+          {
+            name: 'productivity',
+            display_name: 'Productivity',
+            is_enabled: true
           }
         ]
       }
@@ -149,6 +166,7 @@ describe('DashboardPage', () => {
             title: 'Database',
             component_type: 'switchable_group',
             size: 'xlarge',
+            category: 'productivity',
             views: [
               {
                 title: 'Tables',
@@ -156,6 +174,13 @@ describe('DashboardPage', () => {
                 data_source_api: '/api/modules/database/state'
               }
             ]
+          }
+        ],
+        categories: [
+          {
+            name: 'productivity',
+            display_name: 'Productivity',
+            is_enabled: true
           }
         ]
       }
@@ -186,6 +211,7 @@ describe('DashboardPage', () => {
           {
             module_id: 'complex',
             title: 'Complex Module',
+            category: 'productivity',
             components: [
               {
                 title: 'Component 1',
@@ -198,6 +224,13 @@ describe('DashboardPage', () => {
                 size: 'small'
               }
             ]
+          }
+        ],
+        categories: [
+          {
+            name: 'productivity',
+            display_name: 'Productivity',
+            is_enabled: true
           }
         ]
       }
@@ -229,7 +262,15 @@ describe('DashboardPage', () => {
             module_id: 'unknown',
             title: 'Unknown Module',
             component_type: 'unknown_type',
-            size: 'medium'
+            size: 'medium',
+            category: 'productivity'
+          }
+        ],
+        categories: [
+          {
+            name: 'productivity',
+            display_name: 'Productivity',
+            is_enabled: true
           }
         ]
       }
@@ -273,7 +314,14 @@ describe('DashboardPage', () => {
   it('renders empty state when no modules are loaded', async () => {
     const mockLayout = {
       data: {
-        modules: []
+        modules: [],
+        categories: [
+          {
+            name: 'productivity',
+            display_name: 'Productivity',
+            is_enabled: true
+          }
+        ]
       }
     };
 
@@ -300,7 +348,15 @@ describe('DashboardPage', () => {
           {
             module_id: 'test',
             title: 'Test Module',
-            component_type: 'table'
+            component_type: 'table',
+            category: 'productivity'
+          }
+        ],
+        categories: [
+          {
+            name: 'productivity',
+            display_name: 'Productivity',
+            is_enabled: true
           }
         ]
       }
@@ -334,13 +390,22 @@ describe('DashboardPage', () => {
             module_id: 'small-module',
             title: 'Small Module',
             component_type: 'table',
-            size: 'small'
+            size: 'small',
+            category: 'productivity'
           },
           {
             module_id: 'large-module',
             title: 'Large Module',
             component_type: 'file_tree',
-            size: 'large'
+            size: 'large',
+            category: 'productivity'
+          }
+        ],
+        categories: [
+          {
+            name: 'productivity',
+            display_name: 'Productivity',
+            is_enabled: true
           }
         ]
       }
@@ -369,7 +434,15 @@ describe('DashboardPage', () => {
 
   it('handles missing module data gracefully', async () => {
     const mockLayout = {
-      data: {} // No modules property
+      data: {
+        categories: [
+          {
+            name: 'productivity',
+            display_name: 'Productivity',
+            is_enabled: true
+          }
+        ]
+      } // No modules property
     };
 
     getUILayout.mockResolvedValue(mockLayout);

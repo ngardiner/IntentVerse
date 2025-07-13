@@ -47,6 +47,7 @@ from app.models import (
     User,
     UserGroup,
     UserGroupLink,
+    ModuleCategory,
 )
 from app.security import get_password_hash, create_access_token
 
@@ -168,6 +169,7 @@ def create_test_db_and_tables():
         UserRoleLink,
         GroupRoleLink,
         RolePermissionLink,
+        ModuleCategory,
     )
 
     # Get the current test engine to ensure we use the same one
@@ -177,6 +179,17 @@ def create_test_db_and_tables():
     # Create all tables
     SQLModel.metadata.create_all(current_test_engine)
 
+    # Run migrations to populate tables with default data
+    try:
+        from app.database import get_database
+        db = get_database()
+        if db and hasattr(db, 'run_migrations'):
+            db.run_migrations()
+    except Exception as e:
+        # If migrations fail, create default module categories manually
+        print(f"Migration failed, creating default categories manually: {e}")
+        _create_default_module_categories(current_test_engine)
+
     # Verify critical tables exist using the same test engine
     with Session(current_test_engine) as session:
         try:
@@ -184,8 +197,43 @@ def create_test_db_and_tables():
             session.exec(text("SELECT COUNT(*) FROM user")).first()
             session.exec(text("SELECT COUNT(*) FROM role")).first()
             session.exec(text("SELECT COUNT(*) FROM contentpackvariable")).first()
+            session.exec(text("SELECT COUNT(*) FROM module_categories")).first()
         except Exception as e:
             raise RuntimeError(f"Failed to create test database tables: {e}")
+
+
+def _create_default_module_categories(engine):
+    """Create default module categories for testing."""
+    from app.models import ModuleCategory
+    
+    default_categories = [
+        ("core", "Core", "Essential system modules", True, 1),
+        ("data", "Data", "Data management and storage modules", True, 2),
+        ("communication", "Communication", "Communication and messaging modules", True, 3),
+        ("automation", "Automation", "Automation and workflow modules", True, 4),
+        ("integration", "Integration", "Third-party integration modules", True, 5),
+        ("utility", "Utility", "Utility and helper modules", True, 6),
+    ]
+    
+    with Session(engine) as session:
+        for name, display_name, description, is_enabled, sort_order in default_categories:
+            # Check if category already exists
+            from sqlmodel import select
+            existing = session.exec(
+                select(ModuleCategory).where(ModuleCategory.name == name)
+            ).first()
+            
+            if not existing:
+                category = ModuleCategory(
+                    name=name,
+                    display_name=display_name,
+                    description=description,
+                    is_enabled=is_enabled,
+                    sort_order=sort_order
+                )
+                session.add(category)
+        
+        session.commit()
 
 
 @pytest.fixture(name="client")

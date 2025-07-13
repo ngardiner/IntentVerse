@@ -222,7 +222,7 @@ class AddModuleCategoriesMigration(Migration):
     
     def __init__(self):
         super().__init__(
-            version="1.2.1",
+            version="1.2.2",
             name="add_module_categories",
             description="Add module categorization support with category management tables"
         )
@@ -230,6 +230,7 @@ class AddModuleCategoriesMigration(Migration):
     def upgrade(self, session: Session, database: DatabaseInterface) -> None:
         """Create module categories table and add default categories."""
         from ..models import ModuleCategory
+        from sqlmodel import select
         
         # Create the ModuleCategory table
         ModuleCategory.metadata.create_all(database.engine)
@@ -244,25 +245,22 @@ class AddModuleCategoriesMigration(Migration):
             ("utility", "Utility", "Utility and helper modules", True, 6),
         ]
         
+        # Use SQLModel to insert categories (database-agnostic)
         for name, display_name, description, is_enabled, sort_order in default_categories:
             # Check if category already exists
             existing = session.exec(
-                text("SELECT COUNT(*) FROM module_categories WHERE name = :name").params(name=name)
-            ).scalar()
+                select(ModuleCategory).where(ModuleCategory.name == name)
+            ).first()
             
-            if existing == 0:
-                session.exec(
-                    text("""
-                        INSERT INTO module_categories (name, display_name, description, is_enabled, sort_order, created_at, updated_at)
-                        VALUES (:name, :display_name, :description, :is_enabled, :sort_order, datetime('now'), datetime('now'))
-                    """).params(
-                        name=name,
-                        display_name=display_name,
-                        description=description,
-                        is_enabled=is_enabled,
-                        sort_order=sort_order
-                    )
+            if not existing:
+                category = ModuleCategory(
+                    name=name,
+                    display_name=display_name,
+                    description=description,
+                    is_enabled=is_enabled,
+                    sort_order=sort_order
                 )
+                session.add(category)
         
         session.commit()
         logging.info("Created ModuleCategory table and added default categories")
@@ -270,8 +268,8 @@ class AddModuleCategoriesMigration(Migration):
     def downgrade(self, session: Session, database: DatabaseInterface) -> None:
         """Drop module categories table."""
         try:
-            session.exec(text("DROP TABLE IF EXISTS module_categories"))
-            session.commit()
+            # Use SQLModel metadata for database-agnostic table dropping
+            ModuleCategory.metadata.drop_all(database.engine, tables=[ModuleCategory.__table__])
             logging.info("Dropped module_categories table")
         except SQLAlchemyError as e:
             logging.error(f"Failed to drop module_categories table: {e}")
