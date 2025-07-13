@@ -65,7 +65,8 @@ class SQLiteDatabase(DatabaseInterface):
         from ..models import (
             User, UserGroup, UserGroupLink, AuditLog, ModuleConfiguration, 
             ContentPackVariable, Role, Permission, UserRoleLink, GroupRoleLink,
-            RolePermissionLink, RefreshToken, MCPServerInfo, MCPToolInfo
+            RolePermissionLink, RefreshToken, MCPServerInfo, MCPToolInfo,
+            ModuleCategory
         )
 
         # Check if this is an in-memory database (used for testing)

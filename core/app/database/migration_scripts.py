@@ -32,7 +32,8 @@ class InitialSchemaMigration(Migration):
         from ..models import (
             User, UserGroup, UserGroupLink, AuditLog, ModuleConfiguration,
             ContentPackVariable, Role, Permission, UserRoleLink, GroupRoleLink,
-            RolePermissionLink, RefreshToken, MCPServerInfo, MCPToolInfo
+            RolePermissionLink, RefreshToken, MCPServerInfo, MCPToolInfo,
+            ModuleCategory
         )
         from sqlmodel import SQLModel
         
@@ -214,6 +215,69 @@ class AddMCPTablesMigration(Migration):
             raise
 
 
+class AddModuleCategoriesMigration(Migration):
+    """
+    Migration to add module categorization support.
+    """
+    
+    def __init__(self):
+        super().__init__(
+            version="1.2.1",
+            name="add_module_categories",
+            description="Add module categorization support with category management tables"
+        )
+    
+    def upgrade(self, session: Session, database: DatabaseInterface) -> None:
+        """Create module categories table and add default categories."""
+        from ..models import ModuleCategory
+        
+        # Create the ModuleCategory table
+        ModuleCategory.metadata.create_all(database.engine)
+        
+        # Add default categories
+        default_categories = [
+            ("core", "Core", "Essential system modules", True, 1),
+            ("data", "Data", "Data management and storage modules", True, 2),
+            ("communication", "Communication", "Communication and messaging modules", True, 3),
+            ("automation", "Automation", "Automation and workflow modules", True, 4),
+            ("integration", "Integration", "Third-party integration modules", True, 5),
+            ("utility", "Utility", "Utility and helper modules", True, 6),
+        ]
+        
+        for name, display_name, description, is_enabled, sort_order in default_categories:
+            # Check if category already exists
+            existing = session.exec(
+                text("SELECT COUNT(*) FROM module_categories WHERE name = :name").params(name=name)
+            ).scalar()
+            
+            if existing == 0:
+                session.exec(
+                    text("""
+                        INSERT INTO module_categories (name, display_name, description, is_enabled, sort_order, created_at, updated_at)
+                        VALUES (:name, :display_name, :description, :is_enabled, :sort_order, datetime('now'), datetime('now'))
+                    """).params(
+                        name=name,
+                        display_name=display_name,
+                        description=description,
+                        is_enabled=is_enabled,
+                        sort_order=sort_order
+                    )
+                )
+        
+        session.commit()
+        logging.info("Created ModuleCategory table and added default categories")
+    
+    def downgrade(self, session: Session, database: DatabaseInterface) -> None:
+        """Drop module categories table."""
+        try:
+            session.exec(text("DROP TABLE IF EXISTS module_categories"))
+            session.commit()
+            logging.info("Dropped module_categories table")
+        except SQLAlchemyError as e:
+            logging.error(f"Failed to drop module_categories table: {e}")
+            raise
+
+
 def get_all_migrations() -> List[Migration]:
     """
     Get all available migrations in order.
@@ -226,4 +290,5 @@ def get_all_migrations() -> List[Migration]:
         AddEmailFieldMigration(),
         AddRefreshTokenTableMigration(),
         AddMCPTablesMigration(),
+        AddModuleCategoriesMigration(),
     ]
