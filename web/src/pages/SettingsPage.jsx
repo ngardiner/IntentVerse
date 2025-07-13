@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { getModulesStatus, toggleModule, toggleTool, getMcpServers } from '../api/client';
+import { getModulesStatus, getCategories, getModulesByCategory, toggleModule, toggleTool, toggleCategory, getMcpServers } from '../api/client';
+import './SettingsPage.css';
 
 const SettingsPage = () => {
   const [modules, setModules] = useState({});
+  const [categories, setCategories] = useState({});
+  const [modulesByCategory, setModulesByCategory] = useState({});
   const [mcpServers, setMcpServers] = useState({ servers: [], stats: {} });
   const [loading, setLoading] = useState(true);
   const [mcpLoading, setMcpLoading] = useState(true);
@@ -10,9 +13,11 @@ const SettingsPage = () => {
   const [error, setError] = useState(null);
   const [toggleLoading, setToggleLoading] = useState({});
   const [toolToggleLoading, setToolToggleLoading] = useState({});
+  const [categoryToggleLoading, setCategoryToggleLoading] = useState({});
 
   useEffect(() => {
     loadModulesStatus();
+    loadCategoriesAndModules();
     loadMcpServers();
   }, []);
 
@@ -35,6 +40,21 @@ const SettingsPage = () => {
       } else {
         setLoading(false);
       }
+    }
+  };
+
+  const loadCategoriesAndModules = async () => {
+    try {
+      const [categoriesResponse, modulesByCategoryResponse] = await Promise.all([
+        getCategories(),
+        getModulesByCategory()
+      ]);
+      
+      setCategories(categoriesResponse.data.categories);
+      setModulesByCategory(modulesByCategoryResponse.data.modules_by_category);
+    } catch (err) {
+      console.error('Failed to load categories:', err);
+      // Don't set error here as modules might still work
     }
   };
 
@@ -113,6 +133,20 @@ const SettingsPage = () => {
     }
   };
 
+  const handleCategoryToggle = async (categoryName) => {
+    setCategoryToggleLoading(prev => ({ ...prev, [categoryName]: true }));
+    try {
+      await toggleCategory(categoryName);
+      // Reload categories and modules to get updated state
+      await loadCategoriesAndModules();
+    } catch (err) {
+      console.error(`Failed to toggle category ${categoryName}:`, err);
+      alert(`Failed to toggle category ${categoryName}. Please try again.`);
+    } finally {
+      setCategoryToggleLoading(prev => ({ ...prev, [categoryName]: false }));
+    }
+  };
+
   const handleCancel = () => {
     // Navigate back to dashboard
     window.history.back();
@@ -138,6 +172,47 @@ const SettingsPage = () => {
       )}
       
       <div className="settings-form">
+        {/* Category Management Section */}
+        {Object.keys(categories).length > 0 && (
+          <div className="settings-section">
+            <h2>Category Management</h2>
+            <p>Enable or disable entire categories of modules. Disabled categories will not appear in the dashboard.</p>
+            
+            <div className="categories-grid">
+              {Object.entries(categories)
+                .sort((a, b) => a[1].sort_order - b[1].sort_order)
+                .map(([categoryName, categoryInfo]) => (
+                  <div key={categoryName} className="category-item">
+                    <div className="category-header">
+                      <h3>{categoryInfo.display_name}</h3>
+                      <label className="toggle-switch">
+                        <input
+                          type="checkbox"
+                          checked={categoryInfo.is_enabled}
+                          onChange={() => handleCategoryToggle(categoryName)}
+                          disabled={categoryToggleLoading[categoryName] || categoryName === 'productivity'}
+                        />
+                        <span className="slider"></span>
+                      </label>
+                    </div>
+                    <p className="category-description">{categoryInfo.description}</p>
+                    <div className="category-stats">
+                      <span className="module-count">
+                        {categoryInfo.module_count} module{categoryInfo.module_count !== 1 ? 's' : ''}
+                      </span>
+                      {categoryName === 'productivity' && (
+                        <span className="category-note">(Always enabled)</span>
+                      )}
+                    </div>
+                    {categoryToggleLoading[categoryName] && (
+                      <div className="loading-indicator">Updating...</div>
+                    )}
+                  </div>
+                ))}
+            </div>
+          </div>
+        )}
+
         <div className="settings-section">
           <h2>Module Configuration</h2>
           <p>Enable or disable modules to control which tools are available in the system.</p>

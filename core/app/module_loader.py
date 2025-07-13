@@ -122,6 +122,7 @@ class ModuleLoader:
                     module_name = module_dir.name
                     is_enabled = self._is_module_enabled(module_name, session)
                     is_loaded = module_name in self.modules
+                    category = self._get_module_category(module_name, session)
 
                     # Get available tools for this module
                     tools = self._get_module_tools(module_name, session)
@@ -129,6 +130,7 @@ class ModuleLoader:
                     all_modules[module_name] = {
                         "name": module_name,
                         "display_name": module_name.replace("_", " ").title(),
+                        "category": category,
                         "is_enabled": is_enabled,
                         "is_loaded": is_loaded,
                         "description": self._get_module_description(module_name),
@@ -358,3 +360,87 @@ class ModuleLoader:
 
         session.commit()
         return True
+
+    def _get_module_category(self, module_name: str, session: Session) -> str:
+        """Get the category for a module."""
+        from .models import ModuleConfiguration
+
+        # Query for module-level configuration (tool_name is None)
+        stmt = select(ModuleConfiguration).where(
+            ModuleConfiguration.module_name == module_name,
+            ModuleConfiguration.tool_name.is_(None),
+        )
+        config = session.exec(stmt).first()
+
+        # If no configuration exists, default to productivity
+        return config.category if config else "productivity"
+
+    def get_categories(self, session: Session) -> Dict[str, Dict[str, Any]]:
+        """Get all available categories with their status."""
+        from .models import ModuleCategory
+
+        categories = {}
+        
+        # Get all categories from database
+        stmt = select(ModuleCategory).order_by(ModuleCategory.sort_order)
+        db_categories = session.exec(stmt).all()
+        
+        for category in db_categories:
+            categories[category.name] = {
+                "name": category.name,
+                "display_name": category.display_name,
+                "description": category.description,
+                "is_enabled": category.is_enabled,
+                "sort_order": category.sort_order,
+                "module_count": self._count_modules_in_category(category.name, session)
+            }
+        
+        return categories
+
+    def _count_modules_in_category(self, category_name: str, session: Session) -> int:
+        """Count the number of modules in a specific category."""
+        from .models import ModuleConfiguration
+
+        stmt = select(ModuleConfiguration).where(
+            ModuleConfiguration.category == category_name,
+            ModuleConfiguration.tool_name.is_(None)
+        )
+        return len(session.exec(stmt).all())
+
+    def set_category_enabled(self, category_name: str, enabled: bool, session: Session) -> bool:
+        """Enable or disable an entire category."""
+        from .models import ModuleCategory
+        from datetime import datetime
+
+        # Update category status
+        stmt = select(ModuleCategory).where(ModuleCategory.name == category_name)
+        category = session.exec(stmt).first()
+        
+        if not category:
+            return False
+            
+        category.is_enabled = enabled
+        category.updated_at = datetime.utcnow()
+        session.commit()
+        
+        return True
+
+    def get_modules_by_category(self, session: Session) -> Dict[str, List[Dict[str, Any]]]:
+        """Get modules organized by category."""
+        all_modules = self.get_module_status(session)
+        categories = self.get_categories(session)
+        
+        modules_by_category = {}
+        
+        # Initialize with empty lists for all categories
+        for category_name in categories.keys():
+            modules_by_category[category_name] = []
+        
+        # Add modules to their respective categories
+        for module_name, module_info in all_modules.items():
+            category = module_info.get("category", "productivity")
+            if category not in modules_by_category:
+                modules_by_category[category] = []
+            modules_by_category[category].append(module_info)
+        
+        return modules_by_category

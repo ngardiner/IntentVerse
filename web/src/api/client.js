@@ -325,6 +325,21 @@ export const getModulesStatus = () => {
   return apiClient.get('/api/v1/modules/status');
 };
 
+// Get categories
+export const getCategories = () => {
+  return apiClient.get('/api/v1/categories');
+};
+
+// Get modules organized by category
+export const getModulesByCategory = () => {
+  return apiClient.get('/api/v1/modules/by-category');
+};
+
+// Toggle category enabled/disabled
+export const toggleCategory = (categoryName) => {
+  return apiClient.post(`/api/v1/categories/${categoryName}/toggle`);
+};
+
 export const toggleModule = (moduleName, enabled) => {
   return apiClient.post(`/api/v1/modules/${moduleName}/toggle`, { enabled });
 };

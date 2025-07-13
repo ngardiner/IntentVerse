@@ -192,6 +192,25 @@ class AuditLog(SQLModel, table=True):
     user: Optional[User] = Relationship()
 
 
+class ModuleCategory(SQLModel, table=True):
+    """
+    Represents module categories for organizing modules into logical groups.
+    """
+    __tablename__ = "module_categories"
+    
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str = Field(index=True, unique=True)  # e.g., "productivity", "identity", "cloud"
+    display_name: str = Field()  # e.g., "Productivity", "Identity & Access", "Cloud Platforms"
+    description: Optional[str] = Field(default=None)
+    is_enabled: bool = Field(default=False, index=True)
+    sort_order: int = Field(default=0, index=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    
+    class Config:
+        table_args = ({"sqlite_autoincrement": True},)
+
+
 class ModuleConfiguration(SQLModel, table=True):
     """
     Represents module and tool configuration settings.
@@ -203,6 +222,7 @@ class ModuleConfiguration(SQLModel, table=True):
     tool_name: Optional[str] = Field(
         default=None, index=True
     )  # e.g., "read_file", "write_file" (None for module-level config)
+    category: str = Field(default="productivity", index=True)  # e.g., "productivity", "identity", "cloud"
     is_enabled: bool = Field(default=True)  # Whether the module/tool is enabled
     configuration: Optional[Dict[str, Any]] = Field(
         default=None, sa_column=Column(JSON)

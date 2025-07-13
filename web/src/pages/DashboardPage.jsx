@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getUILayout } from '../api/client';
+import './DashboardPage.css';
 
 // Import the actual generic components
 import GenericFileTree from '../components/generic/GenericFileTree';
@@ -10,6 +11,9 @@ import DashboardLayoutManager from '../components/DashboardLayoutManager';
 
 const DashboardPage = ({ isEditing, onSaveLayout, onCancelEdit, currentDashboard }) => {
   const [layout, setLayout] = useState([]);
+  const [categories, setCategories] = useState({});
+  const [modulesByCategory, setModulesByCategory] = useState({});
+  const [activeCategory, setActiveCategory] = useState('productivity');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -20,7 +24,22 @@ const DashboardPage = ({ isEditing, onSaveLayout, onCancelEdit, currentDashboard
         setLoading(true);
         const response = await getUILayout();
         const modules = response.data.modules || [];
+        const categories = response.data.categories || {};
+        const modulesByCategory = response.data.modules_by_category || {};
+        
         setLayout(modules);
+        setCategories(categories);
+        setModulesByCategory(modulesByCategory);
+        
+        // Set active category to first enabled category or productivity
+        const enabledCategories = Object.entries(categories)
+          .filter(([_, cat]) => cat.is_enabled)
+          .sort((a, b) => a[1].sort_order - b[1].sort_order);
+        
+        if (enabledCategories.length > 0) {
+          setActiveCategory(enabledCategories[0][0]);
+        }
+        
         setError(null);
       } catch (err) {
         setError("Failed to fetch UI layout from the server. Please ensure the core service is running.");
@@ -142,8 +161,49 @@ const DashboardPage = ({ isEditing, onSaveLayout, onCancelEdit, currentDashboard
     return <div className="dashboard-container"><p className="error-message">{error}</p></div>;
   }
 
+  // Filter modules by active category
+  const getModulesForCategory = (categoryName) => {
+    return layout.filter(module => module.category === categoryName);
+  };
+
+  // Get enabled categories sorted by sort_order
+  const getEnabledCategories = () => {
+    return Object.entries(categories)
+      .filter(([_, cat]) => cat.is_enabled)
+      .sort((a, b) => a[1].sort_order - b[1].sort_order);
+  };
+
+  const enabledCategories = getEnabledCategories();
+  const activeModules = getModulesForCategory(activeCategory);
+
   return (
     <div className="dashboard-container">
+      {/* Category Tabs */}
+      {enabledCategories.length > 1 && (
+        <div className="category-tabs">
+          {enabledCategories.map(([categoryName, categoryInfo]) => (
+            <button
+              key={categoryName}
+              className={`category-tab ${activeCategory === categoryName ? 'active' : ''}`}
+              onClick={() => setActiveCategory(categoryName)}
+              title={categoryInfo.description}
+            >
+              {categoryInfo.display_name}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Active Category Info */}
+      {categories[activeCategory] && (
+        <div className="category-info">
+          <h2>{categories[activeCategory].display_name}</h2>
+          {categories[activeCategory].description && (
+            <p className="category-description">{categories[activeCategory].description}</p>
+          )}
+        </div>
+      )}
+
       {/* Modules Grid with Layout Manager */}
       <DashboardLayoutManager
         isEditing={isEditing}
@@ -151,14 +211,19 @@ const DashboardPage = ({ isEditing, onSaveLayout, onCancelEdit, currentDashboard
         onCancelEdit={onCancelEdit}
         currentDashboard={currentDashboard}
       >
-        {layout.length > 0 ? (
-          layout.flatMap(moduleSchema => {
+        {activeModules.length > 0 ? (
+          activeModules.flatMap(moduleSchema => {
             const rendered = renderComponent(moduleSchema);
             // Handle both arrays of components and single components
             return Array.isArray(rendered) ? rendered : [rendered];
           })
         ) : (
-          <p>No modules were loaded by the Core Engine.</p>
+          <div className="no-modules-message">
+            <p>No modules available in the {categories[activeCategory]?.display_name || activeCategory} category.</p>
+            {activeCategory !== 'productivity' && (
+              <p>Enable modules in this category through the Settings page.</p>
+            )}
+          </div>
         )}
       </DashboardLayoutManager>
     </div>

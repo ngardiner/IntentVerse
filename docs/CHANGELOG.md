@@ -1,7 +1,8 @@
 # v1.2.0
 
 ## Features
-* Adds external database abstraction support for MySQL and PostgreSQL, as well as database migration support
+* Adds external database abstraction support for MySQL and PostgreSQL, as well as database migration support.
+* Adds categories for modules with a tabbed interface, to allow the addition of more mock modules
 
 # v1.1.0
 

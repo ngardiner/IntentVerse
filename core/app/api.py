@@ -43,12 +43,41 @@ def create_api_routes(
     def get_ui_layout(
         request: Request,
         current_user: Annotated[User, Depends(get_current_user_or_service)],
+        session: Annotated[Session, Depends(get_session)],
     ) -> Dict[str, Any]:
         """
-        Returns the full UI schema for all loaded modules.
+        Returns the full UI schema for all loaded modules with category information.
         The frontend uses this to dynamically build its layout.
         """
-        return {"modules": list(module_loader.get_schemas().values())}
+        # Get module schemas
+        module_schemas = module_loader.get_schemas()
+        
+        # Get categories and modules organized by category
+        categories = module_loader.get_categories(session)
+        modules_by_category = module_loader.get_modules_by_category(session)
+        
+        # Enhance module schemas with category information
+        enhanced_modules = []
+        for schema in module_schemas.values():
+            module_name = schema.get("module_id", "")
+            # Find the module in our organized data to get category info
+            module_category = "productivity"  # default
+            for cat_name, cat_modules in modules_by_category.items():
+                for module in cat_modules:
+                    if module["name"] == module_name:
+                        module_category = cat_name
+                        break
+            
+            # Add category information to schema
+            enhanced_schema = schema.copy()
+            enhanced_schema["category"] = module_category
+            enhanced_modules.append(enhanced_schema)
+        
+        return {
+            "modules": enhanced_modules,
+            "categories": categories,
+            "modules_by_category": modules_by_category
+        }
 
     @router.get("/{module_name}/state")
     def get_module_state(
