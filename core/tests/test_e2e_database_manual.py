@@ -239,7 +239,8 @@ class TestDatabasePerformance:
         """Test database connection time."""
         config = Config.get_database_config()
         # Ensure SQLite URL is properly formatted for tests
-        if config.get("type") == "sqlite" and not config.get("url"):
+        if config.get("type") == "sqlite":
+            # Force a valid SQLite URL regardless of what's in config
             config["url"] = Config.get_default_sqlite_url()
         database = initialize_database(config)
         
@@ -254,7 +255,8 @@ class TestDatabasePerformance:
         """Test basic query performance."""
         config = Config.get_database_config()
         # Ensure SQLite URL is properly formatted for tests
-        if config.get("type") == "sqlite" and not config.get("url"):
+        if config.get("type") == "sqlite":
+            # Force a valid SQLite URL regardless of what's in config
             config["url"] = Config.get_default_sqlite_url()
         database = initialize_database(config)
         database.create_db_and_tables()

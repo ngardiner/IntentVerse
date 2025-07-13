@@ -13,6 +13,10 @@ import os
 CORE_API_URL = os.environ.get("CORE_API_URL", "http://core:8000")
 SERVICE_API_KEY = os.environ.get("SERVICE_API_KEY", "dev-service-key-12345")
 
+# Ensure the SERVICE_API_KEY environment variable is set for the core service
+# This is needed because the core service reads it dynamically
+os.environ["SERVICE_API_KEY"] = SERVICE_API_KEY
+
 
 @pytest.mark.e2e
 @pytest.mark.asyncio

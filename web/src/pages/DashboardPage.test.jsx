@@ -84,13 +84,14 @@ describe('DashboardPage', () => {
             category: 'productivity'
           }
         ],
-        categories: [
-          {
+        categories: {
+          productivity: {
             name: 'productivity',
             display_name: 'Productivity',
-            is_enabled: true
+            is_enabled: true,
+            sort_order: 1
           }
-        ]
+        }
       }
     };
 
@@ -129,13 +130,14 @@ describe('DashboardPage', () => {
             category: 'productivity'
           }
         ],
-        categories: [
-          {
+        categories: {
+          productivity: {
             name: 'productivity',
             display_name: 'Productivity',
-            is_enabled: true
+            is_enabled: true,
+            sort_order: 1
           }
-        ]
+        }
       }
     };
 
@@ -176,13 +178,14 @@ describe('DashboardPage', () => {
             ]
           }
         ],
-        categories: [
-          {
+        categories: {
+          productivity: {
             name: 'productivity',
             display_name: 'Productivity',
-            is_enabled: true
+            is_enabled: true,
+            sort_order: 1
           }
-        ]
+        }
       }
     };
 
@@ -226,13 +229,14 @@ describe('DashboardPage', () => {
             ]
           }
         ],
-        categories: [
-          {
+        categories: {
+          productivity: {
             name: 'productivity',
             display_name: 'Productivity',
-            is_enabled: true
+            is_enabled: true,
+            sort_order: 1
           }
-        ]
+        }
       }
     };
 
@@ -266,13 +270,14 @@ describe('DashboardPage', () => {
             category: 'productivity'
           }
         ],
-        categories: [
-          {
+        categories: {
+          productivity: {
             name: 'productivity',
             display_name: 'Productivity',
-            is_enabled: true
+            is_enabled: true,
+            sort_order: 1
           }
-        ]
+        }
       }
     };
 
@@ -315,13 +320,14 @@ describe('DashboardPage', () => {
     const mockLayout = {
       data: {
         modules: [],
-        categories: [
-          {
+        categories: {
+          productivity: {
             name: 'productivity',
             display_name: 'Productivity',
-            is_enabled: true
+            is_enabled: true,
+            sort_order: 1
           }
-        ]
+        }
       }
     };
 
@@ -337,7 +343,7 @@ describe('DashboardPage', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText('No modules were loaded by the Core Engine.')).toBeInTheDocument();
+      expect(screen.getByText('No modules available in the Productivity category.')).toBeInTheDocument();
     });
   });
 
@@ -352,13 +358,14 @@ describe('DashboardPage', () => {
             category: 'productivity'
           }
         ],
-        categories: [
-          {
+        categories: {
+          productivity: {
             name: 'productivity',
             display_name: 'Productivity',
-            is_enabled: true
+            is_enabled: true,
+            sort_order: 1
           }
-        ]
+        }
       }
     };
 
@@ -401,13 +408,14 @@ describe('DashboardPage', () => {
             category: 'productivity'
           }
         ],
-        categories: [
-          {
+        categories: {
+          productivity: {
             name: 'productivity',
             display_name: 'Productivity',
-            is_enabled: true
+            is_enabled: true,
+            sort_order: 1
           }
-        ]
+        }
       }
     };
 
@@ -435,13 +443,14 @@ describe('DashboardPage', () => {
   it('handles missing module data gracefully', async () => {
     const mockLayout = {
       data: {
-        categories: [
-          {
+        categories: {
+          productivity: {
             name: 'productivity',
             display_name: 'Productivity',
-            is_enabled: true
+            is_enabled: true,
+            sort_order: 1
           }
-        ]
+        }
       } // No modules property
     };
 
@@ -457,7 +466,7 @@ describe('DashboardPage', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText('No modules were loaded by the Core Engine.')).toBeInTheDocument();
+      expect(screen.getByText('No modules available in the Productivity category.')).toBeInTheDocument();
     });
   });
 });
