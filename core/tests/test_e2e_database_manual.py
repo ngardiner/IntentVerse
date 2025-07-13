@@ -238,6 +238,9 @@ class TestDatabasePerformance:
     def test_connection_time(self):
         """Test database connection time."""
         config = Config.get_database_config()
+        # Ensure SQLite URL is properly formatted for tests
+        if config.get("type") == "sqlite" and not config.get("url"):
+            config["url"] = Config.get_default_sqlite_url()
         database = initialize_database(config)
         
         start_time = time.time()
@@ -250,6 +253,9 @@ class TestDatabasePerformance:
     def test_basic_query_performance(self):
         """Test basic query performance."""
         config = Config.get_database_config()
+        # Ensure SQLite URL is properly formatted for tests
+        if config.get("type") == "sqlite" and not config.get("url"):
+            config["url"] = Config.get_default_sqlite_url()
         database = initialize_database(config)
         database.create_db_and_tables()
         
