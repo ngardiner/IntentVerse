@@ -15,8 +15,12 @@ async def main():
     This function initializes the MCP server and, based on command-line arguments,
     runs it in either Streamable HTTP mode or stdio mode.
     """
-    setup_logging()
-    logging.info("Starting IntentVerse MCP Interface...")
+    # Check for stdio mode early to configure logging appropriately
+    stdio_mode = "--stdio" in sys.argv
+    setup_logging(stdio_mode=stdio_mode)
+    
+    if not stdio_mode:
+        logging.info("Starting IntentVerse MCP Interface...")
 
     # Log the MCP start event to the timeline
     # We'll do this after the server is fully initialized to ensure the timeline module is loaded
@@ -35,9 +39,11 @@ async def main():
     await tool_registrar.register_tools(server)
 
     # Check for the --stdio flag to determine the run mode
-    if "--stdio" in sys.argv:
-        logging.info("Running in stdio mode.")
-        await server.run_stdio()
+    if stdio_mode:
+        # In stdio mode, minimize logging to avoid interfering with MCP protocol
+        logging.debug("Running in stdio mode.")
+        # Use the async method for stdio mode
+        await server.run_async(transport="stdio")
     else:
         # This runs the server as a persistent web server
         host = "0.0.0.0"

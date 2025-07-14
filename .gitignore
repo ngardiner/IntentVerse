@@ -3,6 +3,7 @@
 *.pyc
 *venv/
 core/cache/*
+core/content_packs/*
 core/*venv/
 intentverse.db
 logs/*
