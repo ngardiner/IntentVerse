@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "intentverse": {
+      "command": "/path/to/run-mcp-server.sh",
+      "args": ["--stdio"],
+      "env": {
+        "CORE_API_URL": "http://localhost:8000",
+        "SERVICE_API_KEY": "dev-service-key-12345"
+      }
+    }
+  }
+}
+

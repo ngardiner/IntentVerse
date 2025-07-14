@@ -3,6 +3,10 @@
 ## Features
 * Adds external database abstraction support for MySQL and PostgreSQL, as well as database migration support.
 * Adds categories for modules with a tabbed interface, to allow the addition of more mock modules
+* Adds sandbox modules for a number of infrastructure components (DHCP, DNS, Load Balancer & Firewall)
+
+## Fixes
+* Fix issues with the MCP module in stdio mode (logging configuration and initialization) and provide script for local use of the MCP server
 
 # v1.1.0
 
