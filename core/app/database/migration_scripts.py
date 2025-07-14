@@ -276,6 +276,96 @@ class AddModuleCategoriesMigration(Migration):
             raise
 
 
+class AddModuleConfigurationCategoryMigration(Migration):
+    """
+    Migration to add category column to ModuleConfiguration table.
+    """
+    
+    def __init__(self):
+        super().__init__(
+            version="1.2.3",
+            name="add_module_configuration_category",
+            description="Add category column to ModuleConfiguration table"
+        )
+    
+    def upgrade(self, session: Session, database: DatabaseInterface) -> None:
+        """Add category column to ModuleConfiguration table."""
+        db_type = database.config.get("type", "sqlite").lower()
+        
+        try:
+            if db_type == "sqlite":
+                # Check if column already exists
+                result = session.exec(text("PRAGMA table_info(moduleconfiguration)"))
+                columns = [row[1] for row in result]
+                
+                if "category" not in columns:
+                    session.exec(text("ALTER TABLE moduleconfiguration ADD COLUMN category VARCHAR DEFAULT 'productivity'"))
+                    session.exec(text("CREATE INDEX ix_moduleconfiguration_category ON moduleconfiguration (category)"))
+                    session.commit()
+                    logging.info("Added category column to moduleconfiguration table (SQLite)")
+                else:
+                    logging.info("Category column already exists in moduleconfiguration table (SQLite)")
+                    
+            elif db_type == "postgresql":
+                # Check if column exists
+                result = session.exec(text("""
+                    SELECT column_name FROM information_schema.columns 
+                    WHERE table_name = 'moduleconfiguration' AND column_name = 'category'
+                """))
+                
+                if not result.first():
+                    session.exec(text("ALTER TABLE moduleconfiguration ADD COLUMN category VARCHAR DEFAULT 'productivity'"))
+                    session.exec(text("CREATE INDEX ix_moduleconfiguration_category ON moduleconfiguration (category)"))
+                    session.commit()
+                    logging.info("Added category column to moduleconfiguration table (PostgreSQL)")
+                else:
+                    logging.info("Category column already exists in moduleconfiguration table (PostgreSQL)")
+                    
+            elif db_type in ["mysql", "mariadb"]:
+                # Check if column exists
+                result = session.exec(text("""
+                    SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS 
+                    WHERE TABLE_NAME = 'moduleconfiguration' AND COLUMN_NAME = 'category'
+                """))
+                
+                if not result.first():
+                    session.exec(text("ALTER TABLE moduleconfiguration ADD COLUMN category VARCHAR(255) DEFAULT 'productivity'"))
+                    session.exec(text("CREATE INDEX ix_moduleconfiguration_category ON moduleconfiguration (category)"))
+                    session.commit()
+                    logging.info("Added category column to moduleconfiguration table (MySQL/MariaDB)")
+                else:
+                    logging.info("Category column already exists in moduleconfiguration table (MySQL/MariaDB)")
+                    
+        except SQLAlchemyError as e:
+            logging.error(f"Failed to add category column: {e}")
+            raise
+    
+    def downgrade(self, session: Session, database: DatabaseInterface) -> None:
+        """Remove category column from ModuleConfiguration table."""
+        db_type = database.config.get("type", "sqlite").lower()
+        
+        try:
+            if db_type == "sqlite":
+                # SQLite doesn't support DROP COLUMN easily, would need table recreation
+                logging.warning("SQLite doesn't support dropping columns easily - skipping downgrade")
+                
+            elif db_type == "postgresql":
+                session.exec(text("DROP INDEX IF EXISTS ix_moduleconfiguration_category"))
+                session.exec(text("ALTER TABLE moduleconfiguration DROP COLUMN IF EXISTS category"))
+                session.commit()
+                logging.info("Removed category column from moduleconfiguration table (PostgreSQL)")
+                
+            elif db_type in ["mysql", "mariadb"]:
+                session.exec(text("DROP INDEX IF EXISTS ix_moduleconfiguration_category ON moduleconfiguration"))
+                session.exec(text("ALTER TABLE moduleconfiguration DROP COLUMN IF EXISTS category"))
+                session.commit()
+                logging.info("Removed category column from moduleconfiguration table (MySQL/MariaDB)")
+                
+        except SQLAlchemyError as e:
+            logging.error(f"Failed to remove category column: {e}")
+            raise
+
+
 def get_all_migrations() -> List[Migration]:
     """
     Get all available migrations in order.
@@ -289,4 +379,5 @@ def get_all_migrations() -> List[Migration]:
         AddRefreshTokenTableMigration(),
         AddMCPTablesMigration(),
         AddModuleCategoriesMigration(),
+        AddModuleConfigurationCategoryMigration(),
     ]
