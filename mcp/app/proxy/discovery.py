@@ -14,7 +14,7 @@ from collections import defaultdict
 
 from .config import ProxyConfig, ServerConfig
 from .client import MCPClient, MCPTool, MCPServerInfo, ConnectionState
-from .timeline import log_discovery_event, log_server_connection_event
+from .timeline import log_discovery_event, log_server_connection_event, log_proxy_call_start, log_proxy_call_end
 
 logger = logging.getLogger(__name__)
 
@@ -586,8 +586,28 @@ class ToolDiscoveryService:
             await client.initialize_server()
 
         # Use original tool name for the call
-        original_name = tool.to_core_tool_format()["metadata"]["original_name"]
-        return await client.call_tool(original_name, arguments)
+        if "." in tool.name:
+            original_name = tool.name.split(".", 1)[1]
+        else:
+            original_name = tool.name
+        
+        # Start timeline logging
+        call_id = log_proxy_call_start(
+            tool_name=tool.name,
+            server_name=tool.server_name,
+            original_name=original_name,
+            parameters=arguments
+        )
+        
+        try:
+            result = await client.call_tool(original_name, arguments)
+            # End timeline logging with success
+            log_proxy_call_end(call_id, result=result)
+            return result
+        except Exception as e:
+            # End timeline logging with error
+            log_proxy_call_end(call_id, error=str(e))
+            raise
 
     async def _health_check_loop(self) -> None:
         """Periodic health check and reconnection loop."""

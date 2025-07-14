@@ -88,56 +88,54 @@ class ProxyTimelineLogger:
         self._call_counter = 0
 
     def _get_timeline_module(self):
-        """Get the timeline module (lazy loading to avoid circular imports)."""
+        """Get the timeline module (using Core API instead of direct imports)."""
         if self._timeline_module is None:
             try:
-                # Try to import timeline functions from core
-                from core.app.modules.timeline.tool import add_event, log_system_event
-
+                # Use Core API for timeline logging instead of direct imports
+                import httpx
+                import os
+                
+                core_api_url = os.environ.get("CORE_API_URL", "http://localhost:8000")
+                api_key = os.environ.get("SERVICE_API_KEY", "dev-service-key-12345")
+                headers = {"X-API-Key": api_key}
+                
+                async def add_event_via_api(event_type, title, description, details=None, status="success"):
+                    """Add event to timeline via Core API."""
+                    try:
+                        async with httpx.AsyncClient(base_url=core_api_url, headers=headers) as client:
+                            payload = {
+                                "tool_name": "timeline.add_event",
+                                "parameters": {
+                                    "event_type": event_type,
+                                    "title": title,
+                                    "description": description,
+                                    "details": details or {},
+                                    "status": status
+                                }
+                            }
+                            response = await client.post("/api/v1/execute", json=payload)
+                            response.raise_for_status()
+                            return response.json()
+                    except Exception as e:
+                        logger.debug(f"Failed to log timeline event via API: {e}")
+                        return None
+                
+                async def log_system_event_via_api(title, description, details=None):
+                    """Log system event to timeline via Core API."""
+                    return await add_event_via_api("system", title, description, details, "success")
+                
                 self._timeline_module = {
-                    "add_event": add_event,
-                    "log_system_event": log_system_event,
+                    "add_event": add_event_via_api,
+                    "log_system_event": log_system_event_via_api,
                 }
-                logger.debug("Timeline module loaded for MCP proxy logging")
-            except ImportError as e:
-                logger.debug(
-                    f"Core timeline module not available for MCP proxy logging: {e}"
-                )
-                # Try alternative import paths
-                try:
-                    # Try importing from a relative path if running in integrated mode
-                    import sys
-                    import os
-
-                    # Add the core path to sys.path temporarily
-                    core_path = os.path.join(
-                        os.path.dirname(__file__), "..", "..", "..", "core"
-                    )
-                    if os.path.exists(core_path) and core_path not in sys.path:
-                        sys.path.insert(0, core_path)
-                        from app.modules.timeline.tool import (
-                            add_event,
-                            log_system_event,
-                        )
-
-                        self._timeline_module = {
-                            "add_event": add_event,
-                            "log_system_event": log_system_event,
-                        }
-                        logger.debug(
-                            "Timeline module loaded via alternative path for MCP proxy logging"
-                        )
-                    else:
-                        raise ImportError("Core timeline module not found")
-                except ImportError:
-                    logger.info(
-                        "Timeline module not available - using dummy functions for MCP proxy logging"
-                    )
-                    # Create dummy functions to avoid errors
-                    self._timeline_module = {
-                        "add_event": lambda *args, **kwargs: None,
-                        "log_system_event": lambda *args, **kwargs: None,
-                    }
+                logger.debug("Timeline module configured to use Core API for MCP proxy logging")
+            except Exception as e:
+                logger.debug(f"Failed to configure timeline API client: {e}")
+                # Create dummy functions to avoid errors
+                self._timeline_module = {
+                    "add_event": lambda *args, **kwargs: None,
+                    "log_system_event": lambda *args, **kwargs: None,
+                }
         return self._timeline_module
 
     def start_call(
@@ -175,18 +173,7 @@ class ProxyTimelineLogger:
         # Store active call
         self._active_calls[call_id] = call_event
 
-        # Log to timeline
-        timeline = self._get_timeline_module()
-        if timeline:
-            event_data = call_event.to_timeline_event()
-            timeline["add_event"](
-                event_type=event_data["event_type"],
-                title=event_data["title"],
-                description=event_data["description"],
-                details=event_data["details"],
-                status=event_data["status"],
-            )
-
+        # Don't log to timeline yet - wait for call to complete
         logger.debug(f"Started proxy call tracking: {call_id} for {tool_name}")
         return call_id
 
@@ -212,17 +199,22 @@ class ProxyTimelineLogger:
         call_event.error = error
         call_event.status = "error" if error else "success"
 
-        # Log to timeline
+        # Log to timeline (async)
         timeline = self._get_timeline_module()
         if timeline:
             event_data = call_event.to_timeline_event()
-            timeline["add_event"](
-                event_type=event_data["event_type"],
-                title=event_data["title"],
-                description=event_data["description"],
-                details=event_data["details"],
-                status=event_data["status"],
-            )
+            try:
+                import asyncio
+                # Run the async timeline logging in the background
+                asyncio.create_task(timeline["add_event"](
+                    event_type=event_data["event_type"],
+                    title=event_data["title"],
+                    description=event_data["description"],
+                    details=event_data["details"],
+                    status=event_data["status"],
+                ))
+            except Exception as e:
+                logger.debug(f"Failed to create timeline logging task: {e}")
 
         # Remove from active calls
         del self._active_calls[call_id]
