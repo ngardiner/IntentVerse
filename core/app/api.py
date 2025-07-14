@@ -1286,6 +1286,100 @@ def create_api_routes(
                     status_code=500, detail="Failed to clear remote cache"
                 )
 
+    # --- Category Management Endpoints ---
+
+    @router.get("/categories")
+    def get_categories(
+        current_user: Annotated[
+            User, Depends(require_permission_or_service("system.view"))
+        ],
+        session: Annotated[Session, Depends(get_session)],
+    ) -> Dict[str, Any]:
+        """
+        Get all available categories with their status and module counts.
+        """
+        categories = module_loader.get_categories(session)
+        return {"status": "success", "categories": categories}
+
+    @router.get("/modules/by-category")
+    def get_modules_by_category(
+        current_user: Annotated[
+            User, Depends(require_permission_or_service("system.view"))
+        ],
+        session: Annotated[Session, Depends(get_session)],
+    ) -> Dict[str, Any]:
+        """
+        Get modules organized by category.
+        """
+        modules_by_category = module_loader.get_modules_by_category(session)
+        return {"status": "success", "modules_by_category": modules_by_category}
+
+    @router.post("/categories/{category_name}/toggle")
+    def toggle_category(
+        category_name: str,
+        current_user: Annotated[
+            User, Depends(require_permission_or_service("system.config"))
+        ],
+        session: Annotated[Session, Depends(get_session)],
+        request: Request,
+    ) -> Dict[str, Any]:
+        """
+        Enable or disable an entire category.
+        """
+        ip_address, user_agent = get_client_info(request)
+        
+        # Get current category status
+        categories = module_loader.get_categories(session)
+        if category_name not in categories:
+            raise HTTPException(
+                status_code=404, detail=f"Category '{category_name}' not found"
+            )
+        
+        current_status = categories[category_name]["is_enabled"]
+        new_status = not current_status
+        
+        # Don't allow disabling productivity category
+        if category_name == "productivity" and not new_status:
+            raise HTTPException(
+                status_code=400, detail="Productivity category cannot be disabled"
+            )
+        
+        # Toggle the category
+        success = module_loader.set_category_enabled(category_name, new_status, session)
+        
+        if success:
+            # Log the action
+            log_audit_event(
+                session=session,
+                user_id=current_user.id if isinstance(current_user, User) else None,
+                username=(
+                    current_user.username
+                    if isinstance(current_user, User)
+                    else "service"
+                ),
+                action="category_toggle",
+                resource_type="category",
+                resource_id=category_name,
+                resource_name=category_name,
+                details={
+                    "enabled": new_status,
+                    "previous_state": current_status,
+                },
+                ip_address=ip_address,
+                user_agent=user_agent,
+                status="success",
+            )
+            
+            return {
+                "status": "success",
+                "message": f"Category '{category_name}' {'enabled' if new_status else 'disabled'} successfully",
+                "category": {"name": category_name, "enabled": new_status},
+            }
+        else:
+            raise HTTPException(
+                status_code=500, detail=f"Failed to toggle category '{category_name}'"
+            )
+
     # --- Module Configuration Endpoints ---
 
     @router.get("/modules/status")
