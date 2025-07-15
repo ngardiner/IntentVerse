@@ -50,6 +50,7 @@ class TestMCPProtocolE2E:
         max_retries = 30
         retry_delay = 2
 
+        print(f"\n=== VERIFY_CORE_SERVICE FIXTURE STARTING ===")
         print(f"Attempting to connect to Core service at {core_service_url}")
         print(f"Environment: CI={os.getenv('CI')}, GITHUB_ACTIONS={os.getenv('GITHUB_ACTIONS')}")
 
@@ -59,7 +60,8 @@ class TestMCPProtocolE2E:
                 async with httpx.AsyncClient(timeout=timeout) as client:
                     response = await client.get(f"{core_service_url}/")
                     if response.status_code == 200:
-                        print(f"Successfully connected to Core service on attempt {attempt + 1}")
+                        print(f"✅ Successfully connected to Core service on attempt {attempt + 1}")
+                        print(f"✅ VERIFY_CORE_SERVICE FIXTURE COMPLETED SUCCESSFULLY")
                         return core_service_url
                     else:
                         print(f"Attempt {attempt + 1}/{max_retries}: Got HTTP {response.status_code}")
@@ -88,6 +90,7 @@ class TestMCPProtocolE2E:
         except Exception as e:
             print(f"Socket diagnostic failed: {e}")
 
+        print(f"❌ VERIFY_CORE_SERVICE FIXTURE FAILED - CALLING pytest.skip()")
         pytest.skip(f"Core service not available at {core_service_url} after {max_retries} attempts")
 
     @pytest.fixture

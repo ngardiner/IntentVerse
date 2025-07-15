@@ -199,6 +199,7 @@ jobs:
             --tb=short \
             --disable-warnings \
             --no-header \
+            -rs \
             --junitxml=/app/test-results-mcp-e2e.xml
         continue-on-error: true
 
