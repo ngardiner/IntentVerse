@@ -1,0 +1,53 @@
+{
+  "version": "1.0",
+  "mcpServers": {
+    "sse-server": {
+      "enabled": true,
+      "description": "SSE Test Server for E2E testing",
+      "type": "sse",
+      "url": "http://localhost:8002/sse",
+      "settings": {
+        "timeout": 30,
+        "retry_attempts": 3,
+        "retry_delay": 5,
+        "tool_prefix": "",
+        "health_check_interval": 60
+      }
+    },
+    "http-server": {
+      "enabled": true,
+      "description": "Streamable-HTTP Test Server for E2E testing",
+      "type": "streamable-http",
+      "url": "http://localhost:8003",
+      "settings": {
+        "timeout": 30,
+        "retry_attempts": 3,
+        "retry_delay": 5,
+        "tool_prefix": "",
+        "health_check_interval": 60
+      }
+    },
+    "stdio-server": {
+      "enabled": true,
+      "description": "STDIO Test Server for E2E testing",
+      "type": "stdio",
+      "command": "python3",
+      "args": ["mcp/tests/test_servers/stdio_server.py"],
+      "env": {},
+      "settings": {
+        "timeout": 30,
+        "retry_attempts": 3,
+        "retry_delay": 5,
+        "tool_prefix": "",
+        "health_check_interval": 60
+      }
+    }
+  },
+  "global_settings": {
+    "discovery_interval": 300,
+    "health_check_interval": 60,
+    "max_concurrent_calls": 10,
+    "enable_timeline_logging": true,
+    "log_level": "INFO"
+  }
+}
