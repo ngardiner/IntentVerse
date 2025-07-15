@@ -203,6 +203,35 @@ jobs:
             --junitxml=/app/test-results-mcp-e2e.xml
         continue-on-error: true
 
+      - name: Run MCP Proxy E2E Tests
+        id: mcp-proxy-e2e-tests
+        run: |
+          echo "Running MCP Proxy E2E tests..."
+          echo "Testing MCP proxy functionality with multiple protocols (SSE, HTTP, STDIO)..."
+          echo "This test suite validates:"
+          echo "  - Tool discovery from multiple MCP servers"
+          echo "  - Tool deconfliction using server name prefixes"
+          echo "  - Tool execution across different protocols"
+          echo "  - Timeline integration for proxy tool calls"
+          echo "Verifying Core service connectivity..."
+          docker compose run --rm mcp-tests curl -f http://core:8000/ || true
+          echo "Starting MCP Proxy E2E tests..."
+          docker compose run --name intentverse-mcp-proxy-e2e-tests \
+            -e PYTHONPATH=/app \
+            -e CORE_API_URL=http://core:8000 \
+            -e SERVICE_API_KEY=dev-service-key-12345 \
+            -e LOG_LEVEL=INFO \
+            -e CI=true \
+            -e GITHUB_ACTIONS=true \
+            --network host \
+            mcp-tests python -m pytest tests/test_mcp_proxy_e2e.py -v \
+            --tb=short \
+            --disable-warnings \
+            --no-header \
+            -rs \
+            --junitxml=/app/test-results-mcp-proxy-e2e.xml
+        continue-on-error: true
+
       - name: Run web core tests
         id: web-core-tests
         run: |
@@ -248,6 +277,7 @@ jobs:
           echo "Core e2e tests: ${{ steps.core-e2e-tests.outcome }}"  
           echo "MCP tests: ${{ steps.mcp-tests.outcome }}"
           echo "MCP E2E tests: ${{ steps.mcp-e2e-tests.outcome }}"
+          echo "MCP Proxy E2E tests: ${{ steps.mcp-proxy-e2e-tests.outcome }}"
           echo "Web core tests: ${{ steps.web-core-tests.outcome }}"
           echo "Web authentication tests: ${{ steps.web-auth-tests.outcome }}"
           echo "Web component tests: ${{ steps.web-component-tests.outcome }}"
@@ -280,6 +310,7 @@ jobs:
           docker cp intentverse-core-e2e-tests:/app/test-results-e2e.xml ./test-results/core-e2e.xml 2>/dev/null || true
           docker cp intentverse-mcp-tests:/app/test-results-mcp.xml ./test-results/mcp.xml 2>/dev/null || true
           docker cp intentverse-mcp-e2e-tests:/app/test-results-mcp-e2e.xml ./test-results/mcp-e2e.xml 2>/dev/null || true
+          docker cp intentverse-mcp-proxy-e2e-tests:/app/test-results-mcp-proxy-e2e.xml ./test-results/mcp-proxy-e2e.xml 2>/dev/null || true
           docker cp intentverse-web-core-tests:/app/test-results/web-core-test-results.xml ./test-results/web-core.xml 2>/dev/null || true
           docker cp intentverse-web-auth-tests:/app/test-results/web-auth-test-results.xml ./test-results/web-auth.xml 2>/dev/null || true
           docker cp intentverse-web-component-tests:/app/test-results/web-components-test-results.xml ./test-results/web-components.xml 2>/dev/null || true
@@ -301,6 +332,9 @@ jobs:
           
           echo "MCP E2E tests:"
           extract_counts "./test-results/mcp-e2e.xml"
+          
+          echo "MCP Proxy E2E tests:"
+          extract_counts "./test-results/mcp-proxy-e2e.xml"
           
           echo "Web core tests:"
           extract_counts "./test-results/web-core.xml"
@@ -379,6 +413,17 @@ jobs:
             echo "| MCP E2E | ${{ steps.mcp-e2e-tests.outcome }} | - | - | - | - | N/A |" >> test-results/summary.md
           fi
           
+          # Add MCP Proxy E2E tests
+          if [ -f "./test-results/mcp-proxy-e2e.xml" ]; then
+            tests=$(grep -o 'tests="[0-9]*"' "./test-results/mcp-proxy-e2e.xml" | head -1 | grep -o '[0-9]*')
+            failures=$(grep -o 'failures="[0-9]*"' "./test-results/mcp-proxy-e2e.xml" | head -1 | grep -o '[0-9]*')
+            errors=$(grep -o 'errors="[0-9]*"' "./test-results/mcp-proxy-e2e.xml" | head -1 | grep -o '[0-9]*')
+            skipped=$(grep -o 'skipped="[0-9]*"' "./test-results/mcp-proxy-e2e.xml" | head -1 | grep -o '[0-9]*')
+            echo "| MCP Proxy E2E | ${{ steps.mcp-proxy-e2e-tests.outcome }} | ${tests:-0} | ${failures:-0} | ${errors:-0} | ${skipped:-0} | N/A |" >> test-results/summary.md
+          else
+            echo "| MCP Proxy E2E | ${{ steps.mcp-proxy-e2e-tests.outcome }} | - | - | - | - | N/A |" >> test-results/summary.md
+          fi
+          
           # Add Web Core tests
           if [ -f "./test-results/web-core.xml" ]; then
             tests=$(grep -o 'tests="[0-9]*"' "./test-results/web-core.xml" | head -1 | grep -o '[0-9]*')
@@ -431,6 +476,7 @@ jobs:
              [ "${{ steps.core-e2e-tests.outcome }}" == "failure" ] || \
              [ "${{ steps.mcp-tests.outcome }}" == "failure" ] || \
              [ "${{ steps.mcp-e2e-tests.outcome }}" == "failure" ] || \
+             [ "${{ steps.mcp-proxy-e2e-tests.outcome }}" == "failure" ] || \
              [ "${{ steps.web-core-tests.outcome }}" == "failure" ] || \
              [ "${{ steps.web-auth-tests.outcome }}" == "failure" ] || \
              [ "${{ steps.web-component-tests.outcome }}" == "failure" ] || \
@@ -452,6 +498,7 @@ jobs:
           docker rm intentverse-core-e2e-tests 2>/dev/null || true
           docker rm intentverse-mcp-tests 2>/dev/null || true
           docker rm intentverse-mcp-e2e-tests 2>/dev/null || true
+          docker rm intentverse-mcp-proxy-e2e-tests 2>/dev/null || true
           
       - name: Upload test results
         if: always()

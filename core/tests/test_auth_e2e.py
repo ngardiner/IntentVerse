@@ -172,7 +172,7 @@ async def test_rate_limiting_e2e():
     print("E2E Test: Testing rate limiting (this may take a moment)")
 
     try:
-        async with httpx.AsyncClient(base_url=CORE_API_URL) as client:
+        async with httpx.AsyncClient(base_url=CORE_API_URL, headers=headers) as client:
             # Make several rapid requests to test rate limiting
             payload = {
                 "tool_name": "memory.set_memory",
@@ -181,7 +181,7 @@ async def test_rate_limiting_e2e():
             
             responses = []
             for i in range(10):
-                response = await client.post("/api/v1/execute", json=payload, headers=headers)
+                response = await client.post("/api/v1/execute", json=payload)
                 responses.append(response)
                 
                 # Check if we hit rate limiting
