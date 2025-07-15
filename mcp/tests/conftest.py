@@ -11,8 +11,11 @@ sys.modules["fastmcp.tools"] = Mock()
 from tests.conftest_logging import configure_test_logging
 
 # Set environment variables for testing before importing application modules
-os.environ["CORE_API_URL"] = "http://test-core-api:8000"
-os.environ["SERVICE_API_KEY"] = "test-mcp-service-key"
+# Only set CORE_API_URL if not already set (respect CI environment)
+if "CORE_API_URL" not in os.environ:
+    os.environ["CORE_API_URL"] = "http://test-core-api:8000"
+if "SERVICE_API_KEY" not in os.environ:
+    os.environ["SERVICE_API_KEY"] = "test-mcp-service-key"
 
 # Import application components
 from app.core_client import CoreClient
