@@ -22,7 +22,11 @@ class CoreClient:
         # Set up headers with API key for service authentication
         headers = {"X-API-Key": self.api_key}
 
-        self.client = httpx.AsyncClient(base_url=CORE_API_URL, headers=headers)
+        self.client = httpx.AsyncClient(
+            base_url=CORE_API_URL, 
+            headers=headers,
+            timeout=5.0
+        )
 
     async def get_tool_manifest(self) -> List[Dict[str, Any]]:
         """
