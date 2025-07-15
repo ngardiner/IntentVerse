@@ -1,5 +1,7 @@
 fastmcp
 httpx
+pytest
+pytest-asyncio
 python-json-logger
 # Linting and code formatting tools
 flake8

@@ -24,10 +24,18 @@ import httpx
 # Add the mcp module to the path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from app.main import main as mcp_main
-from app.core_client import CoreClient
-from app.proxy.engine import MCPProxyEngine
-from app.proxy.config import load_proxy_config
+try:
+    # Try importing from app (when running in MCP container)
+    from app.main import main as mcp_main
+    from app.core_client import CoreClient
+    from app.proxy.engine import MCPProxyEngine
+    from app.proxy.config import load_proxy_config
+except ImportError:
+    # Fallback for local development
+    from mcp.app.main import main as mcp_main
+    from mcp.app.core_client import CoreClient
+    from mcp.app.proxy.engine import MCPProxyEngine
+    from mcp.app.proxy.config import load_proxy_config
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +56,10 @@ class TestServerManager:
             return False
             
         try:
+            # Set environment for the subprocess to find fastmcp
+            env = os.environ.copy()
+            env['PYTHONPATH'] = str(Path(__file__).parent.parent)
+            
             if server_name == "stdio-server":
                 # STDIO server doesn't need a port
                 process = subprocess.Popen(
@@ -55,13 +67,15 @@ class TestServerManager:
                     stdin=subprocess.PIPE,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
-                    cwd=Path(__file__).parent.parent.parent  # Run from project root
+                    cwd=Path(__file__).parent.parent.parent,  # Run from project root
+                    env=env
                 )
             else:
                 # Network-based servers
                 process = subprocess.Popen(
                     [sys.executable, str(script_path)],
-                    cwd=Path(__file__).parent.parent.parent  # Run from project root
+                    cwd=Path(__file__).parent.parent.parent,  # Run from project root
+                    env=env
                 )
                 
             self.processes[server_name] = process

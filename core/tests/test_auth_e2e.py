@@ -181,7 +181,7 @@ async def test_rate_limiting_e2e():
             
             responses = []
             for i in range(10):
-                response = await client.post("/api/v1/execute", json=payload)
+                response = await client.post("/api/v1/execute", json=payload, headers=headers)
                 responses.append(response)
                 
                 # Check if we hit rate limiting
