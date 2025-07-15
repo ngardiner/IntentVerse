@@ -51,6 +51,7 @@ class TestMCPProtocolE2E:
         retry_delay = 2
 
         print(f"Attempting to connect to Core service at {core_service_url}")
+        print(f"Environment: CI={os.getenv('CI')}, GITHUB_ACTIONS={os.getenv('GITHUB_ACTIONS')}")
 
         for attempt in range(max_retries):
             try:
@@ -60,6 +61,8 @@ class TestMCPProtocolE2E:
                     if response.status_code == 200:
                         print(f"Successfully connected to Core service on attempt {attempt + 1}")
                         return core_service_url
+                    else:
+                        print(f"Attempt {attempt + 1}/{max_retries}: Got HTTP {response.status_code}")
             except (httpx.ConnectError, httpx.TimeoutException) as e:
                 print(f"Attempt {attempt + 1}/{max_retries}: Connection failed - {type(e).__name__}: {e}")
             except Exception as e:
@@ -67,6 +70,23 @@ class TestMCPProtocolE2E:
 
             if attempt < max_retries - 1:
                 await asyncio.sleep(retry_delay)
+
+        # Final diagnostic attempt
+        try:
+            import socket
+            host = core_service_url.replace("http://", "").replace("https://", "").split(":")[0]
+            port = int(core_service_url.split(":")[-1]) if ":" in core_service_url.split("//")[-1] else 80
+            print(f"Attempting direct socket connection to {host}:{port}")
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(5)
+            result = sock.connect_ex((host, port))
+            sock.close()
+            if result == 0:
+                print(f"Socket connection successful, but HTTP requests failed")
+            else:
+                print(f"Socket connection failed with error code: {result}")
+        except Exception as e:
+            print(f"Socket diagnostic failed: {e}")
 
         pytest.skip(f"Core service not available at {core_service_url} after {max_retries} attempts")
 

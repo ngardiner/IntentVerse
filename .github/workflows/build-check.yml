@@ -184,6 +184,10 @@ jobs:
         run: |
           echo "Running MCP E2E protocol tests..."
           echo "Testing proper MCP initialization sequence and tool execution..."
+          echo "Debugging network connectivity..."
+          docker compose run --rm mcp-tests ping -c 3 core || true
+          docker compose run --rm mcp-tests curl -f http://core:8000/ || true
+          echo "Starting MCP E2E tests..."
           docker compose run --name intentverse-mcp-e2e-tests \
             -e PYTHONPATH=/app \
             -e CORE_API_URL=http://core:8000 \
